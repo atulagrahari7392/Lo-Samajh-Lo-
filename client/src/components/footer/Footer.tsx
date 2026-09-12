@@ -9,16 +9,12 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-slate-800">
           {/* Brand & About */}
           <div className="lg:col-span-2 space-y-4">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] flex items-center justify-center text-white font-extrabold text-lg shadow-lg">
-                LS
-              </div>
-              <div>
-                <span className="font-extrabold text-xl text-white tracking-tight">Lo Samajh Lo</span>
-                <span className="block text-[10px] text-[#FF6584] font-semibold uppercase tracking-wider">
-                  लो समझ लो — अब पढ़ाई होगी आसान
-                </span>
-              </div>
+            <Link to="/" className="inline-block py-1">
+              <img
+                src="/logo.png"
+                alt="Lo Samajh Lo — अब पढ़ाई होगी आसान"
+                className="h-14 sm:h-16 w-auto object-contain drop-shadow-md"
+              />
             </Link>
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
               India's premier digital learning platform dedicated to competitive exams (UPSSSC, Railway, SSC, UP Police) and graduation studies. Concept-based learning with comprehensive study materials, live mock tests, and bilingual notes.

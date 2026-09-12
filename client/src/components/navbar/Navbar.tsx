@@ -64,21 +64,12 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] flex items-center justify-center text-white font-black text-xl shadow-md shadow-[#6C63FF]/30 group-hover:scale-105 transition-transform">
-              LS
-            </div>
-            <div>
-              <span className="font-extrabold text-xl text-slate-900 tracking-tight flex items-center gap-1">
-                Lo Samajh Lo
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#6C63FF]/10 text-[#6C63FF]">
-                  लो समझ लो
-                </span>
-              </span>
-              <p className="text-[11px] text-slate-500 font-medium">
-                India's Trusted Learning Platform
-              </p>
-            </div>
+          <Link to="/" className="flex items-center group py-1">
+            <img
+              src="/logo.png"
+              alt="Lo Samajh Lo — India's Trusted Learning Platform"
+              className="h-12 sm:h-14 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
+            />
           </Link>
 
           {/* Desktop Navigation Links */}

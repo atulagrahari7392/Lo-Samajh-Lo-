@@ -190,9 +190,11 @@ export const TestAttemptPage: React.FC = () => {
       {/* 1. Top CBT Exam Header Bar (Apple Liquid Glass) */}
       <header className="apple-liquid-glass sticky top-0 z-30 px-4 sm:px-8 h-16 flex items-center justify-between border-b border-white/80 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-md shadow-cyan-500/30">
-            LSL
-          </div>
+          <img
+            src="/logo.png"
+            alt="Lo Samajh Lo"
+            className="h-10 w-auto object-contain shrink-0"
+          />
           <div>
             <h2 className="font-extrabold text-sm sm:text-base text-slate-900 line-clamp-1 flex items-center gap-2">
               <span>{testInfo.title}</span>

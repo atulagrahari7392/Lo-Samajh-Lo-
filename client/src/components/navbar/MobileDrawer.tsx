@@ -35,12 +35,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         <div>
           {/* Header */}
           <div className="flex items-center justify-between pb-5 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] flex items-center justify-center text-white font-extrabold text-sm shadow">
-                LS
-              </div>
-              <span className="font-extrabold text-slate-900">Lo Samajh Lo</span>
-            </div>
+            <Link to="/" onClick={onClose} className="flex items-center">
+              <img
+                src="/logo.png"
+                alt="Lo Samajh Lo"
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
             <button
               onClick={onClose}
               className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100"

@@ -77,13 +77,14 @@ export const LoginPage: React.FC = () => {
     <div className="min-h-[78vh] flex items-center justify-center py-8 px-4 sm:px-6">
       <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200/90 shadow-xl p-5 sm:p-6 space-y-4">
         {/* Brand Header */}
-        <div className="text-center space-y-1">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-black text-lg flex items-center justify-center mx-auto shadow-md">
-            LS
-          </div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Lo Samajh Lo <span className="text-xs font-bold text-[#6C63FF]">लो समझ लो</span>
-          </h2>
+        <div className="text-center space-y-2">
+          <Link to="/" className="inline-block group">
+            <img
+              src="/logo.png"
+              alt="Lo Samajh Lo"
+              className="h-14 sm:h-16 w-auto object-contain mx-auto group-hover:scale-105 transition-transform duration-200"
+            />
+          </Link>
           <p className="text-[11px] text-slate-500 font-medium">
             India's Trusted Exam Preparation Platform
           </p>

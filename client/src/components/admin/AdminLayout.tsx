@@ -94,18 +94,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <div>
           {/* Brand header */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between">
-            <Link to="/admin" className="flex items-center gap-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] flex-shrink-0 flex items-center justify-center text-white font-black text-lg shadow-lg">
-                LS
-              </div>
-              {!collapsed && (
-                <div className="overflow-hidden">
-                  <h1 className="font-extrabold text-base text-white truncate tracking-tight">Lo Samajh Lo</h1>
-                  <span className="text-[10px] font-bold text-[#FF6584] uppercase tracking-wider block">
-                    Admin Portal
-                  </span>
-                </div>
-              )}
+            <Link to="/admin" className="flex items-center overflow-hidden py-1">
+              <img
+                src="/logo.png"
+                alt="Lo Samajh Lo Admin Portal"
+                className={`w-auto object-contain transition-all ${collapsed ? 'h-8 mx-auto' : 'h-11'}`}
+              />
             </Link>
             <button
               onClick={() => setCollapsed(!collapsed)}
