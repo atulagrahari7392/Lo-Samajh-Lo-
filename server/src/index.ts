@@ -36,7 +36,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files statically
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadDir));
+const altUploadDir = path.join(process.cwd(), 'server', 'uploads');
+if (fs.existsSync(altUploadDir)) {
+  app.use('/uploads', express.static(altUploadDir));
+}
 
 // Health check
 app.get('/api/health', (req, res) => {

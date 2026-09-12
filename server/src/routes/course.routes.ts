@@ -310,10 +310,23 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   }
 });
 
-// PUT /api/courses/:id (Admin edit)
+// PUT /api/courses/:id (Admin edit - supports both UUID and slug)
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Resolve course by either ID or slug
+    const existing = await prisma.course.findFirst({
+      where: {
+        OR: [{ id }, { slug: id }],
+      },
+    });
+
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Course not found.' });
+      return;
+    }
+
     const {
       title,
       slug,
@@ -331,23 +344,71 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
       validityDays,
     } = req.body;
 
+    // Check slug uniqueness if changed
+    const newSlug = slug ? slug.trim().toLowerCase() : existing.slug;
+    if (newSlug !== existing.slug) {
+      const slugTaken = await prisma.course.findUnique({
+        where: { slug: newSlug },
+      });
+      if (slugTaken && slugTaken.id !== existing.id) {
+        res.status(400).json({ success: false, message: 'A course with this URL slug already exists. Please choose a different slug.' });
+        return;
+      }
+    }
+
+    // Check category validity if passed
+    if (categoryId && categoryId !== existing.categoryId) {
+      const catExists = await prisma.category.findUnique({ where: { id: categoryId } });
+      if (!catExists) {
+        res.status(400).json({ success: false, message: 'Selected exam category does not exist.' });
+        return;
+      }
+    }
+
+    // Number parsing with NaN guards
+    let parsedPrice = existing.price;
+    if (price !== undefined && price !== '') {
+      const num = Number(price);
+      if (!isNaN(num) && num >= 0) {
+        parsedPrice = num;
+      }
+    }
+
+    let parsedDiscount = existing.discountedPrice;
+    if (discountedPrice !== undefined) {
+      if (discountedPrice === '' || discountedPrice === null) {
+        parsedDiscount = null;
+      } else {
+        const num = Number(discountedPrice);
+        parsedDiscount = isNaN(num) ? null : num;
+      }
+    }
+
+    let parsedValidity = existing.validityDays;
+    if (validityDays !== undefined && validityDays !== '') {
+      const days = parseInt(String(validityDays), 10);
+      if (!isNaN(days) && days > 0) {
+        parsedValidity = days;
+      }
+    }
+
     const updated = await prisma.course.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
-        ...(title ? { title: title.trim() } : {}),
-        ...(slug ? { slug: slug.trim().toLowerCase() } : {}),
-        ...(shortDescription ? { shortDescription: shortDescription.trim() } : {}),
-        ...(fullDescription ? { fullDescription: fullDescription.trim() } : {}),
-        ...(thumbnail !== undefined ? { thumbnail } : {}),
+        ...(title !== undefined ? { title: title.trim() } : {}),
+        slug: newSlug,
+        ...(shortDescription !== undefined ? { shortDescription: shortDescription.trim() } : {}),
+        ...(fullDescription !== undefined ? { fullDescription: fullDescription.trim() } : {}),
+        ...(thumbnail !== undefined ? { thumbnail: thumbnail ? thumbnail.trim() : null } : {}),
         ...(categoryId ? { categoryId } : {}),
-        ...(instructorName ? { instructorName: instructorName.trim() } : {}),
-        ...(instructorBio !== undefined ? { instructorBio } : {}),
-        ...(price !== undefined ? { price: parseFloat(price) } : {}),
-        ...(discountedPrice !== undefined ? { discountedPrice: discountedPrice ? parseFloat(discountedPrice) : null } : {}),
-        ...(duration ? { duration: duration.trim() } : {}),
+        ...(instructorName !== undefined ? { instructorName: instructorName.trim() } : {}),
+        ...(instructorBio !== undefined ? { instructorBio: instructorBio ? instructorBio.trim() : null } : {}),
+        price: parsedPrice,
+        discountedPrice: parsedDiscount,
+        ...(duration !== undefined ? { duration: duration.trim() } : {}),
         ...(status ? { status } : {}),
         ...(featured !== undefined ? { featured: Boolean(featured) } : {}),
-        ...(validityDays !== undefined ? { validityDays: parseInt(validityDays, 10) } : {}),
+        validityDays: parsedValidity,
       },
       include: { category: true },
     });
@@ -362,7 +423,16 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
 router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;
-    await prisma.course.delete({ where: { id } });
+    const existing = await prisma.course.findFirst({
+      where: {
+        OR: [{ id }, { slug: id }],
+      },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Course not found.' });
+      return;
+    }
+    await prisma.course.delete({ where: { id: existing.id } });
     res.json({ success: true, message: 'Course deleted successfully.' });
   } catch (error) {
     next(error);

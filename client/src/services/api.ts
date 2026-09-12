@@ -205,4 +205,31 @@ export const api = {
     updateUserStatus: (id: string, isActive: boolean) => request<any>(`/admin/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ isActive }) }),
     updateUserRole: (id: string, role: string) => request<any>(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   },
+
+  // File Upload (Direct from computer)
+  upload: {
+    file: async (file: File): Promise<{ success: boolean; fileUrl: string; filename: string; size: number }> => {
+      const token = localStorage.getItem('lsl_token');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ApiError(data.message || 'File upload failed', response.status, data);
+      }
+
+      return data;
+    },
+  },
 };
