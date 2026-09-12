@@ -1,0 +1,495 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import {
+  Clock,
+  Star,
+  ShoppingBag,
+  Heart,
+  CheckCircle2,
+  PlayCircle,
+  FileText,
+  ShieldCheck,
+  Award,
+  ArrowRight,
+  Share2,
+} from 'lucide-react';
+import { api } from '../../services/api';
+import { Course, CourseLesson } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
+import { useToast } from '../../context/ToastContext';
+import SyllabusAccordion from '../../components/course/SyllabusAccordion';
+
+export const CourseDetailPage: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { addToCart, isInCart } = useCart();
+  const { toggleWishlist, isWishlisted } = useWishlist();
+  const { success, error: toastError } = useToast();
+
+  const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'overview' | 'reviews'>('syllabus');
+  const [previewLesson, setPreviewLesson] = useState<CourseLesson | null>(null);
+
+  // Review submission state
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    const fetchCourse = async () => {
+      try {
+        setLoading(true);
+        const data = await api.courses.getBySlug(slug);
+        if (data.success && data.course) {
+          setCourse(data.course);
+          // Set first free preview lesson if available
+          const freeLesson = data.course.lessons?.find((l: CourseLesson) => l.isFreePreview);
+          if (freeLesson) setPreviewLesson(freeLesson);
+        }
+      } catch (err) {
+        console.error('Error fetching course:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourse();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16 text-center space-y-4">
+        <div className="w-12 h-12 border-4 border-[#6C63FF] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm text-slate-500 font-medium">Loading course details...</p>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className="text-2xl font-bold text-slate-800">Course Not Found</h2>
+        <p className="text-sm text-slate-500">The requested course could not be located.</p>
+        <Link to="/courses" className="inline-block px-5 py-2 rounded-xl bg-[#6C63FF] text-white font-bold text-xs">
+          Browse Courses
+        </Link>
+      </div>
+    );
+  }
+
+  const currentPrice = course.discountedPrice !== null && course.discountedPrice !== undefined
+    ? course.discountedPrice
+    : course.price;
+
+  const inCart = isInCart(course.id) || course.isInCart;
+  const wishlisted = isWishlisted(course.id) || course.isWishlisted;
+  const isEnrolled = course.isEnrolled;
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toastError('Please log in to submit a review.');
+      return;
+    }
+    try {
+      setSubmittingReview(true);
+      await api.reviews.submit({
+        courseId: course.id,
+        rating: reviewRating,
+        comment: reviewComment,
+      });
+      success('Your review has been submitted for verification!');
+      setReviewComment('');
+    } catch (err: any) {
+      toastError(err.message || 'Error submitting review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#F8FAFC] pb-20">
+      {/* Top Course Banner */}
+      <div className="bg-slate-900 text-white pt-10 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-8 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                <Link to="/courses" className="hover:text-white">Courses</Link>
+                <span>/</span>
+                <span className="text-[#FF6584]">{course.category?.name}</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight">
+                {course.title}
+              </h1>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+                {course.shortDescription}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-2">
+                <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                  <Star className="w-4 h-4 fill-current" />
+                  <span>4.9</span>
+                  <span className="text-slate-400 font-normal">({course.reviews?.length || 24} ratings)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4 text-[#6C63FF]" />
+                  <span>{course.duration || '60+ Hours'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-slate-400">Faculty:</span>
+                  {course.instructorName.split(',').map((inst, i) => (
+                    <span key={i} className="px-2.5 py-0.5 rounded-lg bg-white/10 text-white font-bold text-xs border border-white/10">
+                      👨‍🏫 {inst.trim()}
+                    </span>
+                  ))}
+                </div>
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/30">
+                  <span>Batch Validity: {course.validityDays} Days (~1 Year Access)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+        <div className="grid lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Video Preview, Tabs, Curriculum */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Free Video Preview Box */}
+            <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                  <PlayCircle className="w-5 h-5 text-[#6C63FF]" />
+                  <span>{previewLesson ? previewLesson.title : 'Course Introduction Preview'}</span>
+                </h3>
+                {previewLesson?.isFreePreview && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                    DEMO LESSON
+                  </span>
+                )}
+              </div>
+
+              {/* Video Player */}
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-950 shadow-inner">
+                {previewLesson?.videoUrl ? (
+                  <iframe
+                    src={previewLesson.videoUrl}
+                    title={previewLesson.title}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center space-y-2">
+                    <PlayCircle className="w-12 h-12 text-[#6C63FF]" />
+                    <p className="text-sm font-semibold text-white">Interactive Lesson Preview</p>
+                    <p className="text-xs text-slate-400">Click any demo lesson below to watch the preview video</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-2 border-b border-slate-200">
+              <button
+                onClick={() => setActiveTab('syllabus')}
+                className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
+                  activeTab === 'syllabus'
+                    ? 'border-[#6C63FF] text-[#6C63FF]'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Curriculum ({course.lessons?.length || 0} Lessons)
+              </button>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
+                  activeTab === 'overview'
+                    ? 'border-[#6C63FF] text-[#6C63FF]'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Detailed Syllabus & Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('reviews')}
+                className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
+                  activeTab === 'reviews'
+                    ? 'border-[#6C63FF] text-[#6C63FF]'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Student Reviews ({course.reviews?.length || 0})
+              </button>
+            </div>
+
+            {/* Tab Contents */}
+            {activeTab === 'syllabus' && (
+              <div className="space-y-4">
+                <SyllabusAccordion
+                  lessons={course.lessons || []}
+                  isEnrolled={Boolean(isEnrolled)}
+                  onSelectLesson={(l) => setPreviewLesson(l)}
+                  activeLessonId={previewLesson?.id}
+                />
+              </div>
+            )}
+
+            {activeTab === 'overview' && (
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900 mb-3">Course Overview</h3>
+                  <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                    {course.fullDescription}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="font-bold text-base text-slate-900 mb-3">What You Will Learn</h4>
+                  <div className="grid sm:grid-cols-2 gap-3 text-xs sm:text-sm text-slate-700">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span>Complete exam syllabus explained in crystal-clear Hindi</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span>Fast calculation tricks and shortcut formulas for Math & Reasoning</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span>Chapter-wise downloadable PDF notes & PYQ sheets</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span>Full-length live test series with real-time scoring and rank</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="font-bold text-base text-slate-900 mb-3">Meet Your Faculty / Instructors (शिक्षक दल)</h4>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {course.instructorName.split(',').map((name, i) => (
+                      <div key={i} className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-black text-base flex items-center justify-center shadow-sm">
+                          {name.trim().charAt(0)}
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-sm text-slate-900">{name.trim()}</h5>
+                          <p className="text-xs text-slate-500">{course.instructorBio || 'Senior Educator, Lo Samajh Lo'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                <h3 className="font-bold text-lg text-slate-900">Student Reviews</h3>
+
+                {course.reviews && course.reviews.length > 0 ? (
+                  <div className="space-y-4 divide-y divide-slate-100">
+                    {course.reviews.map((rev) => (
+                      <div key={rev.id} className="pt-4 first:pt-0 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-purple-100 text-[#6C63FF] font-bold text-xs flex items-center justify-center">
+                              {rev.user?.name.charAt(0) || 'S'}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{rev.user?.name}</p>
+                              <div className="flex items-center gap-0.5 text-amber-400">
+                                {[...Array(rev.rating)].map((_, i) => (
+                                  <Star key={i} className="w-3 h-3 fill-current" />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[11px] text-slate-400">Verified Aspirant</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-600 italic">"{rev.comment}"</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">No reviews yet. Be the first to review!</p>
+                )}
+
+                {/* Review submission form */}
+                {isEnrolled && (
+                  <form onSubmit={handleReviewSubmit} className="pt-6 border-t border-slate-100 space-y-3">
+                    <h4 className="font-bold text-sm text-slate-800">Leave Your Review</h4>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 font-semibold">Your Rating:</span>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setReviewRating(num)}
+                            className={`p-1 ${reviewRating >= num ? 'text-amber-400' : 'text-slate-300'}`}
+                          >
+                            <Star className="w-5 h-5 fill-current" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="Share your learning experience..."
+                      className="w-full p-3 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-[#6C63FF] resize-none h-24"
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={submittingReview}
+                      className="px-5 py-2 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white font-bold text-xs shadow"
+                    >
+                      {submittingReview ? 'Submitting...' : 'Post Review'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Sticky Purchase Sidebar */}
+          <div className="lg:col-span-4 sticky top-24 space-y-5">
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xl space-y-5">
+              {/* Thumbnail */}
+              <div className="aspect-video rounded-2xl overflow-hidden bg-slate-100 relative">
+                <img
+                  src={course.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600'}
+                  alt={course.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Price */}
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Course Fee
+                </span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  {currentPrice === 0 ? (
+                    <span className="text-3xl font-black text-emerald-600">FREE</span>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-black text-slate-900">₹{currentPrice}</span>
+                      {course.discountedPrice && course.price > course.discountedPrice && (
+                        <span className="text-sm text-slate-400 line-through">₹{course.price}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+                {course.discountedPrice && course.price > course.discountedPrice && (
+                  <p className="text-xs font-bold text-[#FF6584] mt-1">
+                    Save ₹{course.price - course.discountedPrice} (
+                    {Math.round(((course.price - course.discountedPrice) / course.price) * 100)}% Discount)
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5">
+                {isEnrolled ? (
+                  <Link
+                    to={`/courses/${course.slug}/learn`}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition-all"
+                  >
+                    <PlayCircle className="w-5 h-5" />
+                    <span>Start Learning (Enrolled)</span>
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (!inCart) addToCart(course.id);
+                        navigate('/cart');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] hover:opacity-95 text-white font-extrabold text-sm shadow-lg shadow-[#6C63FF]/30 transition-all hover:scale-[1.01]"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Enroll & Buy Now</span>
+                    </button>
+
+                    {!inCart ? (
+                      <button
+                        onClick={() => addToCart(course.id)}
+                        className="w-full py-3 rounded-xl border-2 border-slate-200 hover:border-[#6C63FF] text-slate-700 hover:text-[#6C63FF] font-bold text-xs transition-colors"
+                      >
+                        Add to Cart
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigate('/cart')}
+                        className="w-full py-3 rounded-xl bg-purple-100 text-[#6C63FF] font-bold text-xs"
+                      >
+                        View in Cart
+                      </button>
+                    )}
+                  </>
+                )}
+
+                <button
+                  onClick={() => toggleWishlist(course.id)}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    wishlisted
+                      ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                      : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${wishlisted ? 'fill-current' : ''}`} />
+                  <span>{wishlisted ? 'Saved in Wishlist' : 'Add to Wishlist'}</span>
+                </button>
+              </div>
+
+              {/* Course Includes Checklist */}
+              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  This Batch Includes:
+                </span>
+                <ul className="space-y-2 text-xs text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#6C63FF]" />
+                    <span>{course.duration || '60+ Hours'} on-demand videos</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#6C63FF]" />
+                    <span>Chapter-wise downloadable PDF notes</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#6C63FF]" />
+                    <span>Live mock tests with All India ranking</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#6C63FF]" />
+                    <span>Full {course.validityDays} days continuous access</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#6C63FF]" />
+                    <span>Access on Mobile & Laptop</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CourseDetailPage;

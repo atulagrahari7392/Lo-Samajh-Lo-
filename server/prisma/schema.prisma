@@ -1,0 +1,454 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  phone        String?   @unique
+  passwordHash String
+  role         String    @default("USER") // USER, ADMIN, INSTRUCTOR
+  avatar       String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  enrollments        Enrollment[]
+  orders             Order[]
+  testAttempts       TestAttempt[]
+  typingAttempts     TypingAttempt[]
+  cartItems          CartItem[]
+  wishlistItems      WishlistItem[]
+  reviews            Review[]
+  promoCodeUsages    PromoCodeUsage[]
+  notificationReads  NotificationRead[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  icon        String?
+  color       String?    @default("#6C63FF")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  courses     Course[]
+  materials   Material[]
+  tests       Test[]
+
+  @@map("categories")
+}
+
+model Course {
+  id              String         @id @default(uuid())
+  title           String
+  slug            String         @unique
+  shortDescription String
+  fullDescription String
+  thumbnail       String?
+  categoryId      String
+  instructorName  String         @default("Atul Agrahari")
+  instructorBio   String?
+  price           Float          @default(0)
+  discountedPrice Float?
+  duration        String?        @default("60+ Hours")
+  status          String         @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  featured        Boolean        @default(false)
+  validityDays    Int            @default(365)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  category        Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  lessons         CourseLesson[]
+  enrollments     Enrollment[]
+  reviews         Review[]
+  liveClasses     LiveClass[]
+  recordedClasses RecordedClass[]
+  cartItems       CartItem[]
+  wishlistItems   WishlistItem[]
+  orderItems      OrderItem[]
+  tests           Test[]
+
+  @@map("courses")
+}
+
+model CourseLesson {
+  id              String    @id @default(uuid())
+  courseId        String
+  title           String
+  chapterTitle    String    @default("General")
+  durationMinutes Int       @default(15)
+  videoUrl        String?
+  pdfUrl          String?
+  content         String?
+  isFreePreview   Boolean   @default(false)
+  position        Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("course_lessons")
+}
+
+model Enrollment {
+  id         String    @id @default(uuid())
+  userId     String
+  courseId   String
+  orderId    String?
+  enrolledAt DateTime  @default(now())
+  expiresAt  DateTime?
+  status     String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+model Material {
+  id             String    @id @default(uuid())
+  title          String
+  description    String?
+  categoryId     String
+  subject        String    @default("General")
+  examName       String    @default("Competitive Exams")
+  fileUrl        String
+  thumbnail      String?
+  fileType       String    @default("PDF") // PDF, DOC, PPT
+  fileSize       String    @default("2.4 MB")
+  isFree         Boolean   @default(true)
+  status         String    @default("PUBLISHED") // PUBLISHED, DRAFT
+  downloadsCount Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  category       Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("materials")
+}
+
+model Test {
+  id              String         @id @default(uuid())
+  title           String
+  slug            String         @unique
+  categoryId      String?
+  courseId        String?
+  description     String?
+  instructions    String?
+  durationMinutes Int            @default(60)
+  totalMarks      Float          @default(100)
+  passMarks       Float          @default(33)
+  negativeMarking Float          @default(0.25)
+  attemptLimit    Int            @default(0) // 0 = unlimited
+  isFree          Boolean        @default(true)
+  status          String         @default("PUBLISHED") // PUBLISHED, DRAFT
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  category        Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  course          Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  testQuestions   TestQuestion[]
+  attempts        TestAttempt[]
+
+  @@map("tests")
+}
+
+model Question {
+  id            String         @id @default(uuid())
+  questionText  String
+  questionType  String         @default("MCQ_SINGLE") // MCQ_SINGLE, MCQ_MULTI, NUMERICAL
+  options       String         // JSON array of strings: '["Opt A", "Opt B", "Opt C", "Opt D"]'
+  correctAnswer String         // e.g. "0" or "[0]"
+  explanation   String?
+  marks         Float          @default(1.0)
+  negativeMarks Float          @default(0.25)
+  difficulty    String         @default("MEDIUM") // EASY, MEDIUM, HARD
+  subject       String         @default("General")
+  topic         String?
+  status        String         @default("ACTIVE")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  testQuestions TestQuestion[]
+  testAnswers   TestAnswer[]
+
+  @@map("questions")
+}
+
+model TestQuestion {
+  id          String   @id @default(uuid())
+  testId      String
+  questionId  String
+  sectionName String   @default("General")
+  position    Int      @default(1)
+
+  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, questionId])
+  @@map("test_questions")
+}
+
+model TestAttempt {
+  id               String       @id @default(uuid())
+  testId           String
+  userId           String
+  score            Float        @default(0)
+  totalQuestions   Int          @default(0)
+  correctCount     Int          @default(0)
+  incorrectCount   Int          @default(0)
+  skippedCount     Int          @default(0)
+  accuracy         Float        @default(0)
+  timeSpentSeconds Int          @default(0)
+  status           String       @default("SUBMITTED") // IN_PROGRESS, SUBMITTED, EVALUATED
+  submittedAt      DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+
+  test             Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers          TestAnswer[]
+
+  @@map("test_attempts")
+}
+
+model TestAnswer {
+  id             String      @id @default(uuid())
+  attemptId      String
+  questionId     String
+  selectedOption String?     // e.g. "0" or null
+  isCorrect      Boolean     @default(false)
+  marksAwarded   Float       @default(0)
+
+  attempt        TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("test_answers")
+}
+
+model TypingTest {
+  id              String          @id @default(uuid())
+  title           String
+  language        String          @default("ENGLISH") // ENGLISH, HINDI
+  passageText     String
+  difficulty      String          @default("MEDIUM") // EASY, MEDIUM, HARD
+  durationSeconds Int             @default(60)
+  status          String          @default("PUBLISHED")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  attempts        TypingAttempt[]
+
+  @@map("typing_tests")
+}
+
+model TypingAttempt {
+  id              String      @id @default(uuid())
+  typingTestId    String
+  userId          String
+  wpm             Float       @default(0)
+  accuracy        Float       @default(0)
+  errors          Int         @default(0)
+  netWpm          Float       @default(0)
+  totalCharacters Int         @default(0)
+  durationSeconds Int         @default(60)
+  createdAt       DateTime    @default(now())
+
+  typingTest      TypingTest  @relation(fields: [typingTestId], references: [id], onDelete: Cascade)
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("typing_attempts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("wishlist_items")
+}
+
+model PromoCode {
+  id             String           @id @default(uuid())
+  code           String           @unique
+  discountType   String           @default("PERCENTAGE") // PERCENTAGE, FIXED
+  discountValue  Float            @default(10)
+  minOrderAmount Float            @default(0)
+  maxDiscount    Float?
+  startDate      DateTime         @default(now())
+  expiryDate     DateTime
+  usageLimit     Int              @default(1000)
+  usedCount      Int              @default(0)
+  perUserLimit   Int              @default(1)
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+
+  usages         PromoCodeUsage[]
+  orders         Order[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodeUsage {
+  id          String    @id @default(uuid())
+  promoCodeId String
+  userId      String
+  orderId     String?
+  createdAt   DateTime  @default(now())
+
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order       Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@map("promo_code_usages")
+}
+
+model Order {
+  id              String           @id @default(uuid())
+  orderNumber     String           @unique
+  userId          String
+  subtotal        Float            @default(0)
+  discount        Float            @default(0)
+  tax             Float            @default(0)
+  totalAmount     Float            @default(0)
+  promoCodeId     String?
+  status          String           @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED
+  paymentMethod   String           @default("ONLINE")
+  paymentProvider String           @default("RAZORPAY_SIMULATED")
+  transactionId   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode       PromoCode?       @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  enrollments     Enrollment[]
+  promoCodeUsages PromoCodeUsage[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  courseId  String
+  price     Float    @default(0)
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  courseId   String
+  userId     String
+  rating     Int      @default(5)
+  comment    String
+  isApproved Boolean  @default(true)
+  isFeatured Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model LiveClass {
+  id              String   @id @default(uuid())
+  courseId        String?
+  title           String
+  instructor      String   @default("Atul Agrahari")
+  description     String?
+  scheduledAt     DateTime
+  durationMinutes Int      @default(60)
+  meetingUrl      String   @default("https://meet.google.com/lsl-live")
+  status          String   @default("UPCOMING") // UPCOMING, LIVE, COMPLETED
+  thumbnail       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  course          Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@map("live_classes")
+}
+
+model RecordedClass {
+  id              String   @id @default(uuid())
+  courseId        String
+  title           String
+  chapter         String   @default("Chapter 1")
+  durationMinutes Int      @default(45)
+  videoUrl        String
+  thumbnail       String?
+  description     String?
+  isPublished     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("recorded_classes")
+}
+
+model Notification {
+  id          String             @id @default(uuid())
+  title       String
+  message     String
+  category    String             @default("GENERAL") // GENERAL, EXAM, UNIVERSITY, COURSE, ACADEMIC
+  priority    String             @default("NORMAL")  // NORMAL, HIGH, URGENT
+  linkUrl     String?
+  publishedAt DateTime           @default(now())
+  expiresAt   DateTime?
+  status      String             @default("PUBLISHED")
+  createdAt   DateTime           @default(now())
+
+  reads       NotificationRead[]
+
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String       @id @default(uuid())
+  notificationId String
+  userId         String
+  readAt         DateTime     @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@map("notification_reads")
+}

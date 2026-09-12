@@ -1,0 +1,17 @@
+# Netlify Configuration for Lo Samajh Lo (React Frontend)
+
+[build]
+  # Direct Netlify to the frontend directory
+  base = "client"
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--include=dev"
+
+# SPA routing redirect rule (ensures /courses, /admin, etc. don't 404 on refresh)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
