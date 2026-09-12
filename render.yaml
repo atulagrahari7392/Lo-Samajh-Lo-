@@ -1,4 +1,4 @@
-﻿services:
+services:
   - type: web
     name: lo-samajh-lo
     runtime: node
@@ -11,5 +11,7 @@
         value: production
       - key: DATABASE_URL
         value: file:./dev.db
+      - key: NPM_FLAGS
+        value: --include=dev
       - key: JWT_SECRET
         generateValue: true
