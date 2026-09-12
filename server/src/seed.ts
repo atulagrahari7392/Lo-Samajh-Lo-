@@ -470,6 +470,40 @@ async function main() {
     },
   });
 
+  const test3 = await prisma.test.create({
+    data: {
+      title: 'SSC CGL 2026 Tier 1 All-India Mega Mock Test #1',
+      slug: 'ssc-cgl-2026-tier-1-mock-1',
+      categoryId: catSsc.id,
+      courseId: course3.id,
+      description: 'SSC CGL टियर 1 परीक्षा पैटर्न पर आधारित पूर्ण मॉक टेस्ट (रीजनिंग, जीए, क्वांट व इंग्लिश)।',
+      instructions: '1. कुल अवधि 60 मिनट है।\n2. सही उत्तर पर 2 अंक।\n3. गलत उत्तर पर 0.50 अंक की कटौती।',
+      durationMinutes: 60,
+      totalMarks: 50,
+      passMarks: 25,
+      negativeMarking: 0.50,
+      isFree: true,
+      status: 'PUBLISHED',
+    },
+  });
+
+  const test4 = await prisma.test.create({
+    data: {
+      title: 'UP Police Constable 2026 खाकी वर्दी Full Mock Test',
+      slug: 'up-police-constable-2026-mock-1',
+      categoryId: catPolice.id,
+      courseId: course4.id,
+      description: 'यूपी पुलिस आरक्षी भर्ती परीक्षा के नवीनतम सिलेबस पर आधारित पूर्ण परीक्षा सिमुलेटर।',
+      instructions: '1. कुल अवधि 90 मिनट है।\n2. सही उत्तर पर 2 अंक।\n3. गलत उत्तर पर 0.50 अंक की कटौती।',
+      durationMinutes: 90,
+      totalMarks: 60,
+      passMarks: 30,
+      negativeMarking: 0.50,
+      isFree: true,
+      status: 'PUBLISHED',
+    },
+  });
+
   console.log('✅ Tests created.');
 
   // 7. Create Questions for Test 1
@@ -585,9 +619,20 @@ async function main() {
         position: i + 1,
       },
     });
+
+    // Also link to other exam tests
+    const otherTestId = i % 3 === 0 ? test2.id : (i % 2 === 0 ? test3.id : test4.id);
+    await prisma.testQuestion.create({
+      data: {
+        testId: otherTestId,
+        questionId: q.id,
+        sectionName: q.subject,
+        position: i + 1,
+      },
+    });
   }
 
-  console.log('✅ Questions created and assigned to test.');
+  console.log('✅ Questions created and assigned to all mock tests.');
 
   // 8. Create Sample Completed Test Attempt for Student
   await prisma.testAttempt.create({

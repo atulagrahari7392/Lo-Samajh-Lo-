@@ -42,3 +42,80 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+
+/* Apple Liquid Glass & macOS Sequoia / iOS 18 Water Glassmorphism */
+.apple-liquid-glass {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 10px 30px 0 rgba(31, 38, 135, 0.05), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.85);
+}
+
+.apple-liquid-glass-dark {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.apple-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.52) 100%);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 12px 32px -4px rgba(31, 38, 135, 0.05), 0 4px 12px 0 rgba(0, 0, 0, 0.02), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-glass-card:hover {
+  transform: translateY(-4px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.65) 100%);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 40px -8px rgba(108, 99, 255, 0.12), 0 8px 16px 0 rgba(0, 0, 0, 0.04), inset 0 1px 2px 0 rgba(255, 255, 255, 1);
+}
+
+.apple-capsule {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.03), inset 0 1px 1px 0 rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+}
+
+.apple-capsule-active {
+  background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px 0 rgba(2, 132, 199, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.apple-water-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmerWater 4s infinite ease-in-out;
+}
+
+@keyframes shimmerWater {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.water-ambient-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  opacity: 0.55;
+  z-index: 0;
+  animation: floatBlob 10s infinite alternate ease-in-out;
+}
+
+@keyframes floatBlob {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, 20px) scale(1.08); }
+  100% { transform: translate(-20px, -15px) scale(0.95); }
+}
