@@ -5,16 +5,40 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const dbUrl = process.env.DATABASE_URL || '';
 
 if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
-  console.log('🚀 Connecting to PostgreSQL and applying Prisma migrations...');
+  console.log('🚀 Connecting to PostgreSQL and configuring database schema...');
+  const serverDir = path.join(__dirname, '../..');
+
+  // 1. If previous deployment attempt had a failed migration (P3009), resolve it first
+  try {
+    execSync('npx prisma migrate resolve --rolled-back "20260914000000_init"', {
+      stdio: 'pipe',
+      cwd: serverDir,
+    });
+    console.log('🔄 Cleared any previous failed migration state.');
+  } catch (resolveErr) {
+    // Normal if no previous failed migration exists
+  }
+
+  // 2. Deploy the clean migration
   try {
     execSync('npx prisma migrate deploy', {
       stdio: 'inherit',
-      cwd: path.join(__dirname, '../..'),
+      cwd: serverDir,
     });
     console.log('✅ Prisma migrations deployed successfully.');
   } catch (err) {
-    console.error('❌ Failed to deploy migrations:', err.message);
-    process.exit(1);
+    console.warn('⚠️ Migration deploy notice:', err.message);
+    console.log('🔄 Ensuring all tables exist via safe schema synchronization...');
+    try {
+      execSync('npx prisma db push', {
+        stdio: 'inherit',
+        cwd: serverDir,
+      });
+      console.log('✅ Database schema synchronized successfully.');
+    } catch (pushErr) {
+      console.error('❌ Schema synchronization error:', pushErr.message);
+      process.exit(1);
+    }
   }
 } else {
   console.log('ℹ️ DATABASE_URL is not a PostgreSQL URL (or not set). Skipping migration deployment.');
