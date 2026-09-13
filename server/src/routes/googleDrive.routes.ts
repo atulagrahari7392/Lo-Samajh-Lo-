@@ -168,4 +168,28 @@ router.post('/disconnect', authenticate, requireAdmin, async (req: Request, res:
   }
 });
 
+// GET /api/google-drive/stream/:fileId (Direct Video Stream with Byte-Range & Anti-Download)
+router.get('/stream/:fileId', async (req: Request, res: Response) => {
+  try {
+    const { fileId } = req.params;
+    if (!fileId) {
+      res.status(400).json({ success: false, message: 'File ID is required.' });
+      return;
+    }
+
+    const { stream, status, headers } = await googleDriveService.streamVideo(
+      fileId,
+      req.headers.range
+    );
+
+    res.writeHead(status, headers);
+    stream.pipe(res);
+  } catch (error: any) {
+    console.error('Google Drive stream error:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+});
+
 export default router;

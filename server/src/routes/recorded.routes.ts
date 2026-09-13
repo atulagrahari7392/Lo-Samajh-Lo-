@@ -1,6 +1,17 @@
 import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { prisma } from '../db';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { googleDriveService } from '../services/googleDrive.service';
+
+function extractDriveFileId(url: string): string | null {
+  if (!url) return null;
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                url.match(/id=([a-zA-Z0-9_-]+)/) ||
+                url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
 
 const router = Router();
 
@@ -125,6 +136,52 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
     const { id } = req.params;
     await prisma.recordedClass.delete({ where: { id } });
     res.json({ success: true, message: 'Recorded class deleted.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/recorded-classes/stream/:id (Direct Video Stream with Byte-Range & Anti-Download)
+router.get('/stream/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lecture = await prisma.recordedClass.findUnique({
+      where: { id },
+    });
+
+    if (!lecture) {
+      res.status(404).json({ success: false, message: 'Recorded lecture not found.' });
+      return;
+    }
+
+    const videoUrl = lecture.videoUrl;
+    const driveFileId = extractDriveFileId(videoUrl);
+
+    if (driveFileId) {
+      try {
+        const { stream, status, headers } = await googleDriveService.streamVideo(
+          driveFileId,
+          req.headers.range
+        );
+        res.writeHead(status, headers);
+        stream.pipe(res);
+        return;
+      } catch (streamErr: any) {
+        console.error('Google Drive direct streaming error:', streamErr.message);
+        res.redirect(videoUrl);
+        return;
+      }
+    }
+
+    if (videoUrl.startsWith('/uploads/')) {
+      const filePath = path.join(process.cwd(), videoUrl);
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+        return;
+      }
+    }
+
+    res.redirect(videoUrl);
   } catch (error) {
     next(error);
   }

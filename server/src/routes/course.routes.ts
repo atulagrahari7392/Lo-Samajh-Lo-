@@ -2,6 +2,14 @@ import { Router } from 'express';
 import { prisma } from '../db';
 import { authenticate, optionalAuth, requireAdmin, AuthRequest } from '../middleware/auth';
 
+function extractDriveFileId(url: string): string | null {
+  if (!url) return null;
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                url.match(/id=([a-zA-Z0-9_-]+)/) ||
+                url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
 const router = Router();
 
 // GET /api/courses (Public catalog with filters & pagination)
@@ -211,10 +219,18 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
           pdfUrl: null,
         };
       }
-      return lesson;
+      let finalVideoUrl = lesson.videoUrl;
+      if (finalVideoUrl && finalVideoUrl.includes('drive.google.com')) {
+        const fileId = extractDriveFileId(finalVideoUrl);
+        if (fileId) finalVideoUrl = `/api/google-drive/stream/${fileId}`;
+      }
+      return {
+        ...lesson,
+        videoUrl: finalVideoUrl,
+      };
     });
 
-    // Map recorded classes into syllabus lessons
+    // Map recorded classes into syllabus lessons with direct stream URLs
     const isFreeCourse = course.price === 0 || course.discountedPrice === 0;
     const hasFreePreviewInLessons = course.lessons.some((l) => l.isFreePreview);
 
@@ -223,13 +239,22 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
       const isFirstClassPreview = idx === 0 && (course.lessons.length === 0 || !hasFreePreviewInLessons);
       const canAccess = isEnrolled || isFreeCourse || isFirstClassPreview;
 
+      let finalVideoUrl: string | null = null;
+      if (canAccess && rc.videoUrl) {
+        if (rc.videoUrl.includes('drive.google.com')) {
+          finalVideoUrl = `/api/recorded-classes/stream/${rc.id}`;
+        } else {
+          finalVideoUrl = rc.videoUrl;
+        }
+      }
+
       return {
         id: rc.id,
         courseId: course.id,
         title: rc.title,
         chapterTitle: rc.chapter || 'Recorded Lectures',
         durationMinutes: rc.durationMinutes || 45,
-        videoUrl: canAccess ? rc.videoUrl : null,
+        videoUrl: finalVideoUrl,
         pdfUrl: null,
         content: rc.description || null,
         isFreePreview: isFirstClassPreview || isFreeCourse,
@@ -320,23 +345,43 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       return;
     }
 
-    // Merge recorded classes into lessons for the player
-    const mappedRecordedClasses = (course.recordedClasses || []).map((rc: any, idx: number) => ({
-      id: rc.id,
-      courseId: course.id,
-      title: rc.title,
-      chapterTitle: rc.chapter || 'Recorded Lectures',
-      durationMinutes: rc.durationMinutes || 45,
-      videoUrl: rc.videoUrl,
-      pdfUrl: null,
-      content: rc.description || null,
-      isFreePreview: true,
-      position: (course.lessons?.length || 0) + idx + 1,
-      thumbnail: rc.thumbnail || null,
-      isRecordedClass: true,
-    }));
+    // Merge standard lessons with direct stream URLs
+    const mappedStandardLessons = course.lessons.map((lesson) => {
+      let finalVideoUrl = lesson.videoUrl;
+      if (finalVideoUrl && finalVideoUrl.includes('drive.google.com')) {
+        const fileId = extractDriveFileId(finalVideoUrl);
+        if (fileId) finalVideoUrl = `/api/google-drive/stream/${fileId}`;
+      }
+      return {
+        ...lesson,
+        videoUrl: finalVideoUrl,
+      };
+    });
 
-    const combinedLessons = [...course.lessons, ...mappedRecordedClasses];
+    // Merge recorded classes with direct stream URLs for HTML5 player
+    const mappedRecordedClasses = (course.recordedClasses || []).map((rc: any, idx: number) => {
+      let finalVideoUrl = rc.videoUrl;
+      if (finalVideoUrl && finalVideoUrl.includes('drive.google.com')) {
+        finalVideoUrl = `/api/recorded-classes/stream/${rc.id}`;
+      }
+
+      return {
+        id: rc.id,
+        courseId: course.id,
+        title: rc.title,
+        chapterTitle: rc.chapter || 'Recorded Lectures',
+        durationMinutes: rc.durationMinutes || 45,
+        videoUrl: finalVideoUrl,
+        pdfUrl: null,
+        content: rc.description || null,
+        isFreePreview: true,
+        position: (course.lessons?.length || 0) + idx + 1,
+        thumbnail: rc.thumbnail || null,
+        isRecordedClass: true,
+      };
+    });
+
+    const combinedLessons = [...mappedStandardLessons, ...mappedRecordedClasses];
 
     res.json({
       success: true,

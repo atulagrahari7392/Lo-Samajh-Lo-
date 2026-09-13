@@ -414,6 +414,57 @@ class GoogleDriveService {
     );
     return res.data;
   }
+
+  public async streamVideo(
+    fileId: string,
+    rangeHeader?: string
+  ): Promise<{
+    stream: NodeJS.ReadableStream;
+    status: number;
+    headers: Record<string, string | number>;
+  }> {
+    const drive = await this.getClient();
+    if (!drive) throw new Error('Google Drive service is not connected.');
+
+    const requestHeaders: Record<string, string> = {};
+    if (rangeHeader) {
+      requestHeaders['Range'] = rangeHeader;
+    }
+
+    const response = await drive.files.get(
+      {
+        fileId,
+        alt: 'media',
+        supportsAllDrives: true,
+      },
+      {
+        headers: requestHeaders,
+        responseType: 'stream',
+      }
+    );
+
+    const outHeaders: Record<string, string | number> = {
+      'Content-Type': (response.headers['content-type'] as string) || 'video/mp4',
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+    };
+
+    if (response.headers['content-range']) {
+      outHeaders['Content-Range'] = response.headers['content-range'] as string;
+    }
+    if (response.headers['content-length']) {
+      outHeaders['Content-Length'] = response.headers['content-length'] as string;
+    }
+
+    const status = response.status || (rangeHeader ? 206 : 200);
+
+    return {
+      stream: response.data as NodeJS.ReadableStream,
+      status,
+      headers: outHeaders,
+    };
+  }
 }
 
 export const googleDriveService = new GoogleDriveService();

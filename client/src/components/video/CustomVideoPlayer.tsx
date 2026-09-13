@@ -79,20 +79,28 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
   // Drifting watermark position
   const [watermarkPos, setWatermarkPos] = useState({ top: '22%', left: '20%' });
 
-  // Source type detection
-  const isGoogleDrive = Boolean(url && url.includes('drive.google.com'));
-  const isDirectVideo =
-    Boolean(url) &&
-    !isGoogleDrive &&
-    (url.endsWith('.mp4') ||
-      url.endsWith('.webm') ||
-      url.endsWith('.m3u8') ||
-      url.startsWith('/uploads/') ||
-      url.includes('blob:'));
+  // Buffering state
+  const [isBuffering, setIsBuffering] = useState(false);
 
-  const drivePreviewUrl = isGoogleDrive
-    ? url.replace(/\/view(\?.*)?$/, '/preview')
-    : url;
+  // Google Drive fileId extraction & stream conversion
+  const driveMatch = url
+    ? url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+      url.match(/id=([a-zA-Z0-9_-]+)/) ||
+      url.match(/\/d\/([a-zA-Z0-9_-]+)/)
+    : null;
+  const driveFileId = driveMatch ? driveMatch[1] : null;
+
+  // Direct video stream URL (converts raw Google Drive links to native streaming endpoint)
+  const streamUrl = driveFileId ? `/api/google-drive/stream/${driveFileId}` : url;
+
+  const isYouTube = Boolean(url && (url.includes('youtube.com') || url.includes('youtu.be')));
+  const isDirectVideo = Boolean(streamUrl) && !isYouTube;
+
+  const ytEmbedUrl = isYouTube
+    ? url.includes('embed/')
+      ? url
+      : `https://www.youtube.com/embed/${url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]+)/)?.[1] || ''}`
+    : null;
 
   const showTemporaryNotice = useCallback((msg: string) => {
     setNoticeMessage(msg);
@@ -314,39 +322,51 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           </div>
         )}
 
+        {/* Buffering Indicator */}
+        {isBuffering && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-30 pointer-events-none space-y-3">
+            <div className="w-12 h-12 border-4 border-[#6C63FF] border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold text-slate-200">Buffering high-definition stream...</span>
+          </div>
+        )}
+
         {/* Video Rendering */}
-        {isGoogleDrive ? (
+        {isYouTube && ytEmbedUrl ? (
           <div className="relative w-full h-full">
-            {/* Embedded Google Drive player */}
             <iframe
-              src={drivePreviewUrl}
+              src={ytEmbedUrl}
               title={title}
               className="w-full h-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
-
-            {/* Shield overlay for top-right corner to block Google Drive popout/download button */}
+            {/* Shield overlay */}
             <div
               onClick={(e) => {
                 e.stopPropagation();
                 triggerSecurityAlert('Anti-Download Shield: Direct video download is restricted.');
               }}
               className="absolute top-0 right-0 w-28 h-16 z-25 cursor-not-allowed bg-transparent"
-              title="Direct download is disabled for this course lecture"
+              title="Protected course content"
             />
           </div>
         ) : isDirectVideo ? (
           <div className="relative w-full h-full flex items-center justify-center">
             <video
               ref={videoRef}
-              src={url}
+              src={streamUrl}
               poster={thumbnail || undefined}
               controls={false}
               controlsList="nodownload noplaybackrate nofullscreen"
               disablePictureInPicture
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
+              onWaiting={() => setIsBuffering(true)}
+              onPlaying={() => {
+                setIsBuffering(false);
+                setIsPlaying(true);
+              }}
+              onCanPlay={() => setIsBuffering(false)}
               onEnded={() => {
                 setIsPlaying(false);
                 if (onEnded) onEnded();
