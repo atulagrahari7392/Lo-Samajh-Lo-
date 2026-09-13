@@ -194,9 +194,9 @@ router.get('/', authenticate, requireAdmin, async (req, res, next) => {
     if (status) where.status = String(status);
     if (search) {
       where.OR = [
-        { orderNumber: { contains: String(search) } },
-        { user: { name: { contains: String(search) } } },
-        { user: { email: { contains: String(search) } } },
+        { orderNumber: { contains: String(search), mode: 'insensitive' } },
+        { user: { name: { contains: String(search), mode: 'insensitive' } } },
+        { user: { email: { contains: String(search), mode: 'insensitive' } } },
       ];
     }
 

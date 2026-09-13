@@ -1,8 +1,10 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { googleDriveService, DriveFolderCategory } from '../services/googleDrive.service';
+import { prisma } from '../db';
 
 const router = Router();
 
@@ -43,21 +45,163 @@ const upload = multer({
   },
 });
 
+// GET /api/upload/status (Check Google Drive connectivity)
+router.get('/status', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const isConfigured = googleDriveService.isConfigured();
+    if (!isConfigured) {
+      res.json({
+        configured: false,
+        storageProvider: 'LOCAL',
+        message: 'Google Drive credentials not detected. Falling back to local storage.',
+      });
+      return;
+    }
+
+    const test = await googleDriveService.testConnection();
+    res.json({
+      configured: true,
+      connected: test.connected,
+      storageProvider: 'GOOGLE_DRIVE',
+      message: test.message,
+    });
+  } catch (error: any) {
+    res.status(500).json({ configured: false, error: error.message });
+  }
+});
+
 // POST /api/upload
-router.post('/', authenticate, requireAdmin, upload.single('file'), (req, res) => {
+router.post('/', authenticate, requireAdmin, upload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ success: false, message: 'No file uploaded.' });
     return;
   }
 
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({
-    success: true,
-    message: 'File uploaded successfully!',
-    fileUrl,
-    filename: req.file.originalname,
-    size: req.file.size,
-  });
+  const localFilePath = req.file.path;
+  const originalName = req.file.originalname;
+  const mimeType = req.file.mimetype;
+  const size = req.file.size;
+  const categoryParam = (req.body.category || 'GENERAL') as DriveFolderCategory;
+  const entityType = req.body.entityType || null;
+  const entityId = req.body.entityId || null;
+
+  try {
+    // If Google Drive is configured, upload to Google Drive
+    if (googleDriveService.isConfigured()) {
+      const driveResult = await googleDriveService.uploadFile({
+        streamOrBuffer: localFilePath,
+        fileName: originalName,
+        mimeType,
+        category: categoryParam,
+        isPublic: true,
+      });
+
+      // Create persistent FileAsset metadata record in PostgreSQL
+      const fileAsset = await prisma.fileAsset.create({
+        data: {
+          provider: 'GOOGLE_DRIVE',
+          driveFileId: driveResult.fileId,
+          name: driveResult.fileName,
+          mimeType: driveResult.mimeType,
+          size: driveResult.size || size,
+          folderId: driveResult.folderId || null,
+          folderCategory: categoryParam,
+          webUrl: driveResult.webUrl,
+          downloadUrl: driveResult.downloadUrl,
+          thumbnailUrl: driveResult.thumbnailUrl,
+          storageStatus: 'ACTIVE',
+          entityType,
+          entityId,
+        },
+      });
+
+      // Safely remove temporary file from local server disk
+      try {
+        if (fs.existsSync(localFilePath)) {
+          fs.unlinkSync(localFilePath);
+        }
+      } catch (cleanupErr: any) {
+        console.warn('Could not remove temporary upload file:', cleanupErr.message);
+      }
+
+      res.json({
+        success: true,
+        message: 'File uploaded successfully to Google Drive!',
+        storageProvider: 'GOOGLE_DRIVE',
+        fileUrl: driveResult.webUrl,
+        downloadUrl: driveResult.downloadUrl,
+        driveFileId: driveResult.fileId,
+        filename: originalName,
+        size,
+        assetId: fileAsset.id,
+      });
+      return;
+    }
+
+    // Local Fallback (if Google Drive credentials are not yet set)
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const fileAsset = await prisma.fileAsset.create({
+      data: {
+        provider: 'LOCAL',
+        name: originalName,
+        mimeType,
+        size,
+        folderCategory: categoryParam,
+        webUrl: fileUrl,
+        downloadUrl: fileUrl,
+        storageStatus: 'ACTIVE',
+        entityType,
+        entityId,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'File uploaded successfully (Local storage)!',
+      storageProvider: 'LOCAL',
+      fileUrl,
+      filename: originalName,
+      size,
+      assetId: fileAsset.id,
+    });
+  } catch (err: any) {
+    console.error('File upload error:', err);
+    res.status(500).json({
+      success: false,
+      message: `File processing failed: ${err.message}`,
+    });
+  }
+});
+
+// DELETE /api/upload/:assetId (Safe soft-delete / move to Drive trash)
+router.delete('/:assetId', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { assetId } = req.params;
+    const asset = await prisma.fileAsset.findUnique({ where: { id: assetId } });
+
+    if (!asset) {
+      res.status(404).json({ success: false, message: 'File asset not found.' });
+      return;
+    }
+
+    // If on Google Drive, move to trash according to policy
+    if (asset.provider === 'GOOGLE_DRIVE' && asset.driveFileId) {
+      await googleDriveService.trashFile(asset.driveFileId);
+    }
+
+    // Mark storageStatus as TRASHED in PostgreSQL
+    await prisma.fileAsset.update({
+      where: { id: assetId },
+      data: { storageStatus: 'TRASHED' },
+    });
+
+    res.json({
+      success: true,
+      message: 'File moved to trash successfully.',
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 export default router;

@@ -330,12 +330,27 @@ export const api = {
     updateUserRole: (id: string, role: string) => request<any>(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   },
 
-  // File Upload (Direct from computer)
+  // File Upload (Direct from computer to Google Drive / Server)
   upload: {
-    file: async (file: File): Promise<{ success: boolean; fileUrl: string; filename: string; size: number }> => {
+    file: async (
+      file: File,
+      options?: { category?: string; entityType?: string; entityId?: string }
+    ): Promise<{
+      success: boolean;
+      fileUrl: string;
+      downloadUrl?: string;
+      driveFileId?: string;
+      storageProvider?: string;
+      filename: string;
+      size: number;
+      assetId?: string;
+    }> => {
       const token = localStorage.getItem('lsl_token');
       const formData = new FormData();
       formData.append('file', file);
+      if (options?.category) formData.append('category', options.category);
+      if (options?.entityType) formData.append('entityType', options.entityType);
+      if (options?.entityId) formData.append('entityId', options.entityId);
 
       const headers: Record<string, string> = {};
       if (token) {
@@ -355,6 +370,8 @@ export const api = {
 
       return data;
     },
+    getStatus: () => request<any>('/upload/status'),
+    deleteAsset: (assetId: string) => request<any>(`/upload/${assetId}`, { method: 'DELETE' }),
   },
 
   // Sliders / Hero Banners

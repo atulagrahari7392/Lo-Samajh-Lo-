@@ -25,6 +25,7 @@ import sliderRoutes from './routes/slider.routes';
 import settingsRoutes from './routes/settings.routes';
 import currentAffairsRoutes from './routes/current-affairs.routes';
 import { errorHandler } from './middleware/errorHandler';
+import { prisma } from './db';
 
 dotenv.config();
 
@@ -50,13 +51,27 @@ if (fs.existsSync(altUploadDir)) {
   app.use('/uploads', express.static(altUploadDir));
 }
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'Lo Samajh Lo LMS API',
-    timestamp: new Date().toISOString(),
-  });
+// Health check (Real database ping)
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      status: 'ok',
+      service: 'Lo Samajh Lo LMS API',
+      database: 'connected',
+      provider: 'postgresql',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Health check database error:', error.message);
+    res.status(503).json({
+      status: 'error',
+      service: 'Lo Samajh Lo LMS API',
+      database: 'disconnected',
+      message: 'Database connection failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Mount API routes
@@ -103,8 +118,23 @@ if (clientDistPath) {
 // Error handling
 app.use(errorHandler);
 
-app.listen(Number(PORT), '0.0.0.0', () => {
+import { migrateData } from './scripts/migrate-data';
+
+app.listen(Number(PORT), '0.0.0.0', async () => {
   console.log(`🚀 Lo Samajh Lo Server running on port ${PORT}`);
+
+  // Safe initial data import if target PostgreSQL database is completely empty
+  try {
+    const categoryCount = await prisma.category.count();
+    if (categoryCount === 0) {
+      console.log('📦 PostgreSQL database is empty. Running safe one-time migration from SQLite backup...');
+      await migrateData();
+    } else {
+      console.log(`✅ Database ready. Found ${categoryCount} existing categories. Production data preserved.`);
+    }
+  } catch (err: any) {
+    console.warn('⚠️ Database startup notice:', err.message);
+  }
 });
 
 export default app;

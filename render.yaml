@@ -10,7 +10,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:./dev.db
+        sync: false
       - key: NPM_FLAGS
         value: --include=dev
       - key: JWT_SECRET

@@ -2,6 +2,10 @@ import bcrypt from 'bcryptjs';
 import { prisma } from './db';
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+    console.error('⛔ FATAL: Database seeding is permanently disabled in production to prevent data loss.');
+    process.exit(1);
+  }
   console.log('🌱 Starting Lo Samajh Lo database seeding...');
 
   // Clean old data

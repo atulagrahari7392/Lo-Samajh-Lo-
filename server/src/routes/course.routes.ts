@@ -30,8 +30,8 @@ router.get('/', optionalAuth, async (req: AuthRequest, res, next) => {
 
     if (search) {
       where.OR = [
-        { title: { contains: String(search) } },
-        { shortDescription: { contains: String(search) } },
+        { title: { contains: String(search), mode: 'insensitive' } },
+        { shortDescription: { contains: String(search), mode: 'insensitive' } },
       ];
     }
 

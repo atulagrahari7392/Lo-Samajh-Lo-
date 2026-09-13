@@ -78,9 +78,9 @@ router.get('/', async (req, res, next) => {
     if (search && String(search).trim()) {
       const q = String(search).trim();
       where.OR = [
-        { title: { contains: q } },
-        { content: { contains: q } },
-        { tags: { contains: q } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { content: { contains: q, mode: 'insensitive' } },
+        { tags: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -131,9 +131,9 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
     if (search && String(search).trim()) {
       const q = String(search).trim();
       where.OR = [
-        { title: { contains: q } },
-        { content: { contains: q } },
-        { tags: { contains: q } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { content: { contains: q, mode: 'insensitive' } },
+        { tags: { contains: q, mode: 'insensitive' } },
       ];
     }
 

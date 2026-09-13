@@ -10,13 +10,13 @@ router.get('/', authenticate, requireAdmin, async (req, res, next) => {
     const { subject, difficulty, search, testId } = req.query;
 
     const where: any = {};
-    if (subject) where.subject = { contains: String(subject) };
+    if (subject) where.subject = { contains: String(subject), mode: 'insensitive' };
     if (difficulty) where.difficulty = String(difficulty);
     if (search) {
       where.OR = [
-        { questionText: { contains: String(search) } },
-        { questionHindi: { contains: String(search) } },
-        { questionEnglish: { contains: String(search) } },
+        { questionText: { contains: String(search), mode: 'insensitive' } },
+        { questionHindi: { contains: String(search), mode: 'insensitive' } },
+        { questionEnglish: { contains: String(search), mode: 'insensitive' } },
       ];
     }
     if (testId) {
@@ -72,14 +72,14 @@ router.get('/available-for-test/:testId', authenticate, requireAdmin, async (req
       },
     };
 
-    if (subject) where.subject = { contains: String(subject) };
+    if (subject) where.subject = { contains: String(subject), mode: 'insensitive' };
     if (difficulty) where.difficulty = String(difficulty);
-    if (topic) where.topic = { contains: String(topic) };
+    if (topic) where.topic = { contains: String(topic), mode: 'insensitive' };
     if (search) {
       where.OR = [
-        { questionText: { contains: String(search) } },
-        { questionHindi: { contains: String(search) } },
-        { questionEnglish: { contains: String(search) } },
+        { questionText: { contains: String(search), mode: 'insensitive' } },
+        { questionHindi: { contains: String(search), mode: 'insensitive' } },
+        { questionEnglish: { contains: String(search), mode: 'insensitive' } },
       ];
     }
 

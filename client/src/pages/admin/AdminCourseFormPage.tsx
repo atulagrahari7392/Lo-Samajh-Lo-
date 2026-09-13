@@ -105,10 +105,11 @@ export const AdminCourseFormPage: React.FC = () => {
 
     try {
       setUploadingFile(true);
-      const res = await api.upload.file(file);
+      const res = await api.upload.file(file, { category: 'COURSES', entityType: 'COURSE' });
       if (res.success && res.fileUrl) {
         setThumbnail(res.fileUrl);
-        success('Thumbnail image uploaded successfully!');
+        const providerName = res.storageProvider === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Storage';
+        success(`Thumbnail image uploaded successfully to ${providerName}!`);
       } else {
         toastError('Failed to upload thumbnail image.');
       }

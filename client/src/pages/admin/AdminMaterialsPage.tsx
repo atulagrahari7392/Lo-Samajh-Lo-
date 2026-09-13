@@ -217,23 +217,14 @@ export const AdminMaterialsPage: React.FC = () => {
 
     try {
       setUploadingPdf(true);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-
-      const data = await res.json();
+      const data = await api.upload.file(file, { category: 'STUDY_MATERIALS' });
       if (data.success) {
         setFileUrl(data.fileUrl);
         setFileSize(`${(file.size / (1024 * 1024)).toFixed(1)} MB`);
-        toastSuccess('PDF uploaded successfully!');
+        const providerName = data.storageProvider === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Storage';
+        toastSuccess(`PDF uploaded successfully to ${providerName}!`);
       } else {
-        toastError(data.message || 'Upload failed');
+        toastError('Upload failed');
       }
     } catch (err: any) {
       toastError(err.message || 'PDF upload failed');
@@ -249,22 +240,13 @@ export const AdminMaterialsPage: React.FC = () => {
 
     try {
       setUploadingThumb(true);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-
-      const data = await res.json();
+      const data = await api.upload.file(file, { category: 'UPLOADS_IMAGES' });
       if (data.success) {
         setThumbnail(data.fileUrl);
-        toastSuccess('Thumbnail uploaded successfully!');
+        const providerName = data.storageProvider === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Storage';
+        toastSuccess(`Thumbnail uploaded successfully to ${providerName}!`);
       } else {
-        toastError(data.message || 'Upload failed');
+        toastError('Upload failed');
       }
     } catch (err: any) {
       toastError(err.message || 'Thumbnail upload failed');

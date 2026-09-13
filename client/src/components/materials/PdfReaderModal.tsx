@@ -98,11 +98,19 @@ export const PdfReaderModal: React.FC<PdfReaderModalProps> = ({
 
   // Determine PDF Viewer URL
   const pdfUrl = material.fileUrl;
-  const isDirectPdf = pdfUrl.toLowerCase().endsWith('.pdf') || pdfUrl.includes('/uploads/');
-  // Google Docs Viewer fallback for non-local or complex PDFs
-  const viewerUrl = isDirectPdf
-    ? pdfUrl
-    : `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
+  let viewerUrl = pdfUrl;
+
+  if (pdfUrl.includes('drive.google.com')) {
+    // Transform Google Drive links to /preview for clean iframe embedding
+    const match = pdfUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || pdfUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      viewerUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+    } else {
+      viewerUrl = pdfUrl.replace(/\/view(\?.*)?$/, '/preview');
+    }
+  } else if (!pdfUrl.toLowerCase().endsWith('.pdf') && !pdfUrl.includes('/uploads/')) {
+    viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 overflow-hidden animate-in fade-in duration-200">

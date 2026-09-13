@@ -28,23 +28,26 @@ router.get('/', optionalAuth, async (req: AuthRequest, res, next) => {
     if (category && category !== 'ALL') {
       const catStr = String(category).trim().toLowerCase();
       if (catStr === 'up police' || catStr === 'up-police') {
-        where.examCategory = { contains: 'Police' };
+        where.examCategory = { contains: 'Police', mode: 'insensitive' };
       } else if (catStr === 'ssc' || catStr === 'ssc & state exams') {
-        where.OR = [{ examCategory: { contains: 'SSC' } }, { examCategory: { contains: 'BSSC' } }];
+        where.OR = [
+          { examCategory: { contains: 'SSC', mode: 'insensitive' } },
+          { examCategory: { contains: 'BSSC', mode: 'insensitive' } },
+        ];
       } else if (catStr === 'bssc') {
-        where.examCategory = { contains: 'BSSC' };
+        where.examCategory = { contains: 'BSSC', mode: 'insensitive' };
       } else {
-        where.examCategory = { contains: String(category).trim() };
+        where.examCategory = { contains: String(category).trim(), mode: 'insensitive' };
       }
     }
 
     if (search && String(search).trim()) {
       const q = String(search).trim();
       where.OR = [
-        { title: { contains: q } },
-        { subTitle: { contains: q } },
-        { description: { contains: q } },
-        { examCategory: { contains: q } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { subTitle: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { examCategory: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -183,8 +186,8 @@ router.get('/:idOrSlug', optionalAuth, async (req: AuthRequest, res, next) => {
         status: 'PUBLISHED',
         OR: [
           { seriesId: series.id },
-          { category: { name: { contains: series.examCategory } } },
-          { category: { slug: { contains: series.slug } } },
+          { category: { name: { contains: series.examCategory, mode: 'insensitive' } } },
+          { category: { slug: { contains: series.slug, mode: 'insensitive' } } },
         ],
       },
       orderBy: [{ createdAt: 'asc' }],

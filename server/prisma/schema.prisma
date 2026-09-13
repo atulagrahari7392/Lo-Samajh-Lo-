@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -788,4 +788,27 @@ model SiteSetting {
   updatedAt DateTime @updatedAt
 
   @@map("site_settings")
+}
+
+model FileAsset {
+  id             String   @id @default(uuid())
+  provider       String   @default("GOOGLE_DRIVE") // GOOGLE_DRIVE, LOCAL
+  driveFileId    String?  @unique
+  name           String
+  mimeType       String
+  size           Int      @default(0)
+  folderId       String?
+  folderCategory String   @default("GENERAL") // COURSES, MATERIALS, VIDEOS, LIVE_RECORDINGS, TESTS, UPLOADS
+  webUrl         String?
+  downloadUrl    String?
+  thumbnailUrl   String?
+  storageStatus  String   @default("ACTIVE") // ACTIVE, ARCHIVED, TRASHED
+  entityType     String?  // COURSE, MATERIAL, RECORDED_CLASS, TEST_QUESTION, BANNER
+  entityId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([folderCategory])
+  @@index([entityType, entityId])
+  @@map("file_assets")
 }

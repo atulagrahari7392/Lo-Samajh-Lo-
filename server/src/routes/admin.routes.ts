@@ -80,9 +80,9 @@ router.get('/users', authenticate, requireAdmin, async (req, res, next) => {
     if (status) where.isActive = status === 'active';
     if (search) {
       where.OR = [
-        { name: { contains: String(search) } },
-        { email: { contains: String(search) } },
-        { phone: { contains: String(search) } },
+        { name: { contains: String(search), mode: 'insensitive' } },
+        { email: { contains: String(search), mode: 'insensitive' } },
+        { phone: { contains: String(search), mode: 'insensitive' } },
       ];
     }
 

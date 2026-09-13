@@ -64,7 +64,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response, next: Next
       where.OR = [
         { categoryId: String(category) },
         { category: { slug: String(category) } },
-        { category: { name: { contains: String(category) } } },
+        { category: { name: { contains: String(category), mode: 'insensitive' } } },
       ];
     }
 
@@ -73,19 +73,19 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response, next: Next
     }
 
     if (classGrade && classGrade !== 'ALL') {
-      where.classGrade = { contains: String(classGrade) };
+      where.classGrade = { contains: String(classGrade), mode: 'insensitive' };
     }
 
     if (subject && subject !== 'ALL') {
-      where.subject = { contains: String(subject) };
+      where.subject = { contains: String(subject), mode: 'insensitive' };
     }
 
     if (examName && examName !== 'ALL') {
-      where.examName = { contains: String(examName) };
+      where.examName = { contains: String(examName), mode: 'insensitive' };
     }
 
     if (topic) {
-      where.topic = { contains: String(topic) };
+      where.topic = { contains: String(topic), mode: 'insensitive' };
     }
 
     if (language && language !== 'ALL') {
@@ -107,14 +107,14 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response, next: Next
     if (search && String(search).trim()) {
       const q = String(search).trim();
       const searchConditions = [
-        { title: { contains: q } },
-        { description: { contains: q } },
-        { subject: { contains: q } },
-        { topic: { contains: q } },
-        { chapter: { contains: q } },
-        { classGrade: { contains: q } },
-        { examName: { contains: q } },
-        { keywords: { contains: q } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { subject: { contains: q, mode: 'insensitive' } },
+        { topic: { contains: q, mode: 'insensitive' } },
+        { chapter: { contains: q, mode: 'insensitive' } },
+        { classGrade: { contains: q, mode: 'insensitive' } },
+        { examName: { contains: q, mode: 'insensitive' } },
+        { keywords: { contains: q, mode: 'insensitive' } },
       ];
 
       if (where.OR) {
@@ -507,10 +507,10 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
     if (search && String(search).trim()) {
       const q = String(search).trim();
       where.OR = [
-        { title: { contains: q } },
-        { subject: { contains: q } },
-        { examName: { contains: q } },
-        { classGrade: { contains: q } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { subject: { contains: q, mode: 'insensitive' } },
+        { examName: { contains: q, mode: 'insensitive' } },
+        { classGrade: { contains: q, mode: 'insensitive' } },
       ];
     }
 
