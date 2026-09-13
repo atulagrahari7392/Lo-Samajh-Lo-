@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Award,
   CheckCircle2,
@@ -32,11 +32,14 @@ import { useAuth } from '../../context/AuthContext';
 
 export const TestResultPage: React.FC = () => {
   const { id, attemptId } = useParams<{ id: string; attemptId: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
 
   // Mode: 'summary' (Page 8) vs 'solutions' (Page 9)
-  const [activeView, setActiveView] = useState<'summary' | 'solutions'>('summary');
+  const [activeView, setActiveView] = useState<'summary' | 'solutions'>(
+    searchParams.get('view') === 'solutions' ? 'solutions' : 'summary'
+  );
   const [resultData, setResultData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +72,7 @@ export const TestResultPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
-        <div className="bg-slate-800/90 p-8 rounded-3xl text-center space-y-4 max-w-sm border border-slate-700">
+        <div className="bg-slate-800/90 p-8 rounded-3xl text-center space-y-4 max-w-sm border border-slate-700 shadow-2xl">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm font-bold text-slate-200">Generating Comprehensive Scorecard...</p>
           <span className="text-xs text-slate-400">Calculating rank, accuracy, percentile & solutions</span>
@@ -96,7 +99,7 @@ export const TestResultPage: React.FC = () => {
   const { attempt, questions } = resultData;
   const totalQuestions = questions.length || attempt.totalQuestions || 50;
   const score = attempt.score ?? 0;
-  const totalMarks = attempt.totalMarks || 100;
+  const totalMarks = attempt.totalMarks || resultData.test?.totalMarks || 100;
   const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
 
   // Counts
@@ -106,13 +109,13 @@ export const TestResultPage: React.FC = () => {
   const skippedCount = totalQuestions - attemptedCount;
   const accuracyPercent = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
 
-  // Percentile and rank simulation
-  const simulatedPercentile = percentage > 0 ? Math.min(99.8, Math.max(15, Math.round((percentage * 0.95 + 5) * 10) / 10)) : 43;
+  // Percentile and rank simulation from backend or calculated
+  const simulatedPercentile = resultData.userPercentile || attempt.percentile || (percentage > 0 ? Math.min(99.8, Math.max(15, Math.round((percentage * 0.95 + 5) * 10) / 10)) : 43);
   const totalCandidates = 2412;
-  const simulatedRank = Math.max(1, Math.round(totalCandidates * (1 - simulatedPercentile / 100)));
+  const simulatedRank = attempt.rank || Math.max(1, Math.round(totalCandidates * (1 - simulatedPercentile / 100)));
 
   // Cutoff calculation
-  const examCutoff = Math.round(totalMarks * 0.67);
+  const examCutoff = resultData.examCutoff || Math.round(totalMarks * 0.67);
   const cutoffDiff = examCutoff - score;
 
   // Filtered questions for Solutions view (Page 9)
@@ -126,9 +129,13 @@ export const TestResultPage: React.FC = () => {
 
   const currentSolQ = filteredQuestions[solutionIndex] || filteredQuestions[0] || questions[0];
 
-  // Options array parsing
+  // Bilingual Options array parsing
   let solOptions: string[] = [];
-  if (Array.isArray(currentSolQ.options)) {
+  if (solutionLanguage === 'HINDI' && currentSolQ.optionsHindi && currentSolQ.optionsHindi.length > 0) {
+    solOptions = currentSolQ.optionsHindi;
+  } else if (solutionLanguage === 'ENGLISH' && currentSolQ.optionsEnglish && currentSolQ.optionsEnglish.length > 0) {
+    solOptions = currentSolQ.optionsEnglish;
+  } else if (Array.isArray(currentSolQ.options)) {
     solOptions = currentSolQ.options;
   } else if (typeof currentSolQ.options === 'string') {
     try {
@@ -137,6 +144,23 @@ export const TestResultPage: React.FC = () => {
       solOptions = [currentSolQ.options];
     }
   }
+
+  // Bilingual Question Text
+  const currentSolQuestionText =
+    solutionLanguage === 'HINDI' && currentSolQ.questionHindi
+      ? currentSolQ.questionHindi
+      : solutionLanguage === 'ENGLISH' && currentSolQ.questionEnglish
+      ? currentSolQ.questionEnglish
+      : currentSolQ.questionText;
+
+  // Bilingual Explanation
+  const currentExplanation =
+    solutionLanguage === 'HINDI' && currentSolQ.explanationHindi
+      ? currentSolQ.explanationHindi
+      : solutionLanguage === 'ENGLISH' && currentSolQ.explanationEnglish
+      ? currentSolQ.explanationEnglish
+      : currentSolQ.explanation ||
+        'इस प्रश्न का सही उत्तर आधिकारिक आयोग की उत्तर कुंजी एवं मानक संदर्भ पुस्तकों पर आधारित है। विस्तृत व्याख्या के लिए अध्यायवार थ्योरी नोट्स का पुनरीक्षण करें।';
 
   const correctIndex = parseInt(String(currentSolQ.correctAnswer), 10);
   const userSelectedIndex = currentSolQ.userSelected !== null && currentSolQ.userSelected !== undefined
@@ -164,14 +188,14 @@ export const TestResultPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveView('summary')}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 flex items-center gap-1 font-bold text-xs"
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 flex items-center gap-1 font-bold text-xs transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
             </button>
             <span className="text-slate-300">|</span>
             <span className="text-xs font-bold text-slate-800 truncate max-w-md">
-              {resultData.test?.title || 'Mock Test'}
+              {resultData.test?.title || 'Mock Test Solutions'}
             </span>
           </div>
 
@@ -210,7 +234,7 @@ export const TestResultPage: React.FC = () => {
         </header>
 
         {/* Filter Pills */}
-        <div className="bg-white px-6 py-2 border-b border-slate-200 flex items-center justify-between text-xs">
+        <div className="bg-white px-6 py-2 border-b border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Filter:</span>
             {(['all', 'correct', 'incorrect', 'skipped'] as const).map((ft) => (
@@ -286,7 +310,7 @@ export const TestResultPage: React.FC = () => {
 
             {/* Question Text */}
             <div className="text-base font-bold text-slate-900 leading-relaxed">
-              {currentSolQ.questionText}
+              {currentSolQuestionText}
             </div>
 
             {/* Options List */}
@@ -354,8 +378,7 @@ export const TestResultPage: React.FC = () => {
                   <span>Detailed Solution & Explanation:</span>
                 </div>
                 <div className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                  {currentSolQ.explanation ||
-                    'इस प्रश्न का सही उत्तर आधिकारिक आयोग की उत्तर कुंजी एवं मानक संदर्भ पुस्तकों पर आधारित है। विस्तृत व्याख्या के लिए अध्यायवार थ्योरी नोट्स का पुनरीक्षण करें।'}
+                  {currentExplanation}
                 </div>
               </div>
             )}
@@ -417,6 +440,15 @@ export const TestResultPage: React.FC = () => {
   // -----------------------------------------------------------------
   // PAGE 8: Overall Performance & Analytics Summary Dashboard
   // -----------------------------------------------------------------
+  const leaderboardList = resultData.leaderboard || [
+    { rank: 1, name: 'Bhupendra', score: '100 / 100' },
+    { rank: 2, name: 'Pandit Ji', score: '98 / 100' },
+    { rank: 3, name: 'Kamini Rathour', score: '96 / 100' },
+    { rank: 4, name: 'Anoop Sharma', score: '95 / 100' },
+    { rank: 5, name: 'Mohd Shahrukh', score: '94 / 100' },
+    { rank: 6, name: 'Rajat Singh', score: '93 / 100' },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50/70 pb-20 selection:bg-cyan-500 selection:text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
@@ -597,14 +629,7 @@ export const TestResultPage: React.FC = () => {
             <h3 className="font-bold text-base text-slate-900">Top Rankers (Leaderboard)</h3>
 
             <div className="space-y-2 text-xs">
-              {[
-                { rank: 1, name: 'Bhupendra', score: '100 / 100' },
-                { rank: 2, name: 'Pandit Ji', score: '98 / 100' },
-                { rank: 3, name: 'Kamini Rathour', score: '96 / 100' },
-                { rank: 4, name: 'Anoop Sharma', score: '95 / 100' },
-                { rank: 5, name: 'Mohd Shahrukh', score: '94 / 100' },
-                { rank: 6, name: 'Rajat Singh', score: '93 / 100' },
-              ].map((ldr) => (
+              {leaderboardList.map((ldr: any) => (
                 <div
                   key={ldr.rank}
                   className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100"

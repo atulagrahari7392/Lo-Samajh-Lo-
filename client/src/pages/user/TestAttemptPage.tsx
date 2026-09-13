@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Clock,
@@ -21,6 +21,7 @@ import {
   FileText,
   Shield,
   Check,
+  Flag,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Question } from '../../types';
@@ -31,7 +32,7 @@ export const TestAttemptPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { error: toastError, success } = useToast();
+  const { error: toastError, success, info } = useToast();
 
   // 3 Exam Steps: general_instructions (Page 4) -> specific_instructions (Page 5) -> live_exam (Page 6)
   const [examStep, setExamStep] = useState<'general_instructions' | 'specific_instructions' | 'live_exam'>(
@@ -39,6 +40,7 @@ export const TestAttemptPage: React.FC = () => {
   );
 
   const [testInfo, setTestInfo] = useState<any>(null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -55,6 +57,9 @@ export const TestAttemptPage: React.FC = () => {
   const [showSubmitModal, setShowSubmitModal] = useState(false); // Page 7
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showQuestionPaperModal, setShowQuestionPaperModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('Question is incorrect or ambiguous');
+  const [reportComment, setReportComment] = useState('');
 
   // Timer & Fullscreen
   const [secondsRemaining, setSecondsRemaining] = useState<number>(3600);
@@ -62,18 +67,54 @@ export const TestAttemptPage: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const questionStartTimeRef = useRef<number>(Date.now());
   const [questionTimes, setQuestionTimes] = useState<Record<string, number>>({});
+  const autoSaveTimeoutRef = useRef<any>(null);
 
+  // Start or resume test from backend
   useEffect(() => {
     if (!id) return;
     const loadTest = async () => {
       try {
         setLoading(true);
-        const data = await api.tests.takeTest(id);
+        // Call start endpoint to register or resume test attempt
+        const data = await api.tests.start(id);
         if (data.success) {
           setTestInfo(data.test);
+          setAttemptId(data.attempt?.id || null);
           const qList = data.questions || [];
           setQuestions(qList);
-          setSecondsRemaining((data.test.durationMinutes || 60) * 60);
+
+          const durationSecs = (data.test.durationMinutes || 60) * 60;
+          let remaining = durationSecs;
+
+          if (data.attempt) {
+            // Restore previous attempt if resumed
+            if (data.attempt.answersMap) {
+              setAnswers(data.attempt.answersMap);
+            }
+            if (data.attempt.markedQuestions && Array.isArray(data.attempt.markedQuestions)) {
+              const markedMap: Record<string, boolean> = {};
+              data.attempt.markedQuestions.forEach((qKey: string) => {
+                markedMap[qKey] = true;
+              });
+              setMarkedForReview(markedMap);
+            }
+            if (data.attempt.currentQuestionIndex !== undefined && data.attempt.currentQuestionIndex !== null) {
+              setCurrentIndex(Math.min(data.attempt.currentQuestionIndex, Math.max(0, qList.length - 1)));
+            }
+            if (data.attempt.secondsRemaining !== undefined && data.attempt.secondsRemaining > 0) {
+              remaining = data.attempt.secondsRemaining;
+            } else if (data.attempt.timeSpentSeconds) {
+              remaining = Math.max(30, durationSecs - data.attempt.timeSpentSeconds);
+            }
+
+            // If user already had answers and test was IN_PROGRESS, skip instructions straight to live_exam
+            if (data.isResumed && data.attempt.status === 'IN_PROGRESS' && Object.keys(data.attempt.answersMap || {}).length > 0) {
+              setExamStep('live_exam');
+              info('Resumed previous in-progress examination session.');
+            }
+          }
+
+          setSecondsRemaining(remaining);
 
           if (qList.length > 0) {
             const firstId = qList[0].questionId || qList[0].id;
@@ -89,6 +130,31 @@ export const TestAttemptPage: React.FC = () => {
     };
     loadTest();
   }, [id]);
+
+  // Debounced auto-save function
+  const triggerAutoSave = useCallback(
+    (newAnswers: Record<string, string>, newMarked: Record<string, boolean>, newIdx: number, newSecs: number) => {
+      if (!id || examStep !== 'live_exam') return;
+      if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+
+      autoSaveTimeoutRef.current = setTimeout(async () => {
+        try {
+          const markedArr = Object.keys(newMarked).filter((k) => newMarked[k]);
+          const totalSecs = (testInfo?.durationMinutes || 60) * 60;
+          await api.tests.saveProgress(id, {
+            answersMap: newAnswers,
+            markedQuestions: markedArr,
+            currentQuestionIndex: newIdx,
+            secondsRemaining: newSecs,
+            timeSpentSeconds: Math.max(0, totalSecs - newSecs),
+          });
+        } catch {
+          // Silent catch for background autosave
+        }
+      }, 800);
+    },
+    [id, examStep, testInfo]
+  );
 
   // Countdown timer (only ticks during live_exam and not paused)
   useEffect(() => {
@@ -141,33 +207,41 @@ export const TestAttemptPage: React.FC = () => {
       const qId = q.questionId || q.id;
       setVisitedQuestions((prev) => ({ ...prev, [qId]: true }));
     }
+
+    triggerAutoSave(answers, markedForReview, idx, secondsRemaining);
   };
 
   const handleSelectOption = (optIndex: number) => {
     const currentQ = questions[currentIndex];
     if (!currentQ) return;
     const qId = currentQ.questionId || currentQ.id;
-    setAnswers((prev) => ({ ...prev, [qId]: String(optIndex) }));
+    const updatedAnswers = { ...answers, [qId]: String(optIndex) };
+    setAnswers(updatedAnswers);
+    triggerAutoSave(updatedAnswers, markedForReview, currentIndex, secondsRemaining);
   };
 
   const handleClearResponse = () => {
     const currentQ = questions[currentIndex];
     if (!currentQ) return;
     const qId = currentQ.questionId || currentQ.id;
-    setAnswers((prev) => {
-      const next = { ...prev };
-      delete next[qId];
-      return next;
-    });
+    const updatedAnswers = { ...answers };
+    delete updatedAnswers[qId];
+    setAnswers(updatedAnswers);
+    triggerAutoSave(updatedAnswers, markedForReview, currentIndex, secondsRemaining);
   };
 
   const handleToggleReviewAndNext = () => {
     const currentQ = questions[currentIndex];
     if (!currentQ) return;
     const qId = currentQ.questionId || currentQ.id;
-    setMarkedForReview((prev) => ({ ...prev, [qId]: !prev[qId] }));
+    const updatedMarked = { ...markedForReview, [qId]: !markedForReview[qId] };
+    setMarkedForReview(updatedMarked);
+
+    const nextIdx = currentIndex < questions.length - 1 ? currentIndex + 1 : currentIndex;
     if (currentIndex < questions.length - 1) {
-      handleSelectQuestion(currentIndex + 1);
+      handleSelectQuestion(nextIdx);
+    } else {
+      triggerAutoSave(answers, updatedMarked, currentIndex, secondsRemaining);
     }
   };
 
@@ -206,6 +280,24 @@ export const TestAttemptPage: React.FC = () => {
     }
   };
 
+  const handleReportQuestion = async () => {
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+    try {
+      await api.tests.reportQuestion({
+        questionId: currentQ.questionId || currentQ.id,
+        testId: id,
+        reason: reportReason,
+        comment: reportComment,
+      });
+      success('Question reported. Thank you for helping improve quality!');
+      setShowReportModal(false);
+      setReportComment('');
+    } catch {
+      toastError('Failed to submit question report.');
+    }
+  };
+
   // Format time MM:SS or HH:MM:SS
   const formatTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -220,7 +312,7 @@ export const TestAttemptPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
-        <div className="bg-slate-800/90 p-8 rounded-3xl text-center space-y-4 max-w-sm border border-slate-700">
+        <div className="bg-slate-800/90 p-8 rounded-3xl text-center space-y-4 max-w-sm border border-slate-700 shadow-2xl">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm font-bold text-slate-200">Setting up secure CBT session...</p>
           <span className="text-xs text-slate-400">Loading questions, instructions & timer</span>
@@ -256,11 +348,9 @@ export const TestAttemptPage: React.FC = () => {
         {/* Top Header */}
         <header className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-black tracking-tight text-slate-900">
-                Lo Samajh Lo <span className="text-cyan-600">CBT</span>
-              </span>
-            </div>
+            <span className="text-lg font-black tracking-tight text-slate-900">
+              Lo Samajh Lo <span className="text-cyan-600">CBT</span>
+            </span>
             <span className="text-slate-300">|</span>
             <span className="text-xs font-bold text-slate-600 truncate max-w-md">
               {testInfo.title}
@@ -269,93 +359,94 @@ export const TestAttemptPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'T'}
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'C'}
             </div>
             <div className="hidden sm:block text-right">
-              <div className="text-xs font-bold text-slate-900">{user?.name || 'Atul Candidate'}</div>
+              <div className="text-xs font-bold text-slate-900">{user?.name || 'Candidate'}</div>
               <div className="text-[10px] text-slate-400">Roll: LSL-2026-8921</div>
             </div>
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8 overflow-y-auto space-y-6 text-slate-700 text-xs leading-relaxed">
-          <h2 className="text-base font-black text-slate-900 border-b border-slate-200 pb-2">
-            General Instructions:
-          </h2>
-
-          <div className="space-y-4">
-            <p>
-              1. The clock will be set at the server. The countdown timer at the top right corner of screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself. You need not terminate the examination or submit your paper manually.
+        {/* Content Body matching Page 3 Screenshot */}
+        <main className="max-w-4xl mx-auto w-full px-6 py-8 space-y-6 flex-1 overflow-y-auto text-xs sm:text-sm">
+          <div className="border-b border-slate-200 pb-4">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+              General Instructions:
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Please read the instructions carefully before starting the exam.
             </p>
+          </div>
 
-            <p>
-              2. The Question Palette displayed on the right side of screen will show the status of each question using one of the following symbols:
-            </p>
+          <div className="space-y-4 text-slate-700 leading-relaxed">
+            <ol className="list-decimal pl-6 space-y-3 font-normal">
+              <li>
+                The countdown timer in the top right corner of screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself. You will not be required to end or submit your examination manually.
+              </li>
+              <li>
+                The Question Palette displayed on the right side of screen will show the status of each question using one of the following symbols:
+              </li>
+            </ol>
 
-            {/* Status Palette Legend (Matching Screenshot Page 4) */}
-            <div className="space-y-2.5 pl-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-              <div className="flex items-center gap-3">
-                <span className="w-5 h-5 rounded-md bg-white border border-slate-300 shrink-0" />
-                <span>You have not visited the question yet.</span>
+            {/* Symbols Legend matching Screenshot Page 3 */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3 my-4">
+              <div className="flex items-center gap-4">
+                <span className="w-6 h-6 rounded-lg bg-white border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+                  1
+                </span>
+                <span className="text-xs font-semibold text-slate-700">You have not visited the question yet.</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="w-5 h-5 rounded-md bg-rose-500 text-white shrink-0" />
-                <span>You have not answered the question.</span>
+              <div className="flex items-center gap-4">
+                <span className="w-6 h-6 rounded-lg bg-rose-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  2
+                </span>
+                <span className="text-xs font-semibold text-slate-700">You have not answered the question.</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="w-5 h-5 rounded-md bg-emerald-500 text-white shrink-0" />
-                <span>You have answered the question.</span>
+              <div className="flex items-center gap-4">
+                <span className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  3
+                </span>
+                <span className="text-xs font-semibold text-slate-700">You have answered the question.</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="w-5 h-5 rounded-md bg-purple-600 text-white shrink-0" />
-                <span>You have NOT answered the question, but have marked the question for review.</span>
+              <div className="flex items-center gap-4">
+                <span className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  4
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  You have NOT answered the question, but have marked the question for review.
+                </span>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="relative w-5 h-5 rounded-md bg-purple-600 shrink-0 flex items-center justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                </div>
-                <span>You have answered the question, but marked it for review.</span>
+              <div className="flex items-center gap-4">
+                <span className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0 relative">
+                  5
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-white" />
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  The question(s) "Answered and Marked for Review" will be considered for evaluation.
+                </span>
               </div>
             </div>
 
-            <p className="font-semibold text-slate-900">
-              The 'Mark For Review' status for a question simply indicates that you would like to look at that question again. If a question is answered, but marked for review, then the answer will be considered for evaluation unless the status is modified by the candidate.
-            </p>
-
-            <div className="space-y-2 pt-2">
-              <h3 className="font-bold text-slate-900">Navigating to a Question:</h3>
-              <p>3. To answer a question, do the following:</p>
-              <ul className="list-disc pl-6 space-y-1 text-slate-600">
-                <li>Click on the question number in the Question Palette at the right of your screen to go to that question directly.</li>
-                <li>Click on <strong>Save & Next</strong> to save your answer for the current question and then go to the next question.</li>
-                <li>Click on <strong>Mark for Review & Next</strong> to save your answer and mark it for review.</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <h3 className="font-bold text-slate-900">Answering a Question:</h3>
-              <ul className="list-disc pl-6 space-y-1 text-slate-600">
-                <li>Choose one answer from the 4 options (A, B, C, D) given below the question by clicking on the option.</li>
-                <li>To deselect your chosen answer, click on <strong>Clear Response</strong> button.</li>
-                <li>To change your chosen answer, click on the bubble of another option.</li>
-              </ul>
-            </div>
+            <ol start={3} className="list-decimal pl-6 space-y-3 font-normal">
+              <li>
+                Click on the question number in the Question Palette at the right of your screen to go to that numbered question directly. Note that using this option does NOT save your answer to the current question.
+              </li>
+              <li>
+                Click on <span className="font-bold text-slate-900">Save & Next</span> to save your answer for the current question and then go to the next question.
+              </li>
+              <li>
+                Click on <span className="font-bold text-slate-900">Mark for Review & Next</span> to save your answer for the current question, mark it for review, and then go to the next question.
+              </li>
+            </ol>
           </div>
         </main>
 
-        {/* Bottom Bar matching Screenshot Page 4 */}
-        <footer className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-          <button
-            onClick={() => navigate('/test-series')}
-            className="px-5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs"
-          >
-            ← Go To Tests
-          </button>
-
+        {/* Bottom Bar */}
+        <footer className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end">
           <button
             onClick={() => setExamStep('specific_instructions')}
-            className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs shadow-md shadow-cyan-600/20 flex items-center gap-1.5"
+            className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs shadow-md shadow-cyan-600/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
           >
             <span>Next</span>
             <ChevronRight className="w-4 h-4" />
@@ -366,37 +457,44 @@ export const TestAttemptPage: React.FC = () => {
   }
 
   // -------------------------------------------------------------
-  // PAGE 5: Specific Instructions & Declaration Screen
+  // PAGE 5: Specific Instructions & Declaration Checkbox Screen
   // -------------------------------------------------------------
   if (examStep === 'specific_instructions') {
     return (
       <div className="min-h-screen bg-white flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
         {/* Top Header */}
         <header className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-lg font-black tracking-tight text-slate-900">
               Lo Samajh Lo <span className="text-cyan-600">CBT</span>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="text-xs font-bold text-slate-600 truncate max-w-md">
+              {testInfo.title}
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'T'}
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'C'}
             </div>
-            <div className="text-right">
-              <div className="text-xs font-bold text-slate-900">{user?.name || 'Atul Candidate'}</div>
+            <div className="hidden sm:block text-right">
+              <div className="text-xs font-bold text-slate-900">{user?.name || 'Candidate'}</div>
+              <div className="text-[10px] text-slate-400">Roll: LSL-2026-8921</div>
             </div>
           </div>
         </header>
 
-        {/* Main Area matching Screenshot Page 4 bottom */}
-        <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8 overflow-y-auto space-y-6 text-xs leading-relaxed">
-          <div className="text-center space-y-1 border-b border-slate-200 pb-4">
-            <h2 className="text-xl font-black text-slate-900">{testInfo.title}</h2>
-            <div className="flex items-center justify-center gap-6 text-xs text-slate-500 pt-1 font-semibold">
-              <span>Duration: {testInfo.durationMinutes || 30} Mins</span>
+        {/* Content Body */}
+        <main className="max-w-4xl mx-auto w-full px-6 py-8 space-y-6 flex-1 overflow-y-auto text-xs sm:text-sm">
+          <div className="border-b border-slate-200 pb-4 space-y-1">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+              {testInfo.title}
+            </h1>
+            <div className="flex items-center gap-3 text-xs text-slate-500 pt-1">
+              <span>Duration: {testInfo.durationMinutes || 60} Mins</span>
               <span>•</span>
-              <span>Maximum Marks: {testInfo.totalMarks || 100}</span>
+              <span>Total Marks: {testInfo.totalMarks || 100}</span>
               <span>•</span>
               <span>Total Questions: {questions.length}</span>
             </div>
@@ -407,8 +505,8 @@ export const TestAttemptPage: React.FC = () => {
             <ol className="list-decimal pl-6 space-y-2">
               <li>The test contains {questions.length} questions across scheduled exam sections.</li>
               <li>Each question has 4 options out of which only one is correct.</li>
-              <li>You have to finish the test within {testInfo.durationMinutes || 30} minutes.</li>
-              <li>You will be awarded positive marks for each correct answer. Negative marking applies for wrong attempts.</li>
+              <li>You have to finish the test within {testInfo.durationMinutes || 60} minutes.</li>
+              <li>You will be awarded positive marks for each correct answer. Negative marking applies for wrong attempts ({testInfo.negativeMarking || 0.25} marks).</li>
               <li>There is no negative marking for questions that you have not attempted.</li>
               <li>You can write this test only once. Make sure you do not close the browser tab until you submit.</li>
             </ol>
@@ -486,9 +584,20 @@ export const TestAttemptPage: React.FC = () => {
   const qId = currentQ.questionId || currentQ.id;
   const currentAnswer = answers[qId];
 
-  // Options parsing
+  // Bilingual Options & Question text
+  const currentQuestionText =
+    language === 'HINDI' && currentQ.questionHindi
+      ? currentQ.questionHindi
+      : language === 'ENGLISH' && currentQ.questionEnglish
+      ? currentQ.questionEnglish
+      : currentQ.questionText;
+
   let renderedOptions: string[] = [];
-  if (Array.isArray(currentQ.options)) {
+  if (language === 'HINDI' && currentQ.optionsHindi && currentQ.optionsHindi.length > 0) {
+    renderedOptions = currentQ.optionsHindi;
+  } else if (language === 'ENGLISH' && currentQ.optionsEnglish && currentQ.optionsEnglish.length > 0) {
+    renderedOptions = currentQ.optionsEnglish;
+  } else if (Array.isArray(currentQ.options)) {
     renderedOptions = currentQ.options;
   } else if (typeof currentQ.options === 'string') {
     try {
@@ -519,7 +628,7 @@ export const TestAttemptPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between selection:bg-cyan-500 selection:text-white select-none">
-      {/* Top Header Bar matching Screenshot Page 5 top */}
+      {/* Top Header Bar */}
       <header className="px-4 sm:px-6 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-3">
           <span className="text-base font-black tracking-tight text-slate-900">
@@ -532,12 +641,12 @@ export const TestAttemptPage: React.FC = () => {
         </div>
 
         {/* Section Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold overflow-x-auto max-w-md scrollbar-none">
           {sections.map((sec) => (
             <button
               key={sec}
               onClick={() => setCurrentSection(sec)}
-              className={`px-3 py-1 rounded-lg transition-all ${
+              className={`px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
                 currentSection === sec
                   ? 'bg-cyan-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -585,10 +694,10 @@ export const TestAttemptPage: React.FC = () => {
           {/* Candidate Avatar */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'T'}
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'C'}
             </div>
             <span className="hidden md:inline text-xs font-bold text-slate-800">
-              {user?.name || 'Atul'}
+              {user?.name || 'Candidate'}
             </span>
           </div>
         </div>
@@ -619,8 +728,13 @@ export const TestAttemptPage: React.FC = () => {
                 </select>
               </div>
 
-              <button className="text-slate-400 hover:text-slate-600 text-[11px]">
-                Report
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="text-slate-400 hover:text-rose-600 text-[11px] flex items-center gap-1 transition-colors"
+                title="Report question error"
+              >
+                <Flag className="w-3 h-3" />
+                <span>Report</span>
               </button>
             </div>
           </div>
@@ -628,7 +742,7 @@ export const TestAttemptPage: React.FC = () => {
           {/* Question Text & Options */}
           <div className="p-6 sm:p-8 space-y-6 flex-1">
             <div className="text-sm sm:text-base font-bold text-slate-900 leading-relaxed">
-              {currentQ.questionText}
+              {currentQuestionText}
             </div>
 
             {/* Options List */}
@@ -688,7 +802,7 @@ export const TestAttemptPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSaveAndNext}
-              className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs shadow-md shadow-cyan-600/20 transition-all hover:scale-105 active:scale-95"
+              className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs shadow-md shadow-cyan-600/20 transition-all hover:scale-105 active:scale-95"
             >
               Save & Next
             </button>
@@ -789,7 +903,7 @@ export const TestAttemptPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowSubmitModal(true)}
-              className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs shadow-md shadow-cyan-600/30 transition-all hover:scale-[1.02] active:scale-95"
+              className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs shadow-md shadow-cyan-600/30 transition-all hover:scale-[1.02] active:scale-95"
             >
               Submit Test
             </button>
@@ -884,6 +998,59 @@ export const TestAttemptPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Question Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                <Flag className="w-4 h-4 text-rose-500" />
+                Report Question #{currentIndex + 1}
+              </h3>
+              <button onClick={() => setShowReportModal(false)} className="p-1 text-slate-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <label className="block font-bold text-slate-700">Select Issue Reason:</label>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none"
+              >
+                <option value="Question is incorrect or ambiguous">Question is incorrect or ambiguous</option>
+                <option value="Options are incorrect or missing">Options are incorrect or missing</option>
+                <option value="Hindi translation error">Hindi translation error</option>
+                <option value="Out of syllabus or formatting issue">Out of syllabus or formatting issue</option>
+              </select>
+
+              <label className="block font-bold text-slate-700">Detailed comments (optional):</label>
+              <textarea
+                value={reportComment}
+                onChange={(e) => setReportComment(e.target.value)}
+                placeholder="Explain what is wrong with this question..."
+                className="w-full p-3 rounded-xl border border-slate-200 text-xs text-slate-800 outline-none h-20 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReportQuestion}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm"
+              >
+                Submit Report
+              </button>
             </div>
           </div>
         </div>

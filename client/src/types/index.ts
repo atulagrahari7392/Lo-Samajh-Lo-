@@ -179,10 +179,52 @@ export interface Question {
   difficulty: string;
   subject: string;
   topic?: string | null;
+  chapter?: string | null;
+  exam?: string | null;
+  year?: number | null;
+  shift?: string | null;
+  code?: string | null;
+  questionHindi?: string | null;
+  questionEnglish?: string | null;
+  optionsHindi?: string[] | null;
+  optionsEnglish?: string[] | null;
+  explanationHindi?: string | null;
+  explanationEnglish?: string | null;
   status?: string;
   position?: number;
   sectionName?: string;
   testQuestionId?: string;
+}
+
+export interface TestSeries {
+  id: string;
+  title: string;
+  slug: string;
+  examCategory: string;
+  subTitle?: string | null;
+  description?: string | null;
+  thumbnail?: string | null;
+  badge?: string | null;
+  totalTestsCount: number;
+  freeTestsCount: number;
+  rating: number;
+  enrolledCount: number;
+  languages: string;
+  validityDays: number;
+  price: number;
+  originalPrice?: number | null;
+  isFeatured: boolean;
+  isActive: boolean;
+  status: string;
+  createdAt: string;
+  tests?: Test[];
+  _count?: {
+    tests?: number;
+  };
+  userStats?: {
+    attemptedCount: number;
+    completedCount: number;
+  };
 }
 
 export interface Test {
@@ -190,6 +232,7 @@ export interface Test {
   title: string;
   slug: string;
   categoryId?: string | null;
+  seriesId?: string | null;
   courseId?: string | null;
   description?: string | null;
   instructions?: string | null;
@@ -198,13 +241,34 @@ export interface Test {
   passMarks: number;
   negativeMarking: number;
   isFree: boolean;
+  testType?: string;
+  subCategory?: string;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  allowResume?: boolean;
+  allowReattempt?: boolean;
+  showRank?: boolean;
+  showSolutions?: boolean;
+  questionLanguageMode?: string;
+  isLive?: boolean;
   status: string;
   createdAt: string;
   category?: Category;
+  series?: TestSeries;
   course?: Course;
   questionsCount?: number;
   attemptsCount?: number;
   userHighestScore?: number | null;
+  userAttempt?: {
+    id: string;
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED';
+    score: number;
+    accuracy: number;
+    timeSpentSeconds: number;
+    rank?: number | null;
+    percentile?: number | null;
+    submittedAt: string;
+  } | null;
 }
 
 export interface TestAttempt {
@@ -218,6 +282,12 @@ export interface TestAttempt {
   skippedCount: number;
   accuracy: number;
   timeSpentSeconds: number;
+  rank?: number | null;
+  percentile?: number | null;
+  answersMap?: Record<string, string> | null;
+  markedQuestions?: string[] | null;
+  currentQuestionIndex?: number | null;
+  timeSpentPerQuestion?: Record<string, number> | null;
   status: string;
   submittedAt: string;
   test?: {
@@ -225,6 +295,14 @@ export interface TestAttempt {
     title: string;
     totalMarks: number;
     durationMinutes: number;
+    passMarks?: number;
+    negativeMarking?: number;
+    subCategory?: string;
+    series?: {
+      id: string;
+      title: string;
+      slug: string;
+    };
   };
 }
 

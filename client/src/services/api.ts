@@ -125,6 +125,27 @@ export const api = {
     delete: (id: string) => request<any>(`/current-affairs/${id}`, { method: 'DELETE' }),
   },
 
+  // Test Series
+  testSeries: {
+    getAll: (params?: Record<string, any>) => {
+      const cleanParams: Record<string, string> = {};
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+      }
+      const q = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
+      return request<any>(`/test-series${q}`);
+    },
+    getById: (idOrSlug: string, subCategory?: string) => {
+      const q = subCategory ? `?subCategory=${subCategory}` : '';
+      return request<any>(`/test-series/${idOrSlug}${q}`);
+    },
+    adminCreate: (body: any) => request<any>('/test-series', { method: 'POST', body: JSON.stringify(body) }),
+    adminUpdate: (id: string, body: any) => request<any>(`/test-series/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    adminDelete: (id: string) => request<any>(`/test-series/${id}`, { method: 'DELETE' }),
+  },
+
   // Tests
   tests: {
     getAll: (params?: Record<string, any>) => {
@@ -132,9 +153,14 @@ export const api = {
       return request<any>(`/tests${q}`);
     },
     getById: (idOrSlug: string) => request<any>(`/tests/${idOrSlug}`),
+    start: (idOrSlug: string) => request<any>(`/tests/${idOrSlug}/start`, { method: 'POST' }),
+    saveProgress: (idOrSlug: string, body: any) =>
+      request<any>(`/tests/${idOrSlug}/save-progress`, { method: 'POST', body: JSON.stringify(body) }),
     takeTest: (idOrSlug: string) => request<any>(`/tests/${idOrSlug}/take`),
     submitTest: (idOrSlug: string, body: any) => request<any>(`/tests/${idOrSlug}/submit`, { method: 'POST', body: JSON.stringify(body) }),
     getResult: (idOrSlug: string, attemptId: string) => request<any>(`/tests/${idOrSlug}/result/${attemptId}`),
+    getSolutions: (idOrSlug: string, attemptId: string) => request<any>(`/tests/${idOrSlug}/solutions/${attemptId}`),
+    reportQuestion: (body: any) => request<any>('/tests/report-question', { method: 'POST', body: JSON.stringify(body) }),
     getMyAttempts: () => request<any>('/tests/my-attempts'),
     adminGetAll: () => request<any>('/tests/admin/all'),
     create: (body: any) => request<any>('/tests', { method: 'POST', body: JSON.stringify(body) }),

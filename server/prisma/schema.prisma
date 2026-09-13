@@ -236,50 +236,102 @@ model CurrentAffairs {
   @@map("current_affairs")
 }
 
-model Test {
-  id              String         @id @default(uuid())
+model TestSeries {
+  id              String   @id @default(uuid())
   title           String
-  slug            String         @unique
-  categoryId      String?
-  courseId        String?
+  slug            String   @unique
+  examCategory    String   @default("UP Police") // UP Police, SSC, Railway, BSSC, Banking, Teaching, Defence, Other
+  subTitle        String?
   description     String?
-  instructions    String?
-  durationMinutes Int            @default(60)
-  totalMarks      Float          @default(100)
-  passMarks       Float          @default(33)
-  negativeMarking Float          @default(0.25)
-  attemptLimit    Int            @default(0) // 0 = unlimited
-  isFree          Boolean        @default(true)
-  status          String         @default("PUBLISHED") // PUBLISHED, DRAFT
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  thumbnail       String?
+  badge           String?  @default("POPULAR")
+  totalTestsCount Int      @default(0)
+  freeTestsCount  Int      @default(0)
+  rating          Float    @default(4.8)
+  enrolledCount   Int      @default(1200)
+  languages       String   @default("English, Hindi")
+  validityDays    Int      @default(365)
+  price           Float    @default(0)
+  originalPrice   Float?
+  isFeatured      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  status          String   @default("PUBLISHED") // PUBLISHED, DRAFT
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  category        Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  course          Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  testQuestions   TestQuestion[]
-  attempts        TestAttempt[]
+  tests           Test[]
+
+  @@map("test_series")
+}
+
+model Test {
+  id                   String         @id @default(uuid())
+  title                String
+  slug                 String         @unique
+  seriesId             String?
+  categoryId           String?
+  courseId             String?
+  testType             String         @default("MOCK") // FULL_LENGTH, MOCK, PYQ, CHAPTER, SUBJECT, SECTIONAL, LIVE, CURRENT_AFFAIRS
+  subCategory          String?        @default("Mock Tests") // "Live Test", "Chapter Test", "Subject Test", "Sectional Test", "Full Test", "PYPs"
+  description          String?
+  instructions         String?
+  durationMinutes      Int            @default(60)
+  totalMarks           Float          @default(100)
+  passMarks            Float          @default(33)
+  negativeMarking      Float          @default(0.25)
+  attemptLimit         Int            @default(0) // 0 = unlimited
+  isFree               Boolean        @default(true)
+  isLive               Boolean        @default(false)
+  scheduledStart       DateTime?
+  scheduledEnd         DateTime?
+  allowResume          Boolean        @default(true)
+  allowReattempt       Boolean        @default(true)
+  showRank             Boolean        @default(true)
+  showSolutions        Boolean        @default(true)
+  questionLanguageMode String         @default("HINDI_ENGLISH") // HINDI_ENGLISH, HINDI, ENGLISH
+  status               String         @default("PUBLISHED") // PUBLISHED, DRAFT
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  series               TestSeries?    @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  category             Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  course               Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  testQuestions        TestQuestion[]
+  attempts             TestAttempt[]
 
   @@map("tests")
 }
 
 model Question {
-  id            String         @id @default(uuid())
-  questionText  String
-  questionType  String         @default("MCQ_SINGLE") // MCQ_SINGLE, MCQ_MULTI, NUMERICAL
-  options       String         // JSON array of strings: '["Opt A", "Opt B", "Opt C", "Opt D"]'
-  correctAnswer String         // e.g. "0" or "[0]"
-  explanation   String?
-  marks         Float          @default(1.0)
-  negativeMarks Float          @default(0.25)
-  difficulty    String         @default("MEDIUM") // EASY, MEDIUM, HARD
-  subject       String         @default("General")
-  topic         String?
-  status        String         @default("ACTIVE")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                 String           @id @default(uuid())
+  questionText       String
+  questionHindi      String?
+  questionEnglish    String?
+  questionType       String           @default("MCQ_SINGLE") // MCQ_SINGLE, MCQ_MULTI, NUMERICAL
+  options            String           // JSON array of strings: '["Opt A", "Opt B", "Opt C", "Opt D"]'
+  optionsHindi       String?          // JSON array of Hindi options
+  optionsEnglish     String?          // JSON array of English options
+  correctAnswer      String           // e.g. "0" or "[0]"
+  explanation        String?
+  explanationHindi   String?
+  explanationEnglish String?
+  marks              Float            @default(1.0)
+  negativeMarks      Float            @default(0.25)
+  difficulty         String           @default("MEDIUM") // EASY, MEDIUM, HARD
+  subject            String           @default("General")
+  chapter            String?
+  topic              String?
+  exam               String?
+  year               Int?
+  shift              String?
+  code               String?
+  status             String           @default("ACTIVE")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
-  testQuestions TestQuestion[]
-  testAnswers   TestAnswer[]
+  testQuestions      TestQuestion[]
+  testAnswers        TestAnswer[]
+  reports            QuestionReport[]
 
   @@map("questions")
 }
@@ -299,23 +351,30 @@ model TestQuestion {
 }
 
 model TestAttempt {
-  id               String       @id @default(uuid())
-  testId           String
-  userId           String
-  score            Float        @default(0)
-  totalQuestions   Int          @default(0)
-  correctCount     Int          @default(0)
-  incorrectCount   Int          @default(0)
-  skippedCount     Int          @default(0)
-  accuracy         Float        @default(0)
-  timeSpentSeconds Int          @default(0)
-  status           String       @default("SUBMITTED") // IN_PROGRESS, SUBMITTED, EVALUATED
-  submittedAt      DateTime     @default(now())
-  createdAt        DateTime     @default(now())
+  id                   String       @id @default(uuid())
+  testId               String
+  userId               String
+  score                Float        @default(0)
+  totalQuestions       Int          @default(0)
+  correctCount         Int          @default(0)
+  incorrectCount       Int          @default(0)
+  skippedCount         Int          @default(0)
+  accuracy             Float        @default(0)
+  timeSpentSeconds     Int          @default(0)
+  rank                 Int?
+  percentile           Float?
+  answersMap           String?      // JSON of recorded answers: {"qId": "selectedOpt"} for reliable auto-save & resume
+  markedQuestions      String?      // JSON array of marked question IDs
+  currentQuestionIndex Int          @default(0)
+  timeSpentPerQuestion String?      // JSON: {"qId": seconds}
+  isLive               Boolean      @default(false)
+  status               String       @default("SUBMITTED") // IN_PROGRESS, SUBMITTED, EVALUATED
+  submittedAt          DateTime     @default(now())
+  createdAt            DateTime     @default(now())
 
-  test             Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers          TestAnswer[]
+  test                 Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers              TestAnswer[]
 
   @@map("test_attempts")
 }
@@ -332,6 +391,21 @@ model TestAnswer {
   question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("test_answers")
+}
+
+model QuestionReport {
+  id          String   @id @default(uuid())
+  questionId  String
+  userId      String?
+  testId      String?
+  reason      String   // WRONG_ANSWER, WRONG_QUESTION, TYPO, TRANSLATION_ERROR, OUTDATED, OTHER
+  description String?
+  status      String   @default("PENDING") // PENDING, RESOLVED, REJECTED
+  createdAt   DateTime @default(now())
+
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("question_reports")
 }
 
 model TypingExam {
