@@ -14,6 +14,7 @@ import {
   X,
   Image as ImageIcon,
   RefreshCw,
+  UploadCloud,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { api } from '../../services/api';
@@ -39,6 +40,24 @@ export const AdminSlidersPage: React.FC = () => {
   const [linkUrl, setLinkUrl] = useState('/courses');
   const [position, setPosition] = useState(1);
   const [isActive, setIsActive] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingImage(true);
+      const res = await api.upload.file(file);
+      if (res.success && res.fileUrl) {
+        setImageUrl(res.fileUrl);
+        success('Banner image uploaded from local drive successfully!');
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Image upload failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   // Delete modal
   const [deleteTarget, setDeleteTarget] = useState<SliderBanner | null>(null);
@@ -511,21 +530,55 @@ export const AdminSlidersPage: React.FC = () => {
                 </div>
 
                 {/* Image URL with live preview */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                    <span>Banner Image URL (बैनर इमेज लिंक) *</span>
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      High resolution recommended (1400x500 or 16:9)
+                {/* Image Selection: Local Upload OR URL */}
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Banner Image (बैनर फोटो) *
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      Local Drive से अपलोड करें या ऑनलाइन इमेज URL पेस्ट करें
                     </span>
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:border-[#6C63FF] outline-none"
-                  />
+                  </div>
+
+                  {/* Local Drive Upload Box */}
+                  <div className="p-3 bg-purple-50/50 border border-dashed border-purple-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-700">
+                      <div className="w-8 h-8 rounded-xl bg-[#6C63FF]/10 text-[#6C63FF] flex items-center justify-center font-bold">
+                        <UploadCloud className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-bold">Direct Local Drive se Upload Karein</div>
+                        <div className="text-[10px] text-slate-500">PNG, JPG, WebP (कंप्यूटर या मोबाइल से चुनें)</div>
+                      </div>
+                    </div>
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#6C63FF] hover:bg-[#584feb] text-white font-bold text-xs shadow-md shadow-[#6C63FF]/20 transition-all hover:scale-105 active:scale-95">
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>{uploadingImage ? 'Uploading...' : 'Choose File / फ़ाइल चुनें'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingImage}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Or Manual URL Input */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                      या Image URL / लिंक यहाँ लिखें:
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://... ya /uploads/..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:border-[#6C63FF] outline-none"
+                    />
+                  </div>
                   {/* Quick presets */}
                   <div className="flex flex-wrap gap-2 mt-2 items-center text-[11px] text-slate-500">
                     <span className="font-bold text-slate-400">Sample Presets:</span>

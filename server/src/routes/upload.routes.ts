@@ -24,14 +24,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit for videos & banners
   fileFilter: (req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.doc', '.docx', '.ppt', '.pptx'];
+    const allowed = [
+      // Images
+      '.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif',
+      // Videos
+      '.mp4', '.webm', '.mkv', '.mov', '.avi',
+      // Documents & Bulk data
+      '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.csv', '.xlsx', '.json'
+    ];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Unsupported file type. Only images and documents are allowed.'));
+      cb(new Error(`Unsupported file type (${ext}). Allowed: images, videos, and documents.`));
     }
   },
 });

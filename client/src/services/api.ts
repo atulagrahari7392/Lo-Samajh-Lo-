@@ -106,6 +106,8 @@ export const api = {
       return request<any>(`/questions${q}`);
     },
     create: (body: any) => request<any>('/questions', { method: 'POST', body: JSON.stringify(body) }),
+    bulkCreate: (body: { questions: any[]; testId?: string; sectionName?: string }) =>
+      request<any>('/questions/bulk', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: any) => request<any>(`/questions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/questions/${id}`, { method: 'DELETE' }),
     assignToTest: (body: any) => request<any>('/questions/assign-to-test', { method: 'POST', body: JSON.stringify(body) }),

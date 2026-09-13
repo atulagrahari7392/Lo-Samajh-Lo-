@@ -8,17 +8,53 @@ import {
   BookOpen,
   Download,
   AlertCircle,
+  Shield,
+  Lock,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Course, CourseLesson } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 
 export const CoursePlayerPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const { user } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [activeLesson, setActiveLesson] = useState<CourseLesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [watermarkPos, setWatermarkPos] = useState({ top: '20%', left: '30%' });
+
+  // DRM & Anti-piracy watermark position shift and key blocking
+  useEffect(() => {
+    const positions = [
+      { top: '15%', left: '15%' },
+      { top: '75%', left: '20%' },
+      { top: '25%', left: '65%' },
+      { top: '70%', left: '60%' },
+      { top: '45%', left: '40%' },
+    ];
+    let idx = 0;
+    const interval = setInterval(() => {
+      idx = (idx + 1) % positions.length;
+      setWatermarkPos(positions[idx]);
+    }, 6000);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.ctrlKey && (e.key === 's' || e.key === 'u' || e.key === 'p')) ||
+        e.key === 'F12'
+      ) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -123,16 +159,32 @@ export const CoursePlayerPage: React.FC = () => {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left: Video Player & Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* Responsive Video Frame */}
-          <div className="relative aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl border border-slate-800">
+          {/* Responsive Video Frame with Anti-Download & Security Watermark */}
+          <div
+            className="relative aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl border border-slate-800 select-none group"
+            onContextMenu={(e) => e.preventDefault()}
+          >
             {activeLesson?.videoUrl ? (
-              <iframe
-                src={activeLesson.videoUrl}
-                title={activeLesson.title}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              activeLesson.videoUrl.endsWith('.mp4') ||
+              activeLesson.videoUrl.endsWith('.webm') ||
+              activeLesson.videoUrl.startsWith('/uploads/') ? (
+                <video
+                  src={activeLesson.videoUrl}
+                  controls
+                  controlsList="nodownload"
+                  disablePictureInPicture
+                  className="w-full h-full object-contain"
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              ) : (
+                <iframe
+                  src={activeLesson.videoUrl}
+                  title={activeLesson.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-2 text-slate-500">
                 <PlayCircle className="w-16 h-16 text-[#6C63FF]" />
@@ -140,6 +192,22 @@ export const CoursePlayerPage: React.FC = () => {
                 <p className="text-xs">No video feed uploaded for this lecture yet.</p>
               </div>
             )}
+
+            {/* Dynamic Floating Anti-Piracy Watermark */}
+            {activeLesson?.videoUrl && (
+              <div
+                style={{ top: watermarkPos.top, left: watermarkPos.left }}
+                className="absolute pointer-events-none z-30 transition-all duration-1000 ease-in-out opacity-25 select-none text-[10px] sm:text-xs font-mono font-bold text-white bg-black/60 px-2.5 sm:px-3 py-1 rounded-lg border border-white/10 shadow-lg"
+              >
+                🔒 {user?.name || 'Lo Samajh Lo Student'} • {user?.phone || user?.email || 'ID: 7392'}
+              </div>
+            )}
+
+            {/* Security Badge in Top-Right */}
+            <div className="absolute top-3 right-3 z-20 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+              <Shield className="w-3 h-3 text-emerald-400" />
+              <span>Anti-Piracy Protected</span>
+            </div>
           </div>
 
           {/* Lesson Header & Mark Complete */}

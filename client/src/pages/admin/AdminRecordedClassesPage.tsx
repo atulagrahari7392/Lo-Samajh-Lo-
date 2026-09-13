@@ -10,6 +10,12 @@ import {
   RefreshCw,
   X,
   CheckCircle,
+  UploadCloud,
+  HardDrive,
+  Youtube,
+  Link as LinkIcon,
+  ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { RecordedClass, Course } from '../../types';
@@ -35,6 +41,45 @@ export const AdminRecordedClassesPage: React.FC = () => {
   const [videoUrl, setVideoUrl] = useState('');
   const [description, setDescription] = useState('');
   const [isPublished, setIsPublished] = useState(true);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoSourceType, setVideoSourceType] = useState<'upload' | 'drive' | 'youtube' | 'custom'>('upload');
+
+  // Helper to normalize and convert Google Drive & YouTube links
+  const handleVideoUrlChange = (val: string) => {
+    let cleanUrl = val.trim();
+
+    // Check Google Drive
+    const driveMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+      cleanUrl = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+
+    // Check YouTube
+    const ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]+)/);
+    if (ytMatch && ytMatch[1]) {
+      cleanUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+    }
+
+    setVideoUrl(cleanUrl);
+  };
+
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingVideo(true);
+      const res = await api.upload.file(file);
+      if (res.success && res.fileUrl) {
+        setVideoUrl(res.fileUrl);
+        success('Video uploaded from local drive successfully!');
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Video upload failed. Please try again or use Google Drive link.');
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
 
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -331,16 +376,107 @@ export const AdminRecordedClassesPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Video Embed URL (YouTube or MP4) *</label>
-                  <input
-                    type="url"
-                    required
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    placeholder="https://www.youtube.com/embed/..."
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none"
-                  />
+                {/* Video Source Selection & Upload */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Video Source / वीडियो स्रोत चुनें *
+                  </label>
+
+                  {/* Tabs */}
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setVideoSourceType('upload')}
+                      className={`py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                        videoSourceType === 'upload' ? 'bg-white text-[#6C63FF] shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Local Drive Upload</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVideoSourceType('drive')}
+                      className={`py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                        videoSourceType === 'drive' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <HardDrive className="w-3.5 h-3.5" />
+                      <span>Google Drive (5TB)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVideoSourceType('youtube')}
+                      className={`py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                        videoSourceType === 'youtube' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Youtube className="w-3.5 h-3.5" />
+                      <span>YouTube / Other</span>
+                    </button>
+                  </div>
+
+                  {/* 1. Local Video Upload */}
+                  {videoSourceType === 'upload' && (
+                    <div className="p-3 bg-purple-50/60 border border-dashed border-purple-200 rounded-2xl space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-xs text-slate-800">Direct Local Video File Upload</div>
+                          <div className="text-[10px] text-slate-500">MP4, WebM, MKV (Local drive ya PC se chunein)</div>
+                        </div>
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#6C63FF] hover:bg-[#584feb] text-white font-bold text-xs shadow-sm transition-all hover:scale-105 active:scale-95">
+                          <UploadCloud className="w-3.5 h-3.5" />
+                          <span>{uploadingVideo ? 'Uploading Video...' : 'Choose Video File'}</span>
+                          <input
+                            type="file"
+                            accept="video/mp4,video/webm,video/mkv,video/mov"
+                            disabled={uploadingVideo}
+                            onChange={handleVideoFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Google Drive Link */}
+                  {videoSourceType === 'drive' && (
+                    <div className="p-3 bg-emerald-50/60 border border-dashed border-emerald-200 rounded-2xl space-y-1.5 text-xs">
+                      <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                        <HardDrive className="w-4 h-4 text-emerald-600" />
+                        <span>Google Drive 5TB Storage Connector</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 leading-relaxed">
+                        अपनी Google Drive फ़ाइल का शेयर लिंक <em>("Anyone with link can view")</em> यहाँ पेस्ट करें। यह सिस्टम स्वतः सुरक्षित प्रीव्यू प्लेयर में बदल देगा।
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Video URL Input */}
+                  <div>
+                    <input
+                      type="url"
+                      required
+                      value={videoUrl}
+                      onChange={(e) => handleVideoUrlChange(e.target.value)}
+                      placeholder={
+                        videoSourceType === 'drive'
+                          ? 'https://drive.google.com/file/d/.../view?usp=sharing'
+                          : videoSourceType === 'youtube'
+                          ? 'https://www.youtube.com/watch?v=... ya embed url'
+                          : 'Video URL or /uploads/filename.mp4'
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-[#6C63FF]/30 outline-none"
+                    />
+                  </div>
+
+                  {/* Detection Feedback */}
+                  {videoUrl && (
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Protected Video Stream Configured: {videoUrl.slice(0, 50)}...</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">

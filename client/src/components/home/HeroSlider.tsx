@@ -87,7 +87,7 @@ export const HeroSlider: React.FC = () => {
       onMouseLeave={() => setIsPaused(false)}
     >
       {/* Slide Container */}
-      <div className="relative h-[380px] sm:h-[420px] md:h-[460px] w-full">
+      <div className="relative min-h-[420px] sm:min-h-[440px] md:h-[480px] w-full">
         {slides.map((slide, idx) => {
           const isCurrent = idx === currentIndex;
 
@@ -108,34 +108,32 @@ export const HeroSlider: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-900/40" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/30" />
 
-              {/* Slide Content Box */}
-              <div className="relative z-20 h-full max-w-7xl mx-auto px-6 sm:px-10 md:px-16 flex flex-col justify-center">
-                <div className="max-w-2xl space-y-4">
+              {/* Slide Content Box with High Contrast Glass Card */}
+              <div className="relative z-20 h-full max-w-7xl mx-auto px-4 sm:px-8 md:px-14 flex flex-col justify-center">
+                <div className="max-w-2xl bg-slate-950/80 backdrop-blur-md p-5 sm:p-7 md:p-8 rounded-3xl border border-white/20 shadow-2xl space-y-3 sm:space-y-4">
                   {/* Badge */}
-                  {slide.badge && (
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#FF6584] text-white text-xs font-black tracking-wider uppercase shadow-lg shadow-[#6C63FF]/30">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{slide.badge}</span>
-                    </div>
-                  )}
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#6C63FF] to-[#FF6584] text-white text-[10px] sm:text-xs font-black tracking-wider uppercase shadow-lg shadow-[#6C63FF]/30">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{slide.badge || '🔥 FEATURED BATCH'}</span>
+                  </div>
 
                   {/* Title */}
-                  <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.18] drop-shadow">
+                  <h2 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2] drop-shadow-md">
                     {slide.title}
                   </h2>
 
                   {/* Subtitle */}
                   {slide.subtitle && (
-                    <p className="text-xs sm:text-sm md:text-base text-slate-200 leading-relaxed line-clamp-2 sm:line-clamp-3 max-w-xl drop-shadow-sm">
+                    <p className="text-xs sm:text-sm md:text-base text-slate-200 leading-relaxed line-clamp-2 sm:line-clamp-3 max-w-xl">
                       {slide.subtitle}
                     </p>
                   )}
 
                   {/* CTA Action Button */}
-                  <div className="pt-2 flex items-center gap-3">
+                  <div className="pt-1 flex flex-wrap items-center gap-2.5 sm:gap-3">
                     <Link
                       to={slide.linkUrl || '/courses'}
-                      className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#6C63FF] via-[#7d75ff] to-[#FF6584] hover:opacity-95 text-white font-black text-xs sm:text-sm shadow-xl shadow-[#6C63FF]/40 transition-all hover:scale-105 active:scale-95"
+                      className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#6C63FF] via-[#7d75ff] to-[#FF6584] hover:opacity-95 text-white font-black text-xs sm:text-sm shadow-xl shadow-[#6C63FF]/40 transition-all hover:scale-105 active:scale-95"
                     >
                       <span>{slide.buttonText || 'Enroll Now / अभी शुरू करें'}</span>
                       <ArrowRight className="w-4 h-4" />
@@ -143,10 +141,10 @@ export const HeroSlider: React.FC = () => {
 
                     <Link
                       to="/test-series"
-                      className="hidden sm:inline-flex items-center gap-1.5 px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold text-xs border border-white/20 transition-all"
+                      className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-white/15 hover:bg-white/25 backdrop-blur-md text-white font-bold text-xs border border-white/20 transition-all"
                     >
                       <Play className="w-3.5 h-3.5 fill-current text-[#FF6584]" />
-                      <span>Free Demo Mock</span>
+                      <span>Free Mock Test</span>
                     </Link>
                   </div>
                 </div>

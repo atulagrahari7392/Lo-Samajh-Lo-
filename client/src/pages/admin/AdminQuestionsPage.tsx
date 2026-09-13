@@ -12,6 +12,9 @@ import {
   RefreshCw,
   BookOpen,
   Award,
+  UploadCloud,
+  FileSpreadsheet,
+  Download,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Question, Test } from '../../types';
@@ -51,6 +54,129 @@ export const AdminQuestionsPage: React.FC = () => {
   const [negativeMarks, setNegativeMarks] = useState(0.25);
   const [assignTestId, setAssignTestId] = useState('');
   const [sectionName, setSectionName] = useState('General');
+
+  // Bulk Upload State
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkTargetTestId, setBulkTargetTestId] = useState(initialTestId);
+  const [bulkSectionName, setBulkSectionName] = useState('General');
+  const [bulkParsed, setBulkParsed] = useState<any[]>([]);
+  const [uploadingBulk, setUploadingBulk] = useState(false);
+
+  // Parse CSV / TSV text
+  const parseBulkContent = (text: string) => {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      setBulkParsed([]);
+      return;
+    }
+
+    const results: any[] = [];
+    const firstLineLower = lines[0].toLowerCase();
+    const startIndex = firstLineLower.includes('question') && firstLineLower.includes('option') ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i];
+      const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+      if (parts.length < 6) continue;
+
+      const qText = parts[0]?.replace(/^"|"$/g, '').trim();
+      const op1 = parts[1]?.replace(/^"|"$/g, '').trim();
+      const op2 = parts[2]?.replace(/^"|"$/g, '').trim();
+      const op3 = parts[3]?.replace(/^"|"$/g, '').trim();
+      const op4 = parts[4]?.replace(/^"|"$/g, '').trim();
+      const correctVal = parts[5]?.replace(/^"|"$/g, '').trim() || '1';
+      const expl = parts[6]?.replace(/^"|"$/g, '').trim() || '';
+      const subj = parts[7]?.replace(/^"|"$/g, '').trim() || 'General Studies';
+      const top = parts[8]?.replace(/^"|"$/g, '').trim() || '';
+      const diff = parts[9]?.replace(/^"|"$/g, '').trim() || 'MEDIUM';
+      const m = parseFloat(parts[10]?.trim()) || 1.0;
+      const nm = parseFloat(parts[11]?.trim()) || 0.25;
+
+      if (!qText || !op1 || !op2) continue;
+
+      let correctIndex = 0;
+      if (['a', 'A', '1'].includes(correctVal)) correctIndex = 0;
+      else if (['b', 'B', '2'].includes(correctVal)) correctIndex = 1;
+      else if (['c', 'C', '3'].includes(correctVal)) correctIndex = 2;
+      else if (['d', 'D', '4'].includes(correctVal)) correctIndex = 3;
+      else {
+        const num = parseInt(correctVal, 10);
+        if (!isNaN(num) && num >= 0 && num <= 3) correctIndex = num;
+      }
+
+      results.push({
+        questionText: qText,
+        options: [op1, op2, op3 || 'Option C', op4 || 'Option D'],
+        correctAnswer: String(correctIndex),
+        explanation: expl,
+        subject: subj,
+        topic: top,
+        difficulty: ['EASY', 'MEDIUM', 'HARD'].includes(diff.toUpperCase()) ? diff.toUpperCase() : 'MEDIUM',
+        marks: m,
+        negativeMarks: nm,
+      });
+    }
+
+    setBulkParsed(results);
+  };
+
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = (event.target?.result as string) || '';
+      setBulkText(content);
+      parseBulkContent(content);
+    };
+    reader.readAsText(file);
+  };
+
+  const downloadSampleTemplate = () => {
+    const csvContent =
+      'questionText,optionA,optionB,optionC,optionD,correctOption(1-4),explanation,subject,topic,difficulty,marks,negativeMarks\n' +
+      '"Who was the first Governor-General of independent India?","Lord Mountbatten","C. Rajagopalachari","Dr. Rajendra Prasad","Lord Wavell",1,"Lord Mountbatten served as the first Governor-General from Aug 1947 to June 1948.","History","Modern India","MEDIUM",1,0.25\n' +
+      '"What is the SI unit of electric current?","Volt","Ampere","Ohm","Watt",2,"The SI unit of electric current is Ampere (A).","Science","Physics","EASY",1,0.25\n' +
+      '"Article 21 of the Indian Constitution guarantees which fundamental right?","Right to Equality","Right to Freedom of Speech","Right to Life & Personal Liberty","Right to Constitutional Remedies",3,"Article 21 guarantees Protection of Life and Personal Liberty.","Polity","Fundamental Rights","MEDIUM",1,0.25';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'sample_questions_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleBulkSubmit = async () => {
+    if (bulkParsed.length === 0) {
+      toastError('No valid questions found to upload. Please check your data.');
+      return;
+    }
+
+    try {
+      setUploadingBulk(true);
+      const res = await api.questions.bulkCreate({
+        questions: bulkParsed,
+        testId: bulkTargetTestId || undefined,
+        sectionName: bulkSectionName || undefined,
+      });
+
+      if (res.success) {
+        success(`Successfully uploaded ${res.count || bulkParsed.length} questions in bulk!`);
+        setIsBulkModalOpen(false);
+        setBulkText('');
+        setBulkParsed([]);
+        fetchQuestions();
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Bulk upload failed');
+    } finally {
+      setUploadingBulk(false);
+    }
+  };
 
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -242,6 +368,13 @@ export const AdminQuestionsPage: React.FC = () => {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
+            </button>
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all hover:scale-105 active:scale-95"
+            >
+              <UploadCloud className="w-4 h-4" />
+              Bulk Upload / थोक अपलोड
             </button>
             <button
               onClick={openCreateModal}
@@ -619,6 +752,157 @@ export const AdminQuestionsPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Bulk Upload Questions */}
+        {isBulkModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">Bulk Upload Questions (थोक प्रश्न अपलोड)</h3>
+                    <p className="text-[11px] text-slate-500">CSV फ़ाइल अपलोड करें या सीधे प्रश्न कॉपी-पेस्ट करें</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsBulkModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                {/* Download Sample & Upload Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
+                  <div>
+                    <div className="font-bold text-emerald-900">CSV Template Format</div>
+                    <div className="text-[10px] text-emerald-700">Question, OptionA, OptionB, OptionC, OptionD, Correct(1-4), Explanation...</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={downloadSampleTemplate}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-800 font-bold text-xs shadow-sm hover:bg-emerald-50"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download Sample CSV</span>
+                    </button>
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20">
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Choose CSV File</span>
+                      <input
+                        type="file"
+                        accept=".csv,.txt,.tsv"
+                        onChange={handleBulkFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Target Test Assignment */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Assign to Mock Test (Optional)
+                    </label>
+                    <select
+                      value={bulkTargetTestId}
+                      onChange={(e) => setBulkTargetTestId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white outline-none"
+                    >
+                      <option value="">General Question Bank (No Test)</option>
+                      {tests.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Section Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bulkSectionName}
+                      onChange={(e) => setBulkSectionName(e.target.value)}
+                      placeholder="e.g. General Awareness or Maths"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Paste Area */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Or Paste Questions Data (CSV / Tab-Separated)
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={bulkText}
+                    onChange={(e) => {
+                      setBulkText(e.target.value);
+                      parseBulkContent(e.target.value);
+                    }}
+                    placeholder={`"Who is India's first Prime Minister?","Jawaharlal Nehru","Sardar Patel","Mahatma Gandhi","B.R. Ambedkar",1,"Pt. Nehru was the first PM.","History","Modern India","EASY",1,0.25`}
+                    className="w-full font-mono text-[11px] p-3 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+
+                {/* Validation Preview */}
+                {bulkParsed.length > 0 && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                      <span>Preview Parsed Questions ({bulkParsed.length} Ready to Import)</span>
+                      <span className="text-emerald-600 font-bold">✓ Validated</span>
+                    </div>
+                    <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                      {bulkParsed.slice(0, 10).map((q, idx) => (
+                        <div key={idx} className="p-2 bg-white rounded-xl border border-slate-100 text-[11px]">
+                          <div className="font-bold text-slate-900 line-clamp-1">
+                            {idx + 1}. {q.questionText}
+                          </div>
+                          <div className="text-slate-500 text-[10px] mt-0.5">
+                            Options: {q.options.join(' | ')} • Correct: Option {Number(q.correctAnswer) + 1}
+                          </div>
+                        </div>
+                      ))}
+                      {bulkParsed.length > 10 && (
+                        <p className="text-[10px] text-center text-slate-400">
+                          + {bulkParsed.length - 10} more questions ready
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={uploadingBulk || bulkParsed.length === 0}
+                    onClick={handleBulkSubmit}
+                    className="px-6 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/30 disabled:opacity-50"
+                  >
+                    {uploadingBulk ? 'Uploading Questions...' : `Import ${bulkParsed.length} Questions Now`}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

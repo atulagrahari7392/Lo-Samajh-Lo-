@@ -103,6 +103,66 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   }
 });
 
+// POST /api/questions/bulk (Admin bulk create questions)
+router.post('/bulk', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { questions, testId, sectionName } = req.body;
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      res.status(400).json({ success: false, message: 'Questions array is required.' });
+      return;
+    }
+
+    const createdQuestions = [];
+
+    // Process questions in sequence or transaction
+    for (const q of questions) {
+      if (!q.questionText || !q.options || q.correctAnswer === undefined) {
+        continue; // Skip invalid entries
+      }
+
+      const optionsStr = typeof q.options === 'string' ? q.options : JSON.stringify(q.options);
+
+      const newQ = await prisma.question.create({
+        data: {
+          questionText: String(q.questionText).trim(),
+          questionType: q.questionType || 'MCQ_SINGLE',
+          options: optionsStr,
+          correctAnswer: String(q.correctAnswer).trim(),
+          explanation: q.explanation ? String(q.explanation).trim() : null,
+          marks: parseFloat(q.marks) || 1.0,
+          negativeMarks: parseFloat(q.negativeMarks) || 0.25,
+          difficulty: q.difficulty || 'MEDIUM',
+          subject: q.subject ? String(q.subject).trim() : 'General',
+          topic: q.topic ? String(q.topic).trim() : null,
+          status: 'ACTIVE',
+        },
+      });
+
+      if (testId) {
+        await prisma.testQuestion.create({
+          data: {
+            testId,
+            questionId: newQ.id,
+            sectionName: q.sectionName || sectionName || q.subject || 'General',
+          },
+        });
+      }
+
+      createdQuestions.push(newQ);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully uploaded and created ${createdQuestions.length} questions!`,
+      count: createdQuestions.length,
+      questions: createdQuestions,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PUT /api/questions/:id (Admin edit)
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
