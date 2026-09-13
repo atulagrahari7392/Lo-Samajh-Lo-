@@ -17,6 +17,7 @@ import { Course, CourseLesson } from '../../types';
 import AdminLayout from '../../components/admin/AdminLayout';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
+import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
 
 export const AdminCoursesPage: React.FC = () => {
   const { success, error: toastError } = useToast();
@@ -191,8 +192,9 @@ export const AdminCoursesPage: React.FC = () => {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={course.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=100'}
+                          src={formatImageUrl(course.thumbnail)}
                           alt={course.title}
+                          onError={handleImageError(DEFAULT_COURSE_THUMBNAIL)}
                           className="w-14 h-10 rounded-lg object-cover bg-slate-100 flex-shrink-0"
                         />
                         <div className="overflow-hidden">

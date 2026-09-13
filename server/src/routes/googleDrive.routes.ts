@@ -192,4 +192,41 @@ router.get('/stream/:fileId', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/google-drive/image/:fileId (Direct image stream with 7-day browser caching)
+router.get('/image/:fileId', async (req: Request, res: Response) => {
+  const { fileId } = req.params;
+  if (!fileId) {
+    res.status(400).send('File ID is required');
+    return;
+  }
+
+  try {
+    const { stream, mimeType } = await googleDriveService.streamImage(fileId);
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=604800, immutable');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    (stream as any).on('error', (streamErr: any) => {
+      console.warn(`Stream error for image ${fileId}, falling back to CDN:`, streamErr.message);
+      if (!res.headersSent) {
+        res.redirect(`https://lh3.googleusercontent.com/d/${fileId}`);
+      }
+    });
+
+    (stream as any).pipe(res);
+  } catch (error: any) {
+    console.warn(`Could not serve Google Drive image ${fileId} directly, redirecting to CDN:`, error.message);
+    if (!res.headersSent) {
+      res.redirect(`https://lh3.googleusercontent.com/d/${fileId}`);
+    }
+  }
+});
+
+// GET /api/google-drive/thumbnail/:fileId (Convenience alias)
+router.get('/thumbnail/:fileId', (req: Request, res: Response) => {
+  res.redirect(`/api/google-drive/image/${req.params.fileId}`);
+});
+
 export default router;
+

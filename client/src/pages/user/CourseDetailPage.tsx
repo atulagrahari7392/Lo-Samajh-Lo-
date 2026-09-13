@@ -21,6 +21,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useToast } from '../../context/ToastContext';
 import SyllabusAccordion from '../../components/course/SyllabusAccordion';
 import { CustomVideoPlayer } from '../../components/video/CustomVideoPlayer';
+import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
 
 export const CourseDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -187,7 +188,7 @@ export const CourseDetailPage: React.FC = () => {
                   url={previewLesson.videoUrl}
                   title={previewLesson.title}
                   chapterTitle={previewLesson.chapterTitle}
-                  thumbnail={previewLesson.thumbnail || course.thumbnail}
+                  thumbnail={formatImageUrl(previewLesson.thumbnail || course.thumbnail)}
                   studentPhone={user?.phone || user?.email || ''}
                 />
               ) : (
@@ -372,8 +373,9 @@ export const CourseDetailPage: React.FC = () => {
               {/* Thumbnail */}
               <div className="aspect-video rounded-2xl overflow-hidden bg-slate-100 relative">
                 <img
-                  src={course.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600'}
+                  src={formatImageUrl(course.thumbnail)}
                   alt={course.title}
+                  onError={handleImageError(DEFAULT_COURSE_THUMBNAIL)}
                   className="w-full h-full object-cover"
                 />
               </div>

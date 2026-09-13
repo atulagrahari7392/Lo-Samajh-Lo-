@@ -134,6 +134,10 @@ router.post('/', authenticate, requireAdmin, upload.single('file'), async (req: 
         isPublic: true,
       });
 
+      const isImage = mimeType.startsWith('image/');
+      const directImageUrl = isImage ? `/api/google-drive/image/${driveResult.fileId}` : null;
+      const finalFileUrl = directImageUrl || driveResult.webUrl;
+
       // Create persistent FileAsset metadata record in PostgreSQL
       const fileAsset = await prisma.fileAsset.create({
         data: {
@@ -144,9 +148,9 @@ router.post('/', authenticate, requireAdmin, upload.single('file'), async (req: 
           size: driveResult.size || size,
           folderId: driveResult.folderId || null,
           folderCategory: categoryParam,
-          webUrl: driveResult.webUrl,
+          webUrl: finalFileUrl,
           downloadUrl: driveResult.downloadUrl,
-          thumbnailUrl: driveResult.thumbnailUrl,
+          thumbnailUrl: directImageUrl || driveResult.thumbnailUrl,
           storageStatus: 'ACTIVE',
           entityType,
           entityId,
@@ -166,7 +170,7 @@ router.post('/', authenticate, requireAdmin, upload.single('file'), async (req: 
         success: true,
         message: 'File uploaded successfully to Google Drive!',
         storageProvider: 'GOOGLE_DRIVE',
-        fileUrl: driveResult.webUrl,
+        fileUrl: finalFileUrl,
         downloadUrl: driveResult.downloadUrl,
         driveFileId: driveResult.fileId,
         filename: originalName,

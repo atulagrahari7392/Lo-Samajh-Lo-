@@ -4,6 +4,7 @@ import { Clock, Star, ShoppingBag, Heart, CheckCircle2, PlayCircle } from 'lucid
 import { Course } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
 
 interface CourseCardProps {
   course: Course;
@@ -32,8 +33,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         {/* Thumbnail & Badges */}
         <div className="relative aspect-video overflow-hidden bg-slate-100">
           <img
-            src={course.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600'}
+            src={formatImageUrl(course.thumbnail)}
             alt={course.title}
+            onError={handleImageError(DEFAULT_COURSE_THUMBNAIL)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />

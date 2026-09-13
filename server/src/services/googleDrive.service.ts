@@ -132,7 +132,7 @@ class GoogleDriveService {
     };
   }
 
-  private async getClient() {
+  public async getClient() {
     if (this.driveClient) return this.driveClient;
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -465,6 +465,45 @@ class GoogleDriveService {
       headers: outHeaders,
     };
   }
+
+  public async streamImage(fileId: string): Promise<{
+    stream: NodeJS.ReadableStream;
+    mimeType: string;
+  }> {
+    const drive = await this.getClient();
+    if (!drive) throw new Error('Google Drive service is not connected.');
+
+    let mimeType = 'image/jpeg';
+    try {
+      const meta = await drive.files.get({
+        fileId,
+        fields: 'id, name, mimeType',
+        supportsAllDrives: true,
+      });
+      if (meta.data.mimeType) {
+        mimeType = meta.data.mimeType;
+      }
+    } catch (metaErr: any) {
+      // ignore
+    }
+
+    const response = await drive.files.get(
+      {
+        fileId,
+        alt: 'media',
+        supportsAllDrives: true,
+      },
+      {
+        responseType: 'stream',
+      }
+    );
+
+    return {
+      stream: response.data as NodeJS.ReadableStream,
+      mimeType,
+    };
+  }
 }
 
 export const googleDriveService = new GoogleDriveService();
+

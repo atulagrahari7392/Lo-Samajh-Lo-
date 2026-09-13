@@ -13,6 +13,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
+import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -165,8 +166,9 @@ export const CartPage: React.FC = () => {
               >
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   <img
-                    src={course.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=300'}
+                    src={formatImageUrl(course.thumbnail)}
                     alt={course.title}
+                    onError={handleImageError(DEFAULT_COURSE_THUMBNAIL)}
                     className="w-24 h-16 rounded-xl object-cover flex-shrink-0 bg-slate-100"
                   />
                   <div className="overflow-hidden">

@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { Category } from '../../types';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useToast } from '../../context/ToastContext';
+import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
 
 export const AdminCourseFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -107,7 +108,7 @@ export const AdminCourseFormPage: React.FC = () => {
       setUploadingFile(true);
       const res = await api.upload.file(file, { category: 'COURSES', entityType: 'COURSE' });
       if (res.success && res.fileUrl) {
-        setThumbnail(res.fileUrl);
+        setThumbnail(formatImageUrl(res.fileUrl));
         const providerName = res.storageProvider === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Storage';
         success(`Thumbnail image uploaded successfully to ${providerName}!`);
       } else {
@@ -358,12 +359,10 @@ export const AdminCourseFormPage: React.FC = () => {
                       <div className="space-y-2">
                         <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-white aspect-video max-h-36 shadow-sm group">
                           <img
-                            src={thumbnail}
+                            src={formatImageUrl(thumbnail)}
                             alt="Course Thumbnail"
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500';
-                            }}
+                            onError={handleImageError(DEFAULT_COURSE_THUMBNAIL)}
                           />
                         </div>
                         <div className="flex items-center justify-between">

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { authenticate, optionalAuth, requireAdmin, AuthRequest } from '../middleware/auth';
+import { normalizeImageUrl } from '../utils/url';
 
 function extractDriveFileId(url: string): string | null {
   if (!url) return null;
@@ -94,6 +95,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res, next) => {
 
     const enhancedCourses = courses.map((course: any) => ({
       ...course,
+      thumbnail: normalizeImageUrl(course.thumbnail),
       _count: {
         ...course._count,
         lessons: (course._count?.lessons || 0) + (course._count?.recordedClasses || 0),
@@ -121,7 +123,11 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
         },
       },
     });
-    res.json({ success: true, courses });
+    const mapped = courses.map((c) => ({
+      ...c,
+      thumbnail: normalizeImageUrl(c.thumbnail),
+    }));
+    res.json({ success: true, courses: mapped });
   } catch (error) {
     next(error);
   }
@@ -256,7 +262,7 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
         content: rc.description || null,
         isFreePreview: isFirstClassPreview || isFreeCourse,
         position: (course.lessons.length || 0) + idx + 1,
-        thumbnail: rc.thumbnail || null,
+        thumbnail: normalizeImageUrl(rc.thumbnail),
         isRecordedClass: true,
       };
     });
@@ -267,8 +273,12 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
       success: true,
       course: {
         ...course,
+        thumbnail: normalizeImageUrl(course.thumbnail),
         lessons: combinedLessons,
-        recordedClasses: course.recordedClasses,
+        recordedClasses: (course.recordedClasses || []).map((rc: any) => ({
+          ...rc,
+          thumbnail: normalizeImageUrl(rc.thumbnail),
+        })),
         _count: {
           ...course._count,
           lessons: combinedLessons.length,
@@ -372,7 +382,7 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
         content: rc.description || null,
         isFreePreview: true,
         position: (course.lessons?.length || 0) + idx + 1,
-        thumbnail: rc.thumbnail || null,
+        thumbnail: normalizeImageUrl(rc.thumbnail),
         isRecordedClass: true,
       };
     });
@@ -383,6 +393,7 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       success: true,
       course: {
         ...course,
+        thumbnail: normalizeImageUrl(course.thumbnail),
         lessons: combinedLessons,
       },
       enrollment,
@@ -423,7 +434,7 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
         slug: slug.trim().toLowerCase(),
         shortDescription: shortDescription.trim(),
         fullDescription: fullDescription.trim(),
-        thumbnail: thumbnail?.trim() || null,
+        thumbnail: normalizeImageUrl(thumbnail?.trim()) || null,
         categoryId,
         instructorName: instructorName?.trim() || 'Atul Agrahari',
         instructorBio: instructorBio?.trim() || 'Senior Educator & Founder',
@@ -532,7 +543,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
         slug: newSlug,
         ...(shortDescription !== undefined ? { shortDescription: shortDescription.trim() } : {}),
         ...(fullDescription !== undefined ? { fullDescription: fullDescription.trim() } : {}),
-        ...(thumbnail !== undefined ? { thumbnail: thumbnail ? thumbnail.trim() : null } : {}),
+        ...(thumbnail !== undefined ? { thumbnail: thumbnail ? normalizeImageUrl(thumbnail.trim()) : null } : {}),
         ...(categoryId ? { categoryId } : {}),
         ...(instructorName !== undefined ? { instructorName: instructorName.trim() } : {}),
         ...(instructorBio !== undefined ? { instructorBio: instructorBio ? instructorBio.trim() : null } : {}),

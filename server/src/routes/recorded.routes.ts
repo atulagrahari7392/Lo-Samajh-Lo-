@@ -4,6 +4,7 @@ import path from 'path';
 import { prisma } from '../db';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { googleDriveService } from '../services/googleDrive.service';
+import { normalizeImageUrl } from '../utils/url';
 
 function extractDriveFileId(url: string): string | null {
   if (!url) return null;
@@ -30,7 +31,12 @@ router.get('/', async (req, res, next) => {
       },
     });
 
-    res.json({ success: true, classes });
+    const mapped = classes.map((c) => ({
+      ...c,
+      thumbnail: normalizeImageUrl(c.thumbnail),
+    }));
+
+    res.json({ success: true, classes: mapped });
   } catch (error) {
     next(error);
   }
@@ -45,7 +51,13 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
         course: { select: { id: true, title: true } },
       },
     });
-    res.json({ success: true, classes });
+
+    const mapped = classes.map((c) => ({
+      ...c,
+      thumbnail: normalizeImageUrl(c.thumbnail),
+    }));
+
+    res.json({ success: true, classes: mapped });
   } catch (error) {
     next(error);
   }
@@ -67,13 +79,20 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
         chapter: chapter?.trim() || 'Chapter 1',
         durationMinutes: parseInt(durationMinutes, 10) || 45,
         videoUrl: videoUrl.trim(),
-        thumbnail: thumbnail?.trim() || null,
+        thumbnail: normalizeImageUrl(thumbnail?.trim()) || null,
         description: description?.trim() || null,
         isPublished: isPublished !== undefined ? Boolean(isPublished) : true,
       },
     });
 
-    res.status(201).json({ success: true, message: 'Recorded class added.', recorded });
+    res.status(201).json({
+      success: true,
+      message: 'Recorded class added.',
+      recorded: {
+        ...recorded,
+        thumbnail: normalizeImageUrl(recorded.thumbnail),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -95,7 +114,13 @@ router.get('/:id', async (req, res, next) => {
       return;
     }
 
-    res.json({ success: true, lecture });
+    res.json({
+      success: true,
+      lecture: {
+        ...lecture,
+        thumbnail: normalizeImageUrl(lecture.thumbnail),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -113,7 +138,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
     if (chapter !== undefined) data.chapter = chapter.trim();
     if (durationMinutes !== undefined) data.durationMinutes = parseInt(durationMinutes, 10) || 45;
     if (videoUrl !== undefined) data.videoUrl = videoUrl.trim();
-    if (thumbnail !== undefined) data.thumbnail = thumbnail ? thumbnail.trim() : null;
+    if (thumbnail !== undefined) data.thumbnail = thumbnail ? normalizeImageUrl(thumbnail.trim()) : null;
     if (description !== undefined) data.description = description ? description.trim() : null;
     if (isPublished !== undefined) data.isPublished = Boolean(isPublished);
 
@@ -125,7 +150,14 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
       },
     });
 
-    res.json({ success: true, message: 'Recorded lecture updated successfully.', lecture: updated });
+    res.json({
+      success: true,
+      message: 'Recorded lecture updated successfully.',
+      lecture: {
+        ...updated,
+        thumbnail: normalizeImageUrl(updated.thumbnail),
+      },
+    });
   } catch (error) {
     next(error);
   }

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, optionalAuth, AuthRequest } from '../middleware/auth';
+import { normalizeImageUrl } from '../utils/url';
 
 const router = Router();
 
@@ -159,6 +160,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response, next: Next
 
     const enhancedMaterials = materials.map(m => ({
       ...m,
+      thumbnail: normalizeImageUrl(m.thumbnail),
       isBookmarked: bookmarkedIds.has(m.id),
     }));
 
@@ -419,9 +421,13 @@ router.get('/slug/:slug', optionalAuth, async (req: AuthRequest, res: Response, 
       success: true,
       material: {
         ...material,
+        thumbnail: normalizeImageUrl(material.thumbnail),
         isBookmarked,
       },
-      relatedMaterials,
+      relatedMaterials: relatedMaterials.map(rm => ({
+        ...rm,
+        thumbnail: normalizeImageUrl(rm.thumbnail),
+      })),
     });
   } catch (error) {
     next(error);
@@ -539,7 +545,10 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
 
     res.json({
       success: true,
-      materials,
+      materials: materials.map(m => ({
+        ...m,
+        thumbnail: normalizeImageUrl(m.thumbnail),
+      })),
       pagination: {
         total,
         page: pageNum,
@@ -615,7 +624,7 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
         language: language || 'BILINGUAL',
         pageCount: pageCount ? parseInt(String(pageCount), 10) : 1,
         fileUrl: fileUrl.trim(),
-        thumbnail: thumbnail?.trim() || null,
+        thumbnail: normalizeImageUrl(thumbnail?.trim()) || null,
         fileType: fileType || 'PDF',
         fileSize: fileSize || '2.5 MB',
         author: author?.trim() || 'Lo Samajh Lo Faculty',
@@ -706,7 +715,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
         ...(language ? { language } : {}),
         ...(pageCount !== undefined ? { pageCount: parseInt(String(pageCount), 10) || 1 } : {}),
         ...(fileUrl ? { fileUrl: fileUrl.trim() } : {}),
-        ...(thumbnail !== undefined ? { thumbnail: thumbnail?.trim() || null } : {}),
+        ...(thumbnail !== undefined ? { thumbnail: thumbnail ? normalizeImageUrl(thumbnail.trim()) : null } : {}),
         ...(fileType ? { fileType } : {}),
         ...(fileSize ? { fileSize } : {}),
         ...(author !== undefined ? { author: author?.trim() || null } : {}),

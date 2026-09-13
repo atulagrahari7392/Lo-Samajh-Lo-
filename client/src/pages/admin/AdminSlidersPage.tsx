@@ -20,6 +20,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { SliderBanner } from '../../types';
+import { formatImageUrl, handleImageError } from '../../utils/image';
 
 export const AdminSlidersPage: React.FC = () => {
   const { success, error: toastError } = useToast();
@@ -49,7 +50,7 @@ export const AdminSlidersPage: React.FC = () => {
       setUploadingImage(true);
       const res = await api.upload.file(file);
       if (res.success && res.fileUrl) {
-        setImageUrl(res.fileUrl);
+        setImageUrl(formatImageUrl(res.fileUrl));
         success('Banner image uploaded from local drive successfully!');
       }
     } catch (err: any) {
@@ -315,13 +316,10 @@ export const AdminSlidersPage: React.FC = () => {
                       <td className="py-4 px-4">
                         <div className="w-40 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm relative group">
                           <img
-                            src={slider.imageUrl}
+                            src={formatImageUrl(slider.imageUrl)}
                             alt={slider.title}
+                            onError={handleImageError()}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e: any) => {
-                              e.target.src =
-                                'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600';
-                            }}
                           />
                           <a
                             href={slider.imageUrl}
@@ -611,13 +609,10 @@ export const AdminSlidersPage: React.FC = () => {
                   {imageUrl && (
                     <div className="mt-3 rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 h-32 relative">
                       <img
-                        src={imageUrl}
+                        src={formatImageUrl(imageUrl)}
                         alt="Preview"
                         className="w-full h-full object-cover"
-                        onError={(e: any) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600';
-                        }}
+                        onError={handleImageError()}
                       />
                       <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent p-4 flex flex-col justify-end text-white">
                         {badge && (

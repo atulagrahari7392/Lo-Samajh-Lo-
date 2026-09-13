@@ -7,6 +7,7 @@ import {
   PlayCircle,
   Settings,
 } from 'lucide-react';
+import { formatImageUrl } from '../../utils/image';
 
 interface CustomVideoPlayerProps {
   url: string;
@@ -201,7 +202,7 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
             <video
               ref={videoRef}
               src={url}
-              poster={thumbnail || undefined}
+              poster={thumbnail ? formatImageUrl(thumbnail) : undefined}
               controls
               controlsList="nodownload noplaybackrate"
               disablePictureInPicture

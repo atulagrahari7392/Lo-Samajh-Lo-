@@ -4,6 +4,7 @@ import { Heart, ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
 
 export const WishlistPage: React.FC = () => {
   const { wishlistCourses, toggleWishlist, moveToCart } = useWishlist();
@@ -57,8 +58,9 @@ export const WishlistPage: React.FC = () => {
             >
               <div>
                 <img
-                  src={course.thumbnail || 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600'}
+                  src={formatImageUrl(course.thumbnail)}
                   alt={course.title}
+                  onError={handleImageError(DEFAULT_COURSE_THUMBNAIL)}
                   className="w-full aspect-video object-cover"
                 />
                 <div className="p-5 space-y-2">

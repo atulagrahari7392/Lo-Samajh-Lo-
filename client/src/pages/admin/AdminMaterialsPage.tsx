@@ -33,6 +33,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { PdfReaderModal } from '../../components/materials/PdfReaderModal';
+import { formatImageUrl } from '../../utils/image';
 
 export const AdminMaterialsPage: React.FC = () => {
   const { success: toastSuccess, error: toastError } = useToast();
@@ -242,7 +243,7 @@ export const AdminMaterialsPage: React.FC = () => {
       setUploadingThumb(true);
       const data = await api.upload.file(file, { category: 'UPLOADS_IMAGES' });
       if (data.success) {
-        setThumbnail(data.fileUrl);
+        setThumbnail(formatImageUrl(data.fileUrl));
         const providerName = data.storageProvider === 'GOOGLE_DRIVE' ? 'Google Drive' : 'Storage';
         toastSuccess(`Thumbnail uploaded successfully to ${providerName}!`);
       } else {

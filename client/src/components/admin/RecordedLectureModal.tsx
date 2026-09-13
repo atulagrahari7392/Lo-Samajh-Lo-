@@ -25,6 +25,7 @@ import {
 import { api } from '../../services/api';
 import { Course, RecordedClass } from '../../types';
 import { useToast } from '../../context/ToastContext';
+import { formatImageUrl, handleImageError, DEFAULT_LECTURE_THUMBNAIL } from '../../utils/image';
 
 export type UploadState =
   | 'IDLE'
@@ -385,7 +386,7 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
           try {
             const upRes = await api.upload.file(frameFile, { category: 'IMAGES' });
             if (upRes.success && upRes.fileUrl) {
-              setThumbnailUrl(upRes.fileUrl);
+              setThumbnailUrl(formatImageUrl(upRes.fileUrl, DEFAULT_LECTURE_THUMBNAIL));
               setIsGeneratingThumbnail(false);
               toastSuccess('Thumbnail frame captured & uploaded to Google Drive!');
             } else {
@@ -421,7 +422,7 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
       setUploadingThumbnail(true);
       const res = await api.upload.file(file, { category: 'IMAGES' });
       if (res.success && res.fileUrl) {
-        setThumbnailUrl(res.fileUrl);
+        setThumbnailUrl(formatImageUrl(res.fileUrl, DEFAULT_LECTURE_THUMBNAIL));
         toastSuccess('Thumbnail uploaded successfully!');
       }
     } catch (err: any) {
@@ -972,8 +973,9 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
                   <div className="w-full sm:w-48 aspect-video rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 relative group">
                     {thumbnailUrl ? (
                       <img
-                        src={thumbnailUrl}
+                        src={formatImageUrl(thumbnailUrl, DEFAULT_LECTURE_THUMBNAIL)}
                         alt="Thumbnail"
+                        onError={handleImageError(DEFAULT_LECTURE_THUMBNAIL)}
                         className="w-full h-full object-cover"
                       />
                     ) : (

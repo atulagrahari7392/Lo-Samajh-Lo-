@@ -22,6 +22,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { RecordedLectureModal } from '../../components/admin/RecordedLectureModal';
+import { formatImageUrl, handleImageError, DEFAULT_LECTURE_THUMBNAIL } from '../../utils/image';
 
 export const AdminRecordedClassesPage: React.FC = () => {
   const { success, error: toastError } = useToast();
@@ -226,8 +227,9 @@ export const AdminRecordedClassesPage: React.FC = () => {
                           <div className="w-16 h-10 rounded-xl bg-slate-900 border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center shadow-sm">
                             {rec.thumbnail ? (
                               <img
-                                src={rec.thumbnail}
+                                src={formatImageUrl(rec.thumbnail, DEFAULT_LECTURE_THUMBNAIL)}
                                 alt={rec.title}
+                                onError={handleImageError(DEFAULT_LECTURE_THUMBNAIL)}
                                 className="w-full h-full object-cover"
                               />
                             ) : (

@@ -15,6 +15,7 @@ import { api } from '../../services/api';
 import { Course, CourseLesson } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { CustomVideoPlayer } from '../../components/video/CustomVideoPlayer';
+import { formatImageUrl } from '../../utils/image';
 
 export const CoursePlayerPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -134,7 +135,7 @@ export const CoursePlayerPage: React.FC = () => {
               url={activeLesson.videoUrl || ''}
               title={activeLesson.title}
               chapterTitle={activeLesson.chapterTitle}
-              thumbnail={activeLesson.thumbnail}
+              thumbnail={formatImageUrl(activeLesson.thumbnail || course?.thumbnail)}
               studentPhone={user?.phone || user?.email || ''}
               onEnded={() => {
                 if (activeLesson) {

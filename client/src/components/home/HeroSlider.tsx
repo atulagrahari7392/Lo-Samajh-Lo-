@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Sparkles, ArrowRight, Play } from 'lucide-react';
 import { SliderBanner } from '../../types';
 import { api } from '../../services/api';
+import { formatImageUrl, handleImageError } from '../../utils/image';
 
 const FALLBACK_SLIDES: SliderBanner[] = [
   {
@@ -100,8 +101,9 @@ export const HeroSlider: React.FC = () => {
             >
               {/* Background Image with Dark Dual Gradient Overlays */}
               <img
-                src={slide.imageUrl}
+                src={formatImageUrl(slide.imageUrl)}
                 alt={slide.title}
+                onError={handleImageError()}
                 className="w-full h-full object-cover"
                 loading={idx === 0 ? 'eager' : 'lazy'}
               />
