@@ -1,91 +1,206 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RotateCcw, Award, CheckCircle2, AlertTriangle, Clock, Zap } from 'lucide-react';
-import { TypingTest } from '../../types';
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Award,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Zap,
+  Maximize2,
+  Minimize2,
+  Keyboard as KeyboardIcon,
+  ShieldAlert,
+} from 'lucide-react';
+import { TypingTest, TypingExam } from '../../types';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { VirtualKeyboard } from './VirtualKeyboard';
+import { TypingScorecard } from './TypingScorecard';
 
 interface TypingEngineProps {
   test: TypingTest;
+  exam?: TypingExam | null;
+  mode?: string;
   onFinished?: () => void;
+  onGoToDashboard?: () => void;
 }
 
-export const TypingEngine: React.FC<TypingEngineProps> = ({ test, onFinished }) => {
+export const TypingEngine: React.FC<TypingEngineProps> = ({
+  test,
+  exam,
+  mode = 'STANDARD',
+  onFinished,
+  onGoToDashboard,
+}) => {
   const { user } = useAuth();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
 
   const passage = test.passageText;
+  const initialDuration = test.durationSeconds || 60;
+
   const [userInput, setUserInput] = useState('');
-  const [timeLeft, setTimeLeft] = useState(test.durationSeconds || 60);
+  const [timeLeft, setTimeLeft] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState(test.durationSeconds || 60);
+  const [backspaceCount, setBackspaceCount] = useState(0);
+  const [showKeyboard, setShowKeyboard] = useState(test.category === 'LESSON');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Scorecard state when finished
+  const [scorecard, setScorecard] = useState<any>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<any>(null);
+  const passageContainerRef = useRef<HTMLDivElement>(null);
 
-  // Live calculation stats
+  // Real-time error counting & stats
   const totalCharsTyped = userInput.length;
   let errors = 0;
+  let correctChars = 0;
+  const mistypedKeys: Record<string, number> = {};
+
   for (let i = 0; i < userInput.length; i++) {
-    if (userInput[i] !== passage[i]) {
+    if (userInput[i] === passage[i]) {
+      correctChars++;
+    } else {
       errors++;
+      const targetKey = passage[i]?.toLowerCase();
+      if (targetKey) {
+        mistypedKeys[targetKey] = (mistypedKeys[targetKey] || 0) + 1;
+      }
     }
   }
 
-  const correctChars = Math.max(0, totalCharsTyped - errors);
+  const wrongChars = errors;
   const accuracy = totalCharsTyped > 0 ? Math.round((correctChars / totalCharsTyped) * 100) : 100;
 
-  const timeElapsed = selectedDuration - timeLeft;
+  const timeElapsed = initialDuration - timeLeft;
   const minutesElapsed = Math.max(timeElapsed / 60, 0.05);
-  // Standard standard: 5 characters = 1 word
+  // Standard metric: 5 keystrokes = 1 word
   const grossWpm = Math.round((totalCharsTyped / 5) / minutesElapsed);
   const netWpm = Math.max(0, Math.round(((totalCharsTyped / 5) - (errors / 5)) / minutesElapsed));
 
-  // Start test on first keystroke
+  // Current active character in passage
+  const currentTargetChar = passage[userInput.length] || '';
+
+  // Focus input on load
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [test.id]);
+
+  // Handle keystrokes & anti-paste
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isCompleted || isPaused) return;
+
+    if (e.key === 'Backspace') {
+      setBackspaceCount(prev => prev + 1);
+
+      // Controlled backspace rules
+      if (exam?.backspaceRule === 'DISABLED') {
+        e.preventDefault();
+        return;
+      }
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (isCompleted) return;
+    if (isCompleted || isPaused) return;
 
     const val = e.target.value;
+
+    // Start timer on first keystroke
     if (!isActive && val.length > 0) {
       setIsActive(true);
     }
 
     setUserInput(val);
 
-    // If reached end of passage
+    // Auto-scroll passage view to follow caret
+    if (passageContainerRef.current) {
+      const activeSpan = passageContainerRef.current.querySelector('#active-caret');
+      if (activeSpan) {
+        (activeSpan as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Complete if passage finished
     if (val.length >= passage.length) {
-      finishTest();
+      finishTest(val);
     }
   };
 
-  const finishTest = async () => {
+  const finishTest = async (finalInput = userInput) => {
     setIsActive(false);
     setIsCompleted(true);
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Send attempt to server
+    const finalChars = finalInput.length;
+    let finalErrors = 0;
+    for (let i = 0; i < finalInput.length; i++) {
+      if (finalInput[i] !== passage[i]) finalErrors++;
+    }
+    const finalCorrect = Math.max(0, finalChars - finalErrors);
+    const finalAcc = finalChars > 0 ? Math.round((finalCorrect / finalChars) * 100) : 100;
+    const finalMins = Math.max((initialDuration - timeLeft) / 60, 0.05);
+    const finalGross = Math.round((finalChars / 5) / finalMins);
+    const finalNet = Math.max(0, Math.round(((finalChars / 5) - (finalErrors / 5)) / finalMins));
+
+    const weakKeysArray = Object.entries(mistypedKeys)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([k]) => k);
+
+    const finalScorecard = {
+      grossWpm: finalGross,
+      netWpm: finalNet,
+      accuracy: finalAcc,
+      errors: finalErrors,
+      correctChars: finalCorrect,
+      wrongChars: finalErrors,
+      backspaces: backspaceCount,
+      timeSpentSeconds: initialDuration - timeLeft,
+      resultStatus: finalNet >= (exam?.targetSpeed || 35) && finalAcc >= (exam?.minAccuracy || 90) ? 'QUALIFIED' : 'FAILED',
+      readinessScore: Math.min(100, Math.round((finalNet / (exam?.targetSpeed || 35)) * 60 + (finalAcc / (exam?.minAccuracy || 90)) * 40)),
+      weakKeys: weakKeysArray,
+    };
+
+    setScorecard(finalScorecard);
+
+    // Save attempt to server
     try {
       await api.typing.saveAttempt({
         typingTestId: test.id,
-        wpm: grossWpm,
-        netWpm,
-        accuracy,
-        errors,
-        totalCharacters: totalCharsTyped,
-        durationSeconds: selectedDuration,
+        examId: exam?.id || test.examId || null,
+        mode,
+        grossWpm: finalGross,
+        netWpm: finalNet,
+        accuracy: finalAcc,
+        errors: finalErrors,
+        correctChars: finalCorrect,
+        wrongChars: finalErrors,
+        backspaces: backspaceCount,
+        totalCharacters: finalChars,
+        durationSeconds: initialDuration,
+        timeSpentSeconds: initialDuration - timeLeft,
+        mistakeDetails: weakKeysArray,
       });
-      success('Typing speed score saved!');
       if (onFinished) onFinished();
     } catch (e) {
-      // ignore
+      console.error(e);
     }
   };
 
+  // Timer interval
   useEffect(() => {
-    if (isActive && timeLeft > 0) {
+    if (isActive && !isPaused && timeLeft > 0) {
       timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
+        setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current);
             finishTest();
@@ -98,172 +213,218 @@ export const TypingEngine: React.FC<TypingEngineProps> = ({ test, onFinished }) 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, timeLeft]);
+  }, [isActive, isPaused, timeLeft]);
 
-  const handleReset = (newDuration?: number) => {
+  // Restart test
+  const handleRestart = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    const dur = newDuration || selectedDuration;
-    setSelectedDuration(dur);
-    setTimeLeft(dur);
     setUserInput('');
+    setTimeLeft(initialDuration);
     setIsActive(false);
+    setIsPaused(false);
     setIsCompleted(false);
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
+    setBackspaceCount(0);
+    setScorecard(null);
+    if (inputRef.current) inputRef.current.focus();
   };
 
+  // If completed, show scorecard
+  if (isCompleted && scorecard) {
+    return (
+      <TypingScorecard
+        test={test}
+        exam={exam}
+        scorecard={scorecard}
+        onRetry={handleRestart}
+        onGoToDashboard={onGoToDashboard}
+      />
+    );
+  }
+
+  const minsLeft = Math.floor(timeLeft / 60);
+  const secsLeft = timeLeft % 60;
+  const timeDisplay = `${minsLeft}:${secsLeft < 10 ? '0' : ''}${secsLeft}`;
+
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/80 shadow-soft overflow-hidden">
-      {/* Test Controls Bar */}
-      <div className="bg-slate-50 p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-purple-100 text-[#6C63FF]">
-            <Zap className="w-5 h-5" />
+    <div
+      className={`bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden transition-all ${
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none p-6 bg-slate-900 text-white' : 'p-6 sm:p-8'
+      }`}
+    >
+      {/* Top Header / Control Bar (Phase 18) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#6C63FF]/10 text-[#6C63FF] text-[11px] font-extrabold uppercase">
+              {test.language} • {test.keyboardLayout || 'QWERTY'}
+            </span>
+            {exam && (
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
+                Target: {exam.targetSpeed} WPM ({exam.name})
+              </span>
+            )}
           </div>
-          <div>
-            <h3 className="font-bold text-slate-900 text-sm sm:text-base">{test.title}</h3>
-            <p className="text-xs text-slate-500">
-              Language: <span className="font-semibold text-slate-700">{test.language}</span> • Level: <span className="font-semibold text-slate-700">{test.difficulty}</span>
-            </p>
-          </div>
+          <h2 className={`font-black text-lg sm:text-xl truncate max-w-lg ${isFullscreen ? 'text-white' : 'text-slate-900'}`}>
+            {test.title}
+          </h2>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Duration Selector */}
-          {!isActive && !isCompleted && (
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 text-xs font-bold">
-              {[60, 120, 300].map((dur) => (
-                <button
-                  key={dur}
-                  onClick={() => handleReset(dur)}
-                  className={`px-3 py-1.5 rounded-lg transition-colors ${
-                    selectedDuration === dur
-                      ? 'bg-[#6C63FF] text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {dur / 60} min
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Countdown Clock */}
-          <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 text-white font-mono font-bold text-sm shadow">
-            <Clock className="w-4 h-4 text-[#FF6584]" />
-            <span>{timeLeft}s</span>
+        {/* Live Timer & Action Controls */}
+        <div className="flex items-center gap-2">
+          {/* Live Timer Countdown */}
+          <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-2xl shadow-sm">
+            <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span className="font-mono text-lg font-black tracking-wider">{timeDisplay}</span>
           </div>
 
+          {/* Pause / Resume (Only in standard practice mode) */}
+          {mode === 'PRACTICE' && (
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition"
+              title={isPaused ? 'Resume Test' : 'Pause'}
+            >
+              {isPaused ? <Play className="w-4 h-4 text-emerald-600" /> : <Pause className="w-4 h-4 text-slate-600" />}
+            </button>
+          )}
+
+          {/* Restart */}
           <button
-            onClick={() => handleReset()}
-            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
+            type="button"
+            onClick={handleRestart}
+            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
             title="Restart Test"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
+
+          {/* Keyboard Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowKeyboard(!showKeyboard)}
+            className={`p-2.5 rounded-xl border transition ${
+              showKeyboard ? 'bg-[#6C63FF] text-white border-[#6C63FF]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+            title="Toggle Visual Keyboard"
+          >
+            <KeyboardIcon className="w-4 h-4" />
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition hidden sm:block"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
-      {/* Live Metrics Dashboard */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 border-b border-slate-100 bg-slate-50/50">
-        <div className="p-4 text-center">
-          <span className="text-xs text-slate-500 font-semibold uppercase">Net Speed</span>
-          <p className="text-2xl sm:text-3xl font-black text-[#6C63FF] mt-0.5">{netWpm} <span className="text-xs font-medium text-slate-400">WPM</span></p>
+      {/* Live Stats Header Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 py-4 text-center">
+        <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Net Speed</span>
+          <p className="text-xl font-black text-[#6C63FF]">{netWpm} <span className="text-[10px] font-normal text-slate-500">WPM</span></p>
         </div>
-        <div className="p-4 text-center">
-          <span className="text-xs text-slate-500 font-semibold uppercase">Gross Speed</span>
-          <p className="text-2xl sm:text-3xl font-black text-slate-800 mt-0.5">{grossWpm} <span className="text-xs font-medium text-slate-400">WPM</span></p>
+        <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Accuracy</span>
+          <p className={`text-xl font-black ${accuracy >= 95 ? 'text-emerald-600' : 'text-amber-600'}`}>{accuracy}%</p>
         </div>
-        <div className="p-4 text-center">
-          <span className="text-xs text-slate-500 font-semibold uppercase">Accuracy</span>
-          <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-0.5">{accuracy}<span className="text-xs font-medium text-slate-400">%</span></p>
+        <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Gross WPM</span>
+          <p className="text-xl font-black text-slate-800">{grossWpm}</p>
         </div>
-        <div className="p-4 text-center">
-          <span className="text-xs text-slate-500 font-semibold uppercase">Errors</span>
-          <p className="text-2xl sm:text-3xl font-black text-rose-500 mt-0.5">{errors}</p>
+        <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Errors (त्रुटियाँ)</span>
+          <p className="text-xl font-black text-rose-600">{errors}</p>
+        </div>
+        <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 col-span-2 sm:col-span-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Backspaces</span>
+          <p className="text-xl font-black text-slate-700">{backspaceCount}</p>
         </div>
       </div>
 
-      {/* Interactive Text Display & Input Area */}
-      <div className="p-6 sm:p-8 space-y-6">
-        {/* Render Passage with Highlights */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/80 font-sans text-base sm:text-lg leading-relaxed select-none max-h-56 overflow-y-auto">
-          {passage.split('').map((char, index) => {
-            let style = 'text-slate-500';
-            if (index < userInput.length) {
-              style = userInput[index] === char ? 'text-emerald-700 bg-emerald-100/60 font-medium' : 'text-white bg-rose-500 font-bold';
-            } else if (index === userInput.length) {
-              style = 'text-slate-900 bg-[#6C63FF]/20 border-b-2 border-[#6C63FF] animate-pulse';
-            }
-            return (
-              <span key={index} className={`rounded-sm transition-colors ${style}`}>
-                {char}
-              </span>
-            );
-          })}
-        </div>
+      {/* Middle: Passage Area with Live Character Highlight & Caret */}
+      <div
+        ref={passageContainerRef}
+        className={`p-6 rounded-2xl max-h-56 overflow-y-auto leading-relaxed font-mono text-base sm:text-lg select-none border transition-colors ${
+          isFullscreen ? 'bg-slate-800/80 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200/90 text-slate-800'
+        }`}
+        style={{ letterSpacing: '0.02em', lineHeight: '1.9' }}
+      >
+        {passage.split('').map((char, index) => {
+          const isTyped = index < userInput.length;
+          const isCurrent = index === userInput.length;
+          const isCorrect = isTyped && userInput[index] === char;
+          const isWrong = isTyped && userInput[index] !== char;
 
-        {/* Input Box */}
-        {!isCompleted ? (
-          <div>
-            <textarea
-              ref={inputRef}
-              value={userInput}
-              onChange={handleInputChange}
-              disabled={isCompleted}
-              placeholder="Click here and start typing the passage above..."
-              className="w-full h-32 p-4 rounded-2xl border-2 border-slate-200 focus:border-[#6C63FF] focus:ring-4 focus:ring-[#6C63FF]/10 outline-none transition-all text-base text-slate-800 placeholder-slate-400 font-sans resize-none"
-              autoFocus
-            />
-            <p className="text-xs text-slate-400 mt-2 flex items-center justify-between">
-              <span>Timer starts automatically as soon as you type the first letter.</span>
-              <span>{totalCharsTyped} / {passage.length} characters</span>
-            </p>
-          </div>
-        ) : (
-          /* Results Card */
-          <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-50 via-white to-pink-50 border border-purple-200 text-center space-y-4 animate-in zoom-in-95">
-            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white flex items-center justify-center shadow-lg">
-              <Award className="w-8 h-8" />
-            </div>
-            <div>
-              <h4 className="text-2xl font-black text-slate-900">Typing Test Completed!</h4>
-              <p className="text-sm text-slate-600 mt-1">
-                {netWpm >= 35
-                  ? '🎉 Outstanding! You qualify for SSC / Police Typing Benchmarks (35+ WPM)!'
-                  : netWpm >= 25
-                  ? '👍 Good speed! Keep practicing daily to reach the 35 WPM threshold.'
-                  : 'Keep practicing! Regular typing drills build high speed and muscle memory.'}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-6 py-3">
-              <div className="text-center">
-                <span className="text-xs text-slate-500 font-bold">NET SPEED</span>
-                <p className="text-3xl font-black text-[#6C63FF]">{netWpm} WPM</p>
-              </div>
-              <div className="text-center">
-                <span className="text-xs text-slate-500 font-bold">ACCURACY</span>
-                <p className="text-3xl font-black text-emerald-600">{accuracy}%</p>
-              </div>
-              <div className="text-center">
-                <span className="text-xs text-slate-500 font-bold">ERRORS</span>
-                <p className="text-3xl font-black text-rose-500">{errors}</p>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => handleReset()}
-                className="px-6 py-3 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white font-bold text-sm shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.02]"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
+          return (
+            <span
+              key={index}
+              id={isCurrent ? 'active-caret' : undefined}
+              className={`relative ${
+                isCorrect
+                  ? 'text-emerald-600 bg-emerald-100/50 rounded-sm'
+                  : isWrong
+                  ? 'text-rose-600 bg-rose-200/80 rounded-sm font-bold underline decoration-rose-500'
+                  : isCurrent
+                  ? 'bg-blue-200/80 text-blue-900 font-black ring-2 ring-blue-500 rounded-sm animate-pulse'
+                  : 'opacity-70'
+              }`}
+            >
+              {char}
+            </span>
+          );
+        })}
       </div>
+
+      {/* Bottom: Typing Input Area */}
+      <div className="pt-5 space-y-3">
+        <textarea
+          ref={inputRef}
+          value={userInput}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onPaste={(e) => {
+            e.preventDefault();
+            toastError('Anti-Cheat: Paste is disabled in typing tests.');
+          }}
+          disabled={isCompleted || isPaused}
+          rows={3}
+          placeholder="यहाँ टाइप करना शुरू करें... / Start typing here (Timer begins automatically on first keypress)"
+          className={`w-full p-4 rounded-2xl font-mono text-sm sm:text-base outline-none border transition-all resize-none ${
+            isFullscreen
+              ? 'bg-slate-800 text-white border-slate-700 focus:border-[#6C63FF]'
+              : 'bg-white text-slate-900 border-slate-300 focus:border-[#6C63FF] focus:ring-4 focus:ring-[#6C63FF]/10'
+          }`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
+        />
+
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span>
+            टाइप किए गए अक्षर: <strong>{totalCharsTyped}</strong> / {passage.length}
+          </span>
+          <span className="italic">
+            पेस्ट निषिद्ध है (Anti-Paste Enabled) • Backspace: {exam?.backspaceRule || 'Allowed'}
+          </span>
+        </div>
+      </div>
+
+      {/* Optional Visual Keyboard Display (Phase 8 & 10) */}
+      {showKeyboard && (
+        <div className="pt-6 border-t border-slate-200">
+          <VirtualKeyboard
+            activeChar={currentTargetChar}
+            layout={test.keyboardLayout}
+          />
+        </div>
+      )}
     </div>
   );
 };

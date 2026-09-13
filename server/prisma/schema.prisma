@@ -30,6 +30,7 @@ model User {
   notificationReads  NotificationRead[]
   materialBookmarks  MaterialBookmark[]
   materialDownloads  MaterialDownload[]
+  typingProgress     TypingUserProgress?
 
   @@map("users")
 }
@@ -333,17 +334,58 @@ model TestAnswer {
   @@map("test_answers")
 }
 
+model TypingExam {
+  id                      String          @id @default(uuid())
+  name                    String
+  slug                    String          @unique
+  category                String          @default("SSC") // SSC, RAILWAY, HIGH_COURT, POLICE, UPSSSC, OTHER
+  post                    String          @default("Clerk / Typist")
+  department              String?         // Staff Selection Commission, High Court, etc.
+  language                String          @default("ENGLISH") // ENGLISH, HINDI, BOTH
+  keyboardLayout          String          @default("QWERTY") // QWERTY, MANGAL, KRUTIDEV, INSCRIPT
+  durationSeconds         Int             @default(600) // 10 mins standard
+  targetSpeed             Float           @default(35) // WPM
+  minAccuracy             Float           @default(95) // %
+  backspaceRule           String          @default("ALLOWED") // ALLOWED, RESTRICTED, DISABLED
+  penaltyRate             Float           @default(1.0)
+  description             String?
+  instructions            String?
+  isFeatured              Boolean         @default(false)
+  isActive                Boolean         @default(true)
+  status                  String          @default("PUBLISHED")
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  tests                   TypingTest[]
+  attempts                TypingAttempt[]
+
+  @@map("typing_exams")
+}
+
 model TypingTest {
   id              String          @id @default(uuid())
   title           String
+  slug            String?         @unique
+  examId          String?
+  examCategory    String?         @default("GENERAL") // SSC, RAILWAY, HIGH_COURT, POLICE, UPSSSC, GENERAL
   language        String          @default("ENGLISH") // ENGLISH, HINDI
+  keyboardLayout  String          @default("QWERTY") // QWERTY, MANGAL, KRUTIDEV, INSCRIPT
+  category        String          @default("PRACTICE") // EXAM_MOCK, PRACTICE, DRILL, LESSON, CHALLENGE, ASSESSMENT
   passageText     String
   difficulty      String          @default("MEDIUM") // EASY, MEDIUM, HARD
   durationSeconds Int             @default(60)
+  wordCount       Int             @default(0)
+  characterCount  Int             @default(0)
+  source          String?
+  year            Int?
+  tags            String?
+  isFeatured      Boolean         @default(false)
+  viewsCount      Int             @default(0)
   status          String          @default("PUBLISHED")
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  exam            TypingExam?     @relation(fields: [examId], references: [id], onDelete: SetNull)
   attempts        TypingAttempt[]
 
   @@map("typing_tests")
@@ -353,18 +395,119 @@ model TypingAttempt {
   id              String      @id @default(uuid())
   typingTestId    String
   userId          String
+  examId          String?
+  mode            String      @default("STANDARD") // ASSESSMENT, PRACTICE, EXAM_SIMULATION, FULL_MOCK, LESSON, CHALLENGE
   wpm             Float       @default(0)
+  grossWpm        Float       @default(0)
+  netWpm          Float       @default(0)
   accuracy        Float       @default(0)
   errors          Int         @default(0)
-  netWpm          Float       @default(0)
+  correctChars    Int         @default(0)
+  wrongChars      Int         @default(0)
+  backspaces      Int         @default(0)
+  omissions       Int         @default(0)
+  substitutions   Int         @default(0)
   totalCharacters Int         @default(0)
   durationSeconds Int         @default(60)
+  timeSpentSeconds Int        @default(60)
+  resultStatus    String?     // QUALIFIED, NOT_QUALIFIED, PASSED, FAILED
+  readinessScore  Float?
+  mistakeDetails  String?     // JSON string
   createdAt       DateTime    @default(now())
 
   typingTest      TypingTest  @relation(fields: [typingTestId], references: [id], onDelete: Cascade)
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam            TypingExam? @relation(fields: [examId], references: [id], onDelete: SetNull)
 
   @@map("typing_attempts")
+}
+
+model TypingCourse {
+  id             String         @id @default(uuid())
+  title          String
+  slug           String         @unique
+  language       String         @default("ENGLISH") // ENGLISH, HINDI
+  keyboardLayout String         @default("QWERTY") // QWERTY, MANGAL, KRUTIDEV, INSCRIPT
+  description    String?
+  level          String         @default("BEGINNER") // BEGINNER, INTERMEDIATE, ADVANCED
+  order          Int            @default(0)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+
+  lessons        TypingLesson[]
+
+  @@map("typing_courses")
+}
+
+model TypingLesson {
+  id            String       @id @default(uuid())
+  courseId      String
+  moduleName    String       @default("Home Row")
+  title         String
+  lessonOrder   Int          @default(1)
+  instructions  String?
+  practiceText  String
+  targetSpeed   Float        @default(20)
+  minAccuracy   Float        @default(90)
+  highlightKeys String?      // e.g. "asdfjkl;"
+  fingerTips    String?
+  createdAt     DateTime     @default(now())
+
+  course        TypingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("typing_lessons")
+}
+
+model TypingUserProgress {
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  targetSpeed          Float     @default(35)
+  targetAccuracy       Float     @default(95)
+  selectedExam         String?   @default("SSC CHSL")
+  preferredLanguage    String    @default("ENGLISH")
+  preferredLayout      String    @default("QWERTY")
+  streakDays           Int       @default(1)
+  lastPracticeDate     DateTime?
+  dailyGoalMinutes     Int       @default(15)
+  weakKeys             String?   // JSON e.g. '["r", "p", "q"]'
+  bestWpm              Float     @default(0)
+  avgWpm               Float     @default(0)
+  avgAccuracy          Float     @default(0)
+  totalTestsCount      Int       @default(0)
+  totalPracticeSeconds Int       @default(0)
+  updatedAt            DateTime  @updatedAt
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("typing_user_progress")
+}
+
+model TypingDailyChallenge {
+  id              String   @id @default(uuid())
+  title           String
+  date            DateTime @default(now())
+  language        String   @default("ENGLISH")
+  passageText     String
+  durationSeconds Int      @default(300)
+  status          String   @default("PUBLISHED")
+  createdAt       DateTime @default(now())
+
+  @@map("typing_daily_challenges")
+}
+
+model TypingLiveSession {
+  id              String   @id @default(uuid())
+  title           String
+  scheduledAt     DateTime
+  durationSeconds Int      @default(600)
+  passageText     String
+  language        String   @default("ENGLISH")
+  examName        String?  @default("All India Live Typing Mock")
+  maxParticipants Int      @default(1000)
+  status          String   @default("UPCOMING") // UPCOMING, LIVE, COMPLETED
+  createdAt       DateTime @default(now())
+
+  @@map("typing_live_sessions")
 }
 
 model CartItem {

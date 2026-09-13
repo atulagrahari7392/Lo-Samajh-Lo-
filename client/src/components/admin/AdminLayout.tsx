@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Sliders,
   Settings,
+  Keyboard,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -72,6 +73,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
     { name: 'Study Materials', path: '/admin/materials', icon: FileText },
     { name: 'Test Series', path: '/admin/tests', icon: BookOpen },
+    { name: 'Typing Hub', path: '/admin/typing', icon: Keyboard },
     { name: 'Questions Bank', path: '/admin/questions', icon: HelpCircle },
     { name: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
     { name: 'Promo Codes', path: '/admin/promo-codes', icon: Tag },

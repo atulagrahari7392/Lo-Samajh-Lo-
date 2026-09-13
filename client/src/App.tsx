@@ -47,6 +47,7 @@ import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminSlidersPage from './pages/admin/AdminSlidersPage';
 import AdminFooterSettingsPage from './pages/admin/AdminFooterSettingsPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminTypingPage from './pages/admin/AdminTypingPage';
 
 export const App: React.FC = () => {
   return (
@@ -190,6 +191,7 @@ export const App: React.FC = () => {
                 <Route path="/admin/orders" element={<AdminOrdersPage />} />
                 <Route path="/admin/materials" element={<AdminMaterialsPage />} />
                 <Route path="/admin/tests" element={<AdminTestsPage />} />
+                <Route path="/admin/typing" element={<AdminTypingPage />} />
                 <Route path="/admin/questions" element={<AdminQuestionsPage />} />
                 <Route path="/admin/reviews" element={<AdminReviewsPage />} />
                 <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />

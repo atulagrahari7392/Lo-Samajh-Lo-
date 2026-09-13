@@ -228,15 +228,55 @@ export interface TestAttempt {
   };
 }
 
+export interface TypingExam {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  post: string;
+  department?: string | null;
+  language: string;
+  keyboardLayout: string;
+  durationSeconds: number;
+  targetSpeed: number;
+  minAccuracy: number;
+  backspaceRule: string;
+  penaltyRate: number;
+  description?: string | null;
+  instructions?: string | null;
+  isFeatured: boolean;
+  isActive: boolean;
+  status: string;
+  createdAt: string;
+  tests?: TypingTest[];
+  _count?: {
+    tests?: number;
+    attempts?: number;
+  };
+}
+
 export interface TypingTest {
   id: string;
   title: string;
-  language: 'ENGLISH' | 'HINDI';
+  slug?: string | null;
+  examId?: string | null;
+  examCategory?: string | null;
+  language: 'ENGLISH' | 'HINDI' | string;
+  keyboardLayout?: string;
+  category?: string;
   passageText: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string;
   durationSeconds: number;
-  status: string;
-  createdAt: string;
+  wordCount?: number;
+  characterCount?: number;
+  source?: string | null;
+  year?: number | null;
+  tags?: string | null;
+  isFeatured?: boolean;
+  viewsCount?: number;
+  status?: string;
+  createdAt?: string;
+  exam?: TypingExam;
   _count?: {
     attempts?: number;
   };
@@ -246,12 +286,24 @@ export interface TypingAttempt {
   id: string;
   typingTestId: string;
   userId: string;
+  examId?: string | null;
+  mode?: string;
   wpm: number;
+  grossWpm?: number;
   netWpm: number;
   accuracy: number;
   errors: number;
+  correctChars?: number;
+  wrongChars?: number;
+  backspaces?: number;
+  omissions?: number;
+  substitutions?: number;
   totalCharacters: number;
   durationSeconds: number;
+  timeSpentSeconds?: number;
+  resultStatus?: string | null;
+  readinessScore?: number | null;
+  mistakeDetails?: string | null;
   createdAt: string;
   typingTest?: {
     id: string;
@@ -259,6 +311,97 @@ export interface TypingAttempt {
     language: string;
     difficulty: string;
   };
+  exam?: {
+    name: string;
+    targetSpeed: number;
+  };
+}
+
+export interface TypingCourse {
+  id: string;
+  title: string;
+  slug: string;
+  language: string;
+  keyboardLayout: string;
+  layoutType?: string;
+  description?: string | null;
+  level: string;
+  order: number;
+  isActive: boolean;
+  lessons?: TypingLesson[];
+}
+
+export interface TypingLesson {
+  id: string;
+  courseId: string;
+  moduleName?: string;
+  title: string;
+  lessonOrder?: number;
+  orderIndex?: number;
+  instructions?: string | null;
+  description?: string | null;
+  practiceText?: string;
+  content?: string;
+  targetSpeed: number;
+  minAccuracy: number;
+  highlightKeys?: string | null;
+  keysCovered?: string | null;
+  fingerTips?: string | null;
+  durationSeconds?: number;
+  course?: TypingCourse;
+}
+
+export interface TypingUserProgress {
+  streakDays?: number;
+  dailyGoalMinutes?: number;
+  selectedExam?: string;
+  targetSpeed?: number;
+  targetAccuracy?: number;
+  english?: {
+    bestSpeed: number;
+    avgSpeed: number;
+    accuracy: number;
+    testsCompleted: number;
+  };
+  hindi?: {
+    bestSpeed: number;
+    avgSpeed: number;
+    accuracy: number;
+    testsCompleted: number;
+  };
+  weakKeys?: string[];
+  bestWpmEng?: number;
+  avgWpmEng?: number;
+  bestWpmHindi?: number;
+  avgWpmHindi?: number;
+  avgAccuracy?: number;
+  currentStreak?: number;
+  readinessScore?: number;
+  targetWpm?: number;
+  dailyTargetMins?: number;
+}
+
+export interface TypingDailyChallenge {
+  id: string;
+  title: string;
+  date: string;
+  language: string;
+  passageText: string;
+  durationSeconds: number;
+  status: string;
+  participantsCount?: number;
+  typingTest?: TypingTest;
+}
+
+export interface TypingStats {
+  totalPassages: number;
+  totalExams: number;
+  totalCourses: number;
+  totalAttempts: number;
+  todayAttempts: number;
+  usersCount: number;
+  avgWpm: number;
+  avgAccuracy: number;
 }
 
 export interface CartItem {

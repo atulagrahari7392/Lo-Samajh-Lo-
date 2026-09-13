@@ -156,17 +156,56 @@ export const api = {
     assignToTest: (body: any) => request<any>('/questions/assign-to-test', { method: 'POST', body: JSON.stringify(body) }),
   },
 
-  // Typing Tests
+  // Typing Tests & Hub
   typing: {
     getAll: (params?: Record<string, any>) => {
-      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      const cleanParams: Record<string, string> = {};
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+      }
+      const q = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
       return request<any>(`/typing-tests${q}`);
     },
-    getById: (id: string) => request<any>(`/typing-tests/${id}`),
+    getById: (idOrSlug: string) => request<any>(`/typing-tests/${idOrSlug}`),
+    getExams: (category?: string) => {
+      const q = category ? `?category=${category}` : '';
+      return request<any>(`/typing-tests/exams${q}`);
+    },
+    getExamBySlug: (slug: string) => request<any>(`/typing-tests/exams/${slug}`),
+    getExam: (slug: string) => request<any>(`/typing-tests/exams/${slug}`),
+    getCourses: (language?: string) => {
+      const q = language ? `?language=${language}` : '';
+      return request<any>(`/typing-tests/courses${q}`);
+    },
+    getCourseBySlug: (slug: string) => request<any>(`/typing-tests/courses/${slug}`),
+    getCourse: (slug: string) => request<any>(`/typing-tests/courses/${slug}`),
+    getDailyChallenge: () => request<any>('/typing-tests/daily-challenge'),
+    getUserDashboard: () => request<any>('/typing-tests/user/dashboard'),
+    updateUserGoal: (body: any) => request<any>('/typing-tests/user/goal', { method: 'POST', body: JSON.stringify(body) }),
+    updateGoal: (body: any) => request<any>('/typing-tests/user/goal', { method: 'POST', body: JSON.stringify(body) }),
     saveAttempt: (body: any) => request<any>('/typing-tests/attempt', { method: 'POST', body: JSON.stringify(body) }),
-    getMyHistory: () => request<any>('/typing-tests/user/history'),
+    submitAttempt: (body: any) => request<any>('/typing-tests/attempt', { method: 'POST', body: JSON.stringify(body) }),
+    getMyHistory: (params?: Record<string, any> | number) => {
+      if (typeof params === 'number') {
+        return request<any>(`/typing-tests/user/history?limit=${params}`);
+      }
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/typing-tests/user/history${q}`);
+    },
+    getAdminStats: () => request<any>('/typing-tests/admin/stats'),
+    adminGetStats: () => request<any>('/typing-tests/admin/stats'),
+    adminCreateExam: (body: any) => request<any>('/typing-tests/admin/exams', { method: 'POST', body: JSON.stringify(body) }),
+    adminUpdateExam: (id: string, body: any) => request<any>(`/typing-tests/admin/exams/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    adminDeleteExam: (id: string) => request<any>(`/typing-tests/admin/exams/${id}`, { method: 'DELETE' }),
     create: (body: any) => request<any>('/typing-tests', { method: 'POST', body: JSON.stringify(body) }),
+    adminCreateTest: (body: any) => request<any>('/typing-tests', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/typing-tests/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    adminUpdateTest: (id: string, body: any) => request<any>(`/typing-tests/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/typing-tests/${id}`, { method: 'DELETE' }),
+    adminDeleteTest: (id: string) => request<any>(`/typing-tests/${id}`, { method: 'DELETE' }),
+    adminGetUsers: () => request<any>('/typing-tests/admin/users'),
   },
 
   // Cart
