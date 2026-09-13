@@ -76,19 +76,94 @@ export interface Course {
 export interface Material {
   id: string;
   title: string;
+  slug?: string | null;
   description?: string | null;
+  fullContent?: string | null;
   categoryId: string;
+  materialType?: string; // NCERT, E_BOOK, CLASS_NOTES, CURRENT_AFFAIRS, PYQ, PRACTICE_SET, QUESTION_BANK, SHORT_NOTES, ONE_LINER, WORKSHEET, OTHER
+  classGrade?: string | null;
   subject: string;
+  chapter?: string | null;
+  topic?: string | null;
   examName: string;
+  year?: number | null;
+  shift?: string | null;
+  language?: string; // HINDI, ENGLISH, BILINGUAL
+  pageCount?: number | null;
   fileUrl: string;
   thumbnail?: string | null;
   fileType: string;
   fileSize: string;
+  author?: string | null;
+  difficulty?: string; // EASY, MEDIUM, HARD
   isFree: boolean;
+  isFeatured?: boolean;
+  isTrending?: boolean;
   status: string;
   downloadsCount: number;
+  viewsCount?: number;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  keywords?: string | null;
   createdAt: string;
+  updatedAt?: string;
   category?: Category;
+  isBookmarked?: boolean;
+  savedAt?: string;
+  downloadedAt?: string;
+}
+
+export interface CurrentAffairs {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  date: string;
+  content: string;
+  image?: string | null;
+  pdfUrl?: string | null;
+  source?: string | null;
+  tags?: string | null;
+  status: string;
+  viewsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudyTaxonomy {
+  id: string;
+  type: string; // CATEGORY, CLASS, SUBJECT, EXAM, TOPIC
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface MaterialStats {
+  totalMaterials: number;
+  publishedMaterials: number;
+  draftMaterials: number;
+  archivedMaterials: number;
+  totalDownloads: number;
+  totalViews: number;
+  todayDownloads: number;
+  monthDownloads: number;
+  freeMaterials: number;
+  premiumMaterials: number;
+}
+
+export interface FileLibraryItem {
+  filename: string;
+  url: string;
+  size: string;
+  rawBytes: number;
+  fileType: string;
+  ext: string;
+  modifiedAt: string;
 }
 
 export interface Question {

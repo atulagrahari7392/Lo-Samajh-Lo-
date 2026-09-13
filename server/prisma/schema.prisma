@@ -28,6 +28,8 @@ model User {
   reviews            Review[]
   promoCodeUsages    PromoCodeUsage[]
   notificationReads  NotificationRead[]
+  materialBookmarks  MaterialBookmark[]
+  materialDownloads  MaterialDownload[]
 
   @@map("users")
 }
@@ -119,25 +121,118 @@ model Enrollment {
 }
 
 model Material {
-  id             String    @id @default(uuid())
-  title          String
-  description    String?
-  categoryId     String
-  subject        String    @default("General")
-  examName       String    @default("Competitive Exams")
-  fileUrl        String
-  thumbnail      String?
-  fileType       String    @default("PDF") // PDF, DOC, PPT
-  fileSize       String    @default("2.4 MB")
-  isFree         Boolean   @default(true)
-  status         String    @default("PUBLISHED") // PUBLISHED, DRAFT
-  downloadsCount Int       @default(0)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id              String             @id @default(uuid())
+  title           String
+  slug            String?            @unique
+  description     String?
+  fullContent     String?
+  categoryId      String
+  materialType    String             @default("CLASS_NOTES") // NCERT, E_BOOK, CLASS_NOTES, CURRENT_AFFAIRS, PYQ, PRACTICE_SET, QUESTION_BANK, SHORT_NOTES, ONE_LINER, WORKSHEET, OTHER
+  classGrade      String?            // Class 1 to Class 12, Graduation, All Classes
+  subject         String             @default("General")
+  chapter         String?
+  topic           String?
+  examName        String             @default("Competitive Exams")
+  year            Int?
+  shift           String?            // Shift 1, Shift 2, etc.
+  language        String             @default("BILINGUAL") // HINDI, ENGLISH, BILINGUAL
+  pageCount       Int?               @default(1)
+  fileUrl         String
+  thumbnail       String?
+  fileType        String             @default("PDF") // PDF, DOC, PPT
+  fileSize        String             @default("2.4 MB")
+  author          String?            @default("Lo Samajh Lo Faculty")
+  difficulty      String             @default("MEDIUM") // EASY, MEDIUM, HARD
+  isFree          Boolean            @default(true)
+  isFeatured      Boolean            @default(false)
+  isTrending      Boolean            @default(false)
+  status          String             @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  downloadsCount  Int                @default(0)
+  viewsCount      Int                @default(0)
+  metaTitle       String?
+  metaDescription String?
+  keywords        String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  category       Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category        Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  bookmarks       MaterialBookmark[]
+  downloads       MaterialDownload[]
+  views           MaterialView[]
 
   @@map("materials")
+}
+
+model MaterialBookmark {
+  id         String   @id @default(uuid())
+  userId     String
+  materialId String
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, materialId])
+  @@map("material_bookmarks")
+}
+
+model MaterialDownload {
+  id           String   @id @default(uuid())
+  userId       String?
+  materialId   String
+  ipAddress    String?
+  downloadedAt DateTime @default(now())
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  material     Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@map("material_downloads")
+}
+
+model MaterialView {
+  id         String   @id @default(uuid())
+  userId     String?
+  materialId String
+  viewedAt   DateTime @default(now())
+
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@map("material_views")
+}
+
+model StudyTaxonomy {
+  id        String   @id @default(uuid())
+  type      String   @default("CATEGORY") // CATEGORY, CLASS, SUBJECT, EXAM, TOPIC
+  name      String
+  slug      String
+  parentId  String?
+  icon      String?
+  color     String?  @default("#6C63FF")
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([type, slug])
+  @@map("study_taxonomies")
+}
+
+model CurrentAffairs {
+  id         String   @id @default(uuid())
+  title      String
+  slug       String   @unique
+  category   String   @default("NATIONAL") // NATIONAL, INTERNATIONAL, ECONOMY, SCIENCE_TECH, ENVIRONMENT, SPORTS, AWARDS, SCHEMES, DEFENCE, BANKING, STATE_AFFAIRS
+  date       DateTime @default(now())
+  content    String
+  image      String?
+  pdfUrl     String?
+  source     String?
+  tags       String?
+  status     String   @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  viewsCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("current_affairs")
 }
 
 model Test {

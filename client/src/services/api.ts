@@ -72,14 +72,57 @@ export const api = {
   // Study Materials
   materials: {
     getAll: (params?: Record<string, any>) => {
-      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      const cleanParams: Record<string, string> = {};
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+      }
+      const q = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
       return request<any>(`/materials${q}`);
     },
-    adminGetAll: () => request<any>('/materials/admin/all'),
+    getBySlug: (slug: string) => request<any>(`/materials/slug/${slug}`),
+    getFeatured: () => request<any>('/materials/featured'),
+    getTrending: () => request<any>('/materials/trending'),
+    getMostDownloaded: () => request<any>('/materials/most-downloaded'),
+    getRecent: () => request<any>('/materials/recent'),
+    getUserLibrary: () => request<any>('/materials/user/library'),
+    toggleBookmark: (id: string) => request<any>(`/materials/${id}/bookmark`, { method: 'POST' }),
     incrementDownload: (id: string) => request<any>(`/materials/${id}/download`, { method: 'POST' }),
+    incrementView: (id: string) => request<any>(`/materials/${id}/view`, { method: 'POST' }),
+    getAdminStats: () => request<any>('/materials/admin/stats'),
+    adminGetAll: (params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/materials/admin/all${q}`);
+    },
     create: (body: any) => request<any>('/materials', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: any) => request<any>(`/materials/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/materials/${id}`, { method: 'DELETE' }),
+    bulkAction: (action: string, ids: string[]) =>
+      request<any>('/materials/bulk-action', { method: 'POST', body: JSON.stringify({ action, ids }) }),
+    getTaxonomies: (type?: string) => {
+      const q = type ? `?type=${type}` : '';
+      return request<any>(`/materials/taxonomies${q}`);
+    },
+    saveTaxonomy: (body: any) => request<any>('/materials/taxonomies', { method: 'POST', body: JSON.stringify(body) }),
+    deleteTaxonomy: (id: string) => request<any>(`/materials/taxonomies/${id}`, { method: 'DELETE' }),
+    getFileLibrary: () => request<any>('/materials/files'),
+  },
+
+  // Current Affairs
+  currentAffairs: {
+    getAll: (params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/current-affairs${q}`);
+    },
+    getByIdOrSlug: (idOrSlug: string) => request<any>(`/current-affairs/${idOrSlug}`),
+    adminGetAll: (params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/current-affairs/admin/all${q}`);
+    },
+    create: (body: any) => request<any>('/current-affairs', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/current-affairs/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) => request<any>(`/current-affairs/${id}`, { method: 'DELETE' }),
   },
 
   // Tests

@@ -16,6 +16,7 @@ import CoursesPage from './pages/user/CoursesPage';
 import CourseDetailPage from './pages/user/CourseDetailPage';
 import CoursePlayerPage from './pages/user/CoursePlayerPage';
 import StudyMaterialsPage from './pages/user/StudyMaterialsPage';
+import MaterialDetailPage from './pages/user/MaterialDetailPage';
 import TestSeriesPage from './pages/user/TestSeriesPage';
 import TestAttemptPage from './pages/user/TestAttemptPage';
 import TestResultPage from './pages/user/TestResultPage';
@@ -89,6 +90,14 @@ export const App: React.FC = () => {
                   element={
                     <UserLayout>
                       <StudyMaterialsPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-materials/:slug"
+                  element={
+                    <UserLayout>
+                      <MaterialDetailPage />
                     </UserLayout>
                   }
                 />

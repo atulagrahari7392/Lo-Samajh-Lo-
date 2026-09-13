@@ -22,6 +22,7 @@ import adminRoutes from './routes/admin.routes';
 import uploadRoutes from './routes/upload.routes';
 import sliderRoutes from './routes/slider.routes';
 import settingsRoutes from './routes/settings.routes';
+import currentAffairsRoutes from './routes/current-affairs.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -77,6 +78,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/sliders', sliderRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/current-affairs', currentAffairsRoutes);
 
 // Serve frontend client build in production if available
 const possibleClientPaths = [
