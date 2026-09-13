@@ -267,9 +267,10 @@ router.get('/:idOrSlug', optionalAuth, async (req: AuthRequest, res, next) => {
 });
 
 // ----------------------------------------------------
-// 3. ADMIN: Create Test Series
 // ----------------------------------------------------
-router.post('/admin', authenticate, requireAdmin, async (req, res, next) => {
+// 3. ADMIN: Create Test Series (supports both / and /admin)
+// ----------------------------------------------------
+const handleCreateSeries = async (req: any, res: any) => {
   try {
     const {
       title,
@@ -281,6 +282,7 @@ router.post('/admin', authenticate, requireAdmin, async (req, res, next) => {
       badge,
       totalTestsCount,
       freeTestsCount,
+      enrolledCount,
       languages,
       validityDays,
       price,
@@ -289,43 +291,57 @@ router.post('/admin', authenticate, requireAdmin, async (req, res, next) => {
       status,
     } = req.body;
 
-    if (!title) {
-      res.status(400).json({ success: false, message: 'Series title is required.' });
-      return;
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ success: false, message: 'Series title is required.' });
     }
 
-    const slug = customSlug ? slugify(customSlug) : slugify(title);
+    let slug = customSlug ? slugify(customSlug) : slugify(title);
+    if (!slug) slug = 'test-series-' + Date.now().toString().slice(-6);
+
+    // Ensure unique slug
+    const existing = await prisma.testSeries.findUnique({ where: { slug } });
+    if (existing) {
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
+    }
 
     const series = await prisma.testSeries.create({
       data: {
         title: title.trim(),
         slug,
-        examCategory: examCategory || 'UP Police',
+        examCategory: examCategory?.trim() || 'UP Police',
         subTitle: subTitle?.trim() || null,
         description: description?.trim() || null,
         thumbnail: thumbnail?.trim() || null,
-        badge: badge || 'POPULAR',
-        totalTestsCount: parseInt(totalTestsCount, 10) || 0,
-        freeTestsCount: parseInt(freeTestsCount, 10) || 0,
-        languages: languages || 'English, Hindi',
-        validityDays: parseInt(validityDays, 10) || 365,
-        price: parseFloat(price) || 0,
-        originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+        badge: badge?.trim() || null,
+        totalTestsCount: parseInt(String(totalTestsCount), 10) || 0,
+        freeTestsCount: parseInt(String(freeTestsCount), 10) || 0,
+        enrolledCount: parseInt(String(enrolledCount), 10) || 0,
+        languages: languages?.trim() || 'English, Hindi',
+        validityDays: parseInt(String(validityDays), 10) || 365,
+        price: parseFloat(String(price)) || 0,
+        originalPrice: originalPrice ? parseFloat(String(originalPrice)) : null,
         isFeatured: Boolean(isFeatured),
         status: status || 'PUBLISHED',
       },
     });
 
-    res.status(201).json({ success: true, message: 'Test Series created successfully.', series });
-  } catch (error) {
-    next(error);
+    return res.status(201).json({ success: true, message: 'Test Series created successfully.', series });
+  } catch (error: any) {
+    console.error('Error creating test series:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'A test series with this slug already exists.' });
+    }
+    return res.status(400).json({ success: false, message: error.message || 'Failed to create test series.' });
   }
-});
+};
+
+router.post('/', authenticate, requireAdmin, handleCreateSeries);
+router.post('/admin', authenticate, requireAdmin, handleCreateSeries);
 
 // ----------------------------------------------------
-// 4. ADMIN: Update Test Series
+// 4. ADMIN: Update Test Series (supports both /:id and /admin/:id)
 // ----------------------------------------------------
-router.put('/admin/:id', authenticate, requireAdmin, async (req, res, next) => {
+const handleUpdateSeries = async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const {
@@ -338,6 +354,7 @@ router.put('/admin/:id', authenticate, requireAdmin, async (req, res, next) => {
       badge,
       totalTestsCount,
       freeTestsCount,
+      enrolledCount,
       languages,
       validityDays,
       price,
@@ -347,19 +364,31 @@ router.put('/admin/:id', authenticate, requireAdmin, async (req, res, next) => {
     } = req.body;
 
     const data: any = {};
-    if (title) data.title = title.trim();
-    if (customSlug) data.slug = slugify(customSlug);
-    if (examCategory) data.examCategory = examCategory;
+    if (title && String(title).trim()) data.title = title.trim();
+
+    if (customSlug) {
+      let cleanSlug = slugify(customSlug);
+      const existing = await prisma.testSeries.findFirst({
+        where: { slug: cleanSlug, NOT: { id } },
+      });
+      if (existing) {
+        cleanSlug = `${cleanSlug}-${Date.now().toString().slice(-4)}`;
+      }
+      data.slug = cleanSlug;
+    }
+
+    if (examCategory) data.examCategory = examCategory.trim();
     if (subTitle !== undefined) data.subTitle = subTitle?.trim() || null;
     if (description !== undefined) data.description = description?.trim() || null;
     if (thumbnail !== undefined) data.thumbnail = thumbnail?.trim() || null;
-    if (badge !== undefined) data.badge = badge;
-    if (totalTestsCount !== undefined) data.totalTestsCount = parseInt(totalTestsCount, 10) || 0;
-    if (freeTestsCount !== undefined) data.freeTestsCount = parseInt(freeTestsCount, 10) || 0;
-    if (languages !== undefined) data.languages = languages;
-    if (validityDays !== undefined) data.validityDays = parseInt(validityDays, 10) || 365;
-    if (price !== undefined) data.price = parseFloat(price) || 0;
-    if (originalPrice !== undefined) data.originalPrice = originalPrice ? parseFloat(originalPrice) : null;
+    if (badge !== undefined) data.badge = badge?.trim() || null;
+    if (totalTestsCount !== undefined) data.totalTestsCount = parseInt(String(totalTestsCount), 10) || 0;
+    if (freeTestsCount !== undefined) data.freeTestsCount = parseInt(String(freeTestsCount), 10) || 0;
+    if (enrolledCount !== undefined) data.enrolledCount = parseInt(String(enrolledCount), 10) || 0;
+    if (languages !== undefined) data.languages = languages.trim();
+    if (validityDays !== undefined) data.validityDays = parseInt(String(validityDays), 10) || 365;
+    if (price !== undefined) data.price = parseFloat(String(price)) || 0;
+    if (originalPrice !== undefined) data.originalPrice = originalPrice ? parseFloat(String(originalPrice)) : null;
     if (isFeatured !== undefined) data.isFeatured = Boolean(isFeatured);
     if (status !== undefined) data.status = status;
 
@@ -368,23 +397,34 @@ router.put('/admin/:id', authenticate, requireAdmin, async (req, res, next) => {
       data,
     });
 
-    res.json({ success: true, message: 'Test Series updated successfully.', series: updated });
-  } catch (error) {
-    next(error);
+    return res.json({ success: true, message: 'Test Series updated successfully.', series: updated });
+  } catch (error: any) {
+    console.error('Error updating test series:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'A test series with this slug already exists.' });
+    }
+    return res.status(400).json({ success: false, message: error.message || 'Failed to update test series.' });
   }
-});
+};
+
+router.put('/:id', authenticate, requireAdmin, handleUpdateSeries);
+router.put('/admin/:id', authenticate, requireAdmin, handleUpdateSeries);
 
 // ----------------------------------------------------
-// 5. ADMIN: Delete Test Series
+// 5. ADMIN: Delete Test Series (supports both /:id and /admin/:id)
 // ----------------------------------------------------
-router.delete('/admin/:id', authenticate, requireAdmin, async (req, res, next) => {
+const handleDeleteSeries = async (req: any, res: any) => {
   try {
     const { id } = req.params;
     await prisma.testSeries.delete({ where: { id } });
-    res.json({ success: true, message: 'Test Series deleted successfully.' });
-  } catch (error) {
-    next(error);
+    return res.json({ success: true, message: 'Test Series deleted successfully.' });
+  } catch (error: any) {
+    console.error('Error deleting test series:', error);
+    return res.status(400).json({ success: false, message: error.message || 'Failed to delete test series.' });
   }
-});
+};
+
+router.delete('/:id', authenticate, requireAdmin, handleDeleteSeries);
+router.delete('/admin/:id', authenticate, requireAdmin, handleDeleteSeries);
 
 export default router;

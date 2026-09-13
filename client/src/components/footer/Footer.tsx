@@ -6,14 +6,16 @@ import {
   MapPin,
   Heart,
   ArrowRight,
-  MessageCircle,
-  Youtube,
-  Send,
-  Instagram,
-  Facebook,
-  Twitter,
-  Linkedin,
 } from 'lucide-react';
+import {
+  WhatsAppLogo,
+  YouTubeLogo,
+  TelegramLogo,
+  InstagramLogo,
+  FacebookLogo,
+  XLogo,
+  LinkedInLogo,
+} from '../common/SocialBrandIcons';
 import { api } from '../../services/api';
 import { FooterSettings } from '../../types';
 
@@ -52,49 +54,49 @@ export const Footer: React.FC = () => {
   const socialLinks = [
     {
       name: 'WhatsApp',
-      icon: MessageCircle,
+      icon: WhatsAppLogo,
       url: settings.whatsappUrl,
       bg: 'hover:bg-[#25D366] hover:border-[#25D366]',
       color: 'text-[#25D366]',
     },
     {
       name: 'YouTube',
-      icon: Youtube,
+      icon: YouTubeLogo,
       url: settings.youtubeUrl,
       bg: 'hover:bg-[#FF0000] hover:border-[#FF0000]',
       color: 'text-[#FF0000]',
     },
     {
       name: 'Telegram',
-      icon: Send,
+      icon: TelegramLogo,
       url: settings.telegramUrl,
       bg: 'hover:bg-[#0088cc] hover:border-[#0088cc]',
       color: 'text-[#0088cc]',
     },
     {
       name: 'Instagram',
-      icon: Instagram,
+      icon: InstagramLogo,
       url: settings.instagramUrl,
       bg: 'hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:border-pink-500',
       color: 'text-[#dc2743]',
     },
     {
       name: 'Facebook',
-      icon: Facebook,
+      icon: FacebookLogo,
       url: settings.facebookUrl,
       bg: 'hover:bg-[#1877F2] hover:border-[#1877F2]',
       color: 'text-[#1877F2]',
     },
     {
       name: 'Twitter (X)',
-      icon: Twitter,
+      icon: XLogo,
       url: settings.twitterUrl,
       bg: 'hover:bg-slate-700 hover:border-slate-700',
       color: 'text-slate-300',
     },
     {
       name: 'LinkedIn',
-      icon: Linkedin,
+      icon: LinkedInLogo,
       url: settings.linkedinUrl,
       bg: 'hover:bg-[#0077B5] hover:border-[#0077B5]',
       color: 'text-[#0077B5]',

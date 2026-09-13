@@ -800,11 +800,23 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
   }
 });
 
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+}
+
 router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const {
       title,
-      slug,
+      slug: customSlug,
       seriesId,
       categoryId,
       courseId,
@@ -817,39 +829,75 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
       passMarks,
       negativeMarking,
       isFree,
+      isLive,
+      scheduledStart,
+      scheduledEnd,
       status,
     } = req.body;
 
-    if (!title || !slug) {
-      res.status(400).json({ success: false, message: 'Title and slug are required.' });
-      return;
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ success: false, message: 'Test title is required.' });
+    }
+
+    let slug = customSlug ? slugify(customSlug) : slugify(title);
+    if (!slug) slug = 'test-' + Date.now().toString().slice(-6);
+
+    const existing = await prisma.test.findUnique({ where: { slug } });
+    if (existing) {
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
+    }
+
+    // Validate relations to avoid foreign key errors
+    let safeSeriesId: string | null = null;
+    if (seriesId && String(seriesId).trim()) {
+      const foundSeries = await prisma.testSeries.findUnique({ where: { id: String(seriesId).trim() } });
+      if (foundSeries) safeSeriesId = foundSeries.id;
+    }
+
+    let safeCategoryId: string | null = null;
+    if (categoryId && String(categoryId).trim()) {
+      const foundCat = await prisma.category.findUnique({ where: { id: String(categoryId).trim() } });
+      if (foundCat) safeCategoryId = foundCat.id;
+    }
+
+    let safeCourseId: string | null = null;
+    if (courseId && String(courseId).trim()) {
+      const foundCourse = await prisma.course.findUnique({ where: { id: String(courseId).trim() } });
+      if (foundCourse) safeCourseId = foundCourse.id;
     }
 
     const test = await prisma.test.create({
       data: {
         title: title.trim(),
-        slug: slug.trim().toLowerCase(),
-        seriesId: seriesId || null,
-        categoryId: categoryId || null,
-        courseId: courseId || null,
+        slug,
+        seriesId: safeSeriesId,
+        categoryId: safeCategoryId,
+        courseId: safeCourseId,
         testType: testType || 'MOCK',
         subCategory: subCategory || 'Mock Tests',
         description: description?.trim() || null,
         instructions:
           instructions?.trim() ||
           'Each question carries positive marks. Wrong answers carry negative marks. Test clock is synchronized with the server.',
-        durationMinutes: parseInt(durationMinutes, 10) || 60,
-        totalMarks: parseFloat(totalMarks) || 100,
-        passMarks: parseFloat(passMarks) || 33,
-        negativeMarking: parseFloat(negativeMarking) || 0.25,
+        durationMinutes: parseInt(String(durationMinutes), 10) || 60,
+        totalMarks: parseFloat(String(totalMarks)) || 100,
+        passMarks: parseFloat(String(passMarks)) || 33,
+        negativeMarking: parseFloat(String(negativeMarking)) || 0.25,
         isFree: Boolean(isFree),
+        isLive: Boolean(isLive),
+        scheduledStart: scheduledStart ? new Date(scheduledStart) : null,
+        scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
         status: status || 'PUBLISHED',
       },
     });
 
-    res.status(201).json({ success: true, message: 'Test created successfully.', test });
-  } catch (error) {
-    next(error);
+    return res.status(201).json({ success: true, message: 'Test created successfully.', test });
+  } catch (error: any) {
+    console.error('Error creating test:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'A test with this slug already exists.' });
+    }
+    return res.status(400).json({ success: false, message: error.message || 'Failed to create test.' });
   }
 });
 
@@ -858,7 +906,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
     const { id } = req.params;
     const {
       title,
-      slug,
+      slug: customSlug,
       seriesId,
       categoryId,
       courseId,
@@ -871,33 +919,79 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
       passMarks,
       negativeMarking,
       isFree,
+      isLive,
+      scheduledStart,
+      scheduledEnd,
       status,
     } = req.body;
 
+    const data: any = {};
+    if (title && String(title).trim()) data.title = title.trim();
+
+    if (customSlug) {
+      let cleanSlug = slugify(customSlug);
+      const existing = await prisma.test.findFirst({
+        where: { slug: cleanSlug, NOT: { id } },
+      });
+      if (existing) {
+        cleanSlug = `${cleanSlug}-${Date.now().toString().slice(-4)}`;
+      }
+      data.slug = cleanSlug;
+    }
+
+    if (seriesId !== undefined) {
+      if (seriesId && String(seriesId).trim()) {
+        const found = await prisma.testSeries.findUnique({ where: { id: String(seriesId).trim() } });
+        data.seriesId = found ? found.id : null;
+      } else {
+        data.seriesId = null;
+      }
+    }
+
+    if (categoryId !== undefined) {
+      if (categoryId && String(categoryId).trim()) {
+        const found = await prisma.category.findUnique({ where: { id: String(categoryId).trim() } });
+        data.categoryId = found ? found.id : null;
+      } else {
+        data.categoryId = null;
+      }
+    }
+
+    if (courseId !== undefined) {
+      if (courseId && String(courseId).trim()) {
+        const found = await prisma.course.findUnique({ where: { id: String(courseId).trim() } });
+        data.courseId = found ? found.id : null;
+      } else {
+        data.courseId = null;
+      }
+    }
+
+    if (testType) data.testType = testType;
+    if (subCategory !== undefined) data.subCategory = subCategory;
+    if (description !== undefined) data.description = description?.trim() || null;
+    if (instructions !== undefined) data.instructions = instructions?.trim() || null;
+    if (durationMinutes !== undefined) data.durationMinutes = parseInt(String(durationMinutes), 10) || 60;
+    if (totalMarks !== undefined) data.totalMarks = parseFloat(String(totalMarks)) || 100;
+    if (passMarks !== undefined) data.passMarks = parseFloat(String(passMarks)) || 33;
+    if (negativeMarking !== undefined) data.negativeMarking = parseFloat(String(negativeMarking)) || 0.25;
+    if (isFree !== undefined) data.isFree = Boolean(isFree);
+    if (isLive !== undefined) data.isLive = Boolean(isLive);
+    if (scheduledStart !== undefined) data.scheduledStart = scheduledStart ? new Date(scheduledStart) : null;
+    if (scheduledEnd !== undefined) data.scheduledEnd = scheduledEnd ? new Date(scheduledEnd) : null;
+    if (status) data.status = status;
+
     const updated = await prisma.test.update({
       where: { id },
-      data: {
-        ...(title ? { title: title.trim() } : {}),
-        ...(slug ? { slug: slug.trim().toLowerCase() } : {}),
-        ...(seriesId !== undefined ? { seriesId: seriesId || null } : {}),
-        ...(categoryId !== undefined ? { categoryId: categoryId || null } : {}),
-        ...(courseId !== undefined ? { courseId: courseId || null } : {}),
-        ...(testType ? { testType } : {}),
-        ...(subCategory !== undefined ? { subCategory } : {}),
-        ...(description !== undefined ? { description: description?.trim() || null } : {}),
-        ...(instructions !== undefined ? { instructions: instructions?.trim() } : {}),
-        ...(durationMinutes !== undefined ? { durationMinutes: parseInt(durationMinutes, 10) } : {}),
-        ...(totalMarks !== undefined ? { totalMarks: parseFloat(totalMarks) } : {}),
-        ...(passMarks !== undefined ? { passMarks: parseFloat(passMarks) } : {}),
-        ...(negativeMarking !== undefined ? { negativeMarking: parseFloat(negativeMarking) } : {}),
-        ...(isFree !== undefined ? { isFree: Boolean(isFree) } : {}),
-        ...(status ? { status } : {}),
-      },
+      data,
     });
 
-    res.json({ success: true, message: 'Test updated successfully.', test: updated });
-  } catch (error) {
-    next(error);
+    return res.json({ success: true, message: 'Test updated successfully.', test: updated });
+  } catch (error: any) {
+    console.error('Error updating test:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'A test with this slug already exists.' });
+    }
+    return res.status(400).json({ success: false, message: error.message || 'Failed to update test.' });
   }
 });
 
@@ -905,9 +999,10 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;
     await prisma.test.delete({ where: { id } });
-    res.json({ success: true, message: 'Test deleted successfully.' });
-  } catch (error) {
-    next(error);
+    return res.json({ success: true, message: 'Test deleted successfully.' });
+  } catch (error: any) {
+    console.error('Error deleting test:', error);
+    return res.status(400).json({ success: false, message: error.message || 'Failed to delete test.' });
   }
 });
 

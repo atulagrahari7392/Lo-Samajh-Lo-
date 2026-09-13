@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  MessageCircle,
-  Youtube,
-  Send,
-  Instagram,
-  Facebook,
-  Twitter,
-  Linkedin,
-  Sparkles,
   ChevronRight,
   X,
   Share2,
 } from 'lucide-react';
+import {
+  WhatsAppLogo,
+  YouTubeLogo,
+  TelegramLogo,
+  InstagramLogo,
+  FacebookLogo,
+  XLogo,
+  LinkedInLogo,
+} from './SocialBrandIcons';
+import { api } from '../../services/api';
+import { FooterSettings } from '../../types';
 
 interface SocialChannel {
   name: string;
@@ -25,17 +28,48 @@ interface SocialChannel {
   badgeBg: string;
 }
 
+const DEFAULT_SETTINGS: Partial<FooterSettings> = {
+  whatsappUrl: 'https://wa.me/919999999999?text=Hello%20Lo%20Samajh%20Lo%20Team%2C%20I%20need%20course%20guidance',
+  youtubeUrl: 'https://youtube.com/@losamajhlo',
+  telegramUrl: 'https://t.me/losamajhlo',
+  instagramUrl: 'https://instagram.com/losamajhlo',
+  facebookUrl: 'https://facebook.com/losamajhlo',
+  twitterUrl: 'https://twitter.com/losamajhlo',
+  linkedinUrl: 'https://linkedin.com/company/losamajhlo',
+};
+
 export const FloatingSocialSidebar: React.FC = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settings, setSettings] = useState<Partial<FooterSettings>>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    let mounted = true;
+    api.settings
+      .getFooter()
+      .then((res) => {
+        if (mounted && res?.success && res?.settings) {
+          setSettings((prev) => ({
+            ...prev,
+            ...res.settings,
+          }));
+        }
+      })
+      .catch(() => {
+        // Fallback to default urls
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const channels: SocialChannel[] = [
     {
       name: 'WhatsApp',
       hindiTitle: 'व्हाट्सएप चैट सहायता',
       subtitle: 'कोर्स व एडमिशन मार्गदर्शन',
-      icon: MessageCircle,
-      href: 'https://wa.me/919999999999?text=Hello%20Lo%20Samajh%20Lo%20Team%2C%20I%20need%20course%20guidance',
+      icon: WhatsAppLogo,
+      href: settings.whatsappUrl || DEFAULT_SETTINGS.whatsappUrl!,
       bgGradient: 'from-[#25D366] to-[#128C7E]',
       shadowColor: 'shadow-emerald-500/40',
       badge: '24x7 Support',
@@ -45,8 +79,8 @@ export const FloatingSocialSidebar: React.FC = () => {
       name: 'YouTube',
       hindiTitle: 'यूट्यूब वीडियो कक्षाएं',
       subtitle: 'मुफ्त लाइव क्लास व मैराथन',
-      icon: Youtube,
-      href: 'https://youtube.com/@losamajhlo',
+      icon: YouTubeLogo,
+      href: settings.youtubeUrl || DEFAULT_SETTINGS.youtubeUrl!,
       bgGradient: 'from-[#FF0000] to-[#CC0000]',
       shadowColor: 'shadow-red-500/40',
       badge: 'Live Classes',
@@ -56,8 +90,8 @@ export const FloatingSocialSidebar: React.FC = () => {
       name: 'Telegram',
       hindiTitle: 'टेलीग्राम चैनल',
       subtitle: 'मुफ्त पीडीएफ नोट्स व PYQs',
-      icon: Send,
-      href: 'https://t.me/losamajhlo',
+      icon: TelegramLogo,
+      href: settings.telegramUrl || DEFAULT_SETTINGS.telegramUrl!,
       bgGradient: 'from-[#0088cc] to-[#006699]',
       shadowColor: 'shadow-sky-500/40',
       badge: 'Free PDFs',
@@ -67,8 +101,8 @@ export const FloatingSocialSidebar: React.FC = () => {
       name: 'Instagram',
       hindiTitle: 'इंस्टाग्राम रील्स व अपडेट',
       subtitle: 'दैनिक करंट अफेयर्स व टिप्स',
-      icon: Instagram,
-      href: 'https://instagram.com/losamajhlo',
+      icon: InstagramLogo,
+      href: settings.instagramUrl || DEFAULT_SETTINGS.instagramUrl!,
       bgGradient: 'from-[#f09433] via-[#dc2743] to-[#bc1888]',
       shadowColor: 'shadow-pink-500/40',
       badge: 'Daily Quiz',
@@ -78,8 +112,8 @@ export const FloatingSocialSidebar: React.FC = () => {
       name: 'Facebook',
       hindiTitle: 'फेसबुक पेज',
       subtitle: 'शिक्षा समाचार व घोषणाएं',
-      icon: Facebook,
-      href: 'https://facebook.com/losamajhlo',
+      icon: FacebookLogo,
+      href: settings.facebookUrl || DEFAULT_SETTINGS.facebookUrl!,
       bgGradient: 'from-[#1877F2] to-[#0d59c2]',
       shadowColor: 'shadow-blue-500/40',
       badge: 'Community',
@@ -89,8 +123,8 @@ export const FloatingSocialSidebar: React.FC = () => {
       name: 'Twitter (X)',
       hindiTitle: 'एक्स / ट्विटर',
       subtitle: 'सरकारी भर्ती व विज्ञप्ति अलर्ट',
-      icon: Twitter,
-      href: 'https://twitter.com/losamajhlo',
+      icon: XLogo,
+      href: settings.twitterUrl || DEFAULT_SETTINGS.twitterUrl!,
       bgGradient: 'from-slate-950 to-slate-800',
       shadowColor: 'shadow-slate-900/40',
       badge: 'Job Alerts',
@@ -100,8 +134,8 @@ export const FloatingSocialSidebar: React.FC = () => {
       name: 'LinkedIn',
       hindiTitle: 'लिंक्डइन नेटवर्क',
       subtitle: 'करियर मार्गदर्शन व सेमिनार',
-      icon: Linkedin,
-      href: 'https://linkedin.com/company/losamajhlo',
+      icon: LinkedInLogo,
+      href: settings.linkedinUrl || DEFAULT_SETTINGS.linkedinUrl!,
       bgGradient: 'from-[#0077B5] to-[#005582]',
       shadowColor: 'shadow-cyan-600/40',
       badge: 'Career',
