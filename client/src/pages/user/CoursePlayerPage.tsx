@@ -135,9 +135,7 @@ export const CoursePlayerPage: React.FC = () => {
               title={activeLesson.title}
               chapterTitle={activeLesson.chapterTitle}
               thumbnail={activeLesson.thumbnail}
-              studentName={user?.name || 'Lo Samajh Lo Student'}
-              studentContact={user?.phone || user?.email || ''}
-              studentId={user?.id || 'USR-7392'}
+              studentPhone={user?.phone || user?.email || ''}
               onEnded={() => {
                 if (activeLesson) {
                   setCompletedLessons((prev) => ({ ...prev, [activeLesson.id]: true }));

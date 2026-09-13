@@ -221,8 +221,7 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
       }
       let finalVideoUrl = lesson.videoUrl;
       if (finalVideoUrl && finalVideoUrl.includes('drive.google.com')) {
-        const fileId = extractDriveFileId(finalVideoUrl);
-        if (fileId) finalVideoUrl = `/api/google-drive/stream/${fileId}`;
+        finalVideoUrl = finalVideoUrl.replace(/\/view(\?.*)?$/, '/preview');
       }
       return {
         ...lesson,
@@ -230,7 +229,7 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
       };
     });
 
-    // Map recorded classes into syllabus lessons with direct stream URLs
+    // Map recorded classes into syllabus lessons
     const isFreeCourse = course.price === 0 || course.discountedPrice === 0;
     const hasFreePreviewInLessons = course.lessons.some((l) => l.isFreePreview);
 
@@ -241,11 +240,9 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
 
       let finalVideoUrl: string | null = null;
       if (canAccess && rc.videoUrl) {
-        if (rc.videoUrl.includes('drive.google.com')) {
-          finalVideoUrl = `/api/recorded-classes/stream/${rc.id}`;
-        } else {
-          finalVideoUrl = rc.videoUrl;
-        }
+        finalVideoUrl = rc.videoUrl.includes('drive.google.com')
+          ? rc.videoUrl.replace(/\/view(\?.*)?$/, '/preview')
+          : rc.videoUrl;
       }
 
       return {
@@ -345,12 +342,11 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       return;
     }
 
-    // Merge standard lessons with direct stream URLs
+    // Merge standard lessons with clean preview URLs
     const mappedStandardLessons = course.lessons.map((lesson) => {
       let finalVideoUrl = lesson.videoUrl;
       if (finalVideoUrl && finalVideoUrl.includes('drive.google.com')) {
-        const fileId = extractDriveFileId(finalVideoUrl);
-        if (fileId) finalVideoUrl = `/api/google-drive/stream/${fileId}`;
+        finalVideoUrl = finalVideoUrl.replace(/\/view(\?.*)?$/, '/preview');
       }
       return {
         ...lesson,
@@ -358,11 +354,11 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       };
     });
 
-    // Merge recorded classes with direct stream URLs for HTML5 player
+    // Merge recorded classes with clean preview URLs
     const mappedRecordedClasses = (course.recordedClasses || []).map((rc: any, idx: number) => {
       let finalVideoUrl = rc.videoUrl;
       if (finalVideoUrl && finalVideoUrl.includes('drive.google.com')) {
-        finalVideoUrl = `/api/recorded-classes/stream/${rc.id}`;
+        finalVideoUrl = finalVideoUrl.replace(/\/view(\?.*)?$/, '/preview');
       }
 
       return {

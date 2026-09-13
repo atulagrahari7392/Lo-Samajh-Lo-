@@ -188,9 +188,7 @@ export const CourseDetailPage: React.FC = () => {
                   title={previewLesson.title}
                   chapterTitle={previewLesson.chapterTitle}
                   thumbnail={previewLesson.thumbnail || course.thumbnail}
-                  studentName={user?.name || 'Visitor'}
-                  studentContact={user?.phone || user?.email || ''}
-                  studentId={user?.id || 'GUEST'}
+                  studentPhone={user?.phone || user?.email || ''}
                 />
               ) : (
                 <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-950 shadow-inner flex flex-col items-center justify-center text-slate-400 p-6 text-center space-y-2">
