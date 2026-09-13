@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Navigate } from 'react-router-dom';
 import {
   HelpCircle,
   Plus,
@@ -25,6 +25,10 @@ import { ConfirmModal } from '../../components/common/ConfirmModal';
 export const AdminQuestionsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTestId = searchParams.get('testId') || '';
+
+  if (initialTestId) {
+    return <Navigate to={`/admin/tests/${initialTestId}/questions`} replace />;
+  }
 
   const { success, error: toastError } = useToast();
   const [questions, setQuestions] = useState<Question[]>([]);
