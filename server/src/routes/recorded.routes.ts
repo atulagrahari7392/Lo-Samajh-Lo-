@@ -68,6 +68,58 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   }
 });
 
+// GET /api/recorded-classes/:id
+router.get('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lecture = await prisma.recordedClass.findUnique({
+      where: { id },
+      include: {
+        course: { select: { id: true, title: true, slug: true } },
+      },
+    });
+
+    if (!lecture) {
+      res.status(404).json({ success: false, message: 'Recorded lecture not found.' });
+      return;
+    }
+
+    res.json({ success: true, lecture });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/recorded-classes/:id (Update recorded lecture)
+router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { courseId, title, chapter, durationMinutes, videoUrl, thumbnail, description, isPublished } = req.body;
+
+    const data: any = {};
+    if (courseId !== undefined) data.courseId = courseId;
+    if (title !== undefined) data.title = title.trim();
+    if (chapter !== undefined) data.chapter = chapter.trim();
+    if (durationMinutes !== undefined) data.durationMinutes = parseInt(durationMinutes, 10) || 45;
+    if (videoUrl !== undefined) data.videoUrl = videoUrl.trim();
+    if (thumbnail !== undefined) data.thumbnail = thumbnail ? thumbnail.trim() : null;
+    if (description !== undefined) data.description = description ? description.trim() : null;
+    if (isPublished !== undefined) data.isPublished = Boolean(isPublished);
+
+    const updated = await prisma.recordedClass.update({
+      where: { id },
+      data,
+      include: {
+        course: { select: { id: true, title: true } },
+      },
+    });
+
+    res.json({ success: true, message: 'Recorded lecture updated successfully.', lecture: updated });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;

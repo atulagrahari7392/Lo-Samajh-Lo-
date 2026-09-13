@@ -44,3 +44,8 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Google OAuth & Service Account credentials
+client_secret*.json
+credentials*.json
+service-account*.json

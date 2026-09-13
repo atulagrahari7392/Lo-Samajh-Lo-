@@ -305,7 +305,9 @@ export const api = {
   recorded: {
     getAll: (courseId?: string) => request<any>(`/recorded-classes${courseId ? `?courseId=${courseId}` : ''}`),
     adminGetAll: () => request<any>('/recorded-classes/admin/all'),
+    getById: (id: string) => request<any>(`/recorded-classes/${id}`),
     create: (body: any) => request<any>('/recorded-classes', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/recorded-classes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/recorded-classes/${id}`, { method: 'DELETE' }),
   },
 
@@ -344,6 +346,7 @@ export const api = {
       filename: string;
       size: number;
       assetId?: string;
+      message?: string;
     }> => {
       const token = localStorage.getItem('lsl_token');
       const formData = new FormData();
@@ -370,6 +373,96 @@ export const api = {
 
       return data;
     },
+    uploadWithProgress: (
+      file: File,
+      options?: { category?: string; entityType?: string; entityId?: string },
+      onProgress?: (progress: { loaded: number; total: number; percent: number; speedBytesPerSec: number; remainingSeconds: number }) => void,
+      cancelRef?: { cancel?: () => void }
+    ): Promise<{
+      success: boolean;
+      fileUrl: string;
+      downloadUrl?: string;
+      driveFileId?: string;
+      storageProvider?: string;
+      filename: string;
+      size: number;
+      assetId?: string;
+      message?: string;
+    }> => {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        if (cancelRef) {
+          cancelRef.cancel = () => {
+            xhr.abort();
+          };
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        if (options?.category) formData.append('category', options.category);
+        if (options?.entityType) formData.append('entityType', options.entityType);
+        if (options?.entityId) formData.append('entityId', options.entityId);
+
+        let lastTime = Date.now();
+        let lastLoaded = 0;
+        let smoothedSpeed = 0;
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000;
+            if (timeDiff >= 0.25 || event.loaded === event.total) {
+              const loadedDiff = event.loaded - lastLoaded;
+              const instantSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
+              smoothedSpeed = smoothedSpeed === 0 ? instantSpeed : 0.7 * smoothedSpeed + 0.3 * instantSpeed;
+              lastTime = now;
+              lastLoaded = event.loaded;
+            }
+
+            const remainingBytes = Math.max(0, event.total - event.loaded);
+            const remainingSeconds = smoothedSpeed > 0 ? Math.round(remainingBytes / smoothedSpeed) : 0;
+            const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+
+            onProgress({
+              loaded: event.loaded,
+              total: event.total,
+              percent,
+              speedBytesPerSec: smoothedSpeed,
+              remainingSeconds,
+            });
+          }
+        };
+
+        xhr.onload = () => {
+          try {
+            const data = JSON.parse(xhr.responseText || '{}');
+            if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+              resolve(data);
+            } else {
+              reject(new ApiError(data.message || `Upload failed with status ${xhr.status}`, xhr.status, data));
+            }
+          } catch (e: any) {
+            reject(new ApiError('Invalid response from upload server', xhr.status));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new ApiError('Network connection interrupted during upload. Please check your internet connection.', 0));
+        };
+
+        xhr.onabort = () => {
+          reject(new ApiError('Upload cancelled by user', -1));
+        };
+
+        xhr.open('POST', `${API_URL}/upload`);
+        const token = localStorage.getItem('lsl_token');
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+        xhr.send(formData);
+      });
+    },
+    checkDuplicate: (fileName: string) => request<any>(`/upload/check-duplicate?fileName=${encodeURIComponent(fileName)}`),
     getStatus: () => request<any>('/upload/status'),
     deleteAsset: (assetId: string) => request<any>(`/upload/${assetId}`, { method: 'DELETE' }),
   },

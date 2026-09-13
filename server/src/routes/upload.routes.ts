@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit for videos & banners
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2GB limit for HD recorded lectures
   fileFilter: (req, file, cb) => {
     const allowed = [
       // Images
@@ -43,6 +43,44 @@ const upload = multer({
       cb(new Error(`Unsupported file type (${ext}). Allowed: images, videos, and documents.`));
     }
   },
+});
+
+// GET /api/upload/check-duplicate (Check if file already exists in FileAsset)
+router.get('/check-duplicate', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const fileName = req.query.fileName as string;
+    if (!fileName) {
+      res.json({ exists: false });
+      return;
+    }
+
+    const existing = await prisma.fileAsset.findFirst({
+      where: {
+        name: fileName,
+        storageStatus: 'ACTIVE',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existing) {
+      res.json({
+        exists: true,
+        asset: {
+          id: existing.id,
+          name: existing.name,
+          size: existing.size,
+          webUrl: existing.webUrl,
+          driveFileId: existing.driveFileId,
+          createdAt: existing.createdAt,
+        },
+      });
+      return;
+    }
+
+    res.json({ exists: false });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // GET /api/upload/status (Check Google Drive connectivity)
