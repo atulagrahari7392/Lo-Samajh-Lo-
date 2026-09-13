@@ -261,7 +261,7 @@ export interface Test {
   userHighestScore?: number | null;
   userAttempt?: {
     id: string;
-    status: 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED';
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED' | 'EVALUATED' | 'SUBMITTED' | string;
     score: number;
     accuracy: number;
     timeSpentSeconds: number;

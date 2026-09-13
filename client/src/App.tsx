@@ -61,6 +61,7 @@ export const App: React.FC = () => {
                 {/* Immersive Focus Mode Routes (No User Header/Footer) */}
                 <Route path="/courses/:slug/learn" element={<CoursePlayerPage />} />
                 <Route path="/test-series/:id/attempt" element={<TestAttemptPage />} />
+                <Route path="/tests/:id/attempt" element={<TestAttemptPage />} />
 
                 {/* User Facing Routes with Navbar and Footer */}
                 <Route

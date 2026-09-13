@@ -153,7 +153,13 @@ export const api = {
       return request<any>(`/tests${q}`);
     },
     getById: (idOrSlug: string) => request<any>(`/tests/${idOrSlug}`),
-    start: (idOrSlug: string) => request<any>(`/tests/${idOrSlug}/start`, { method: 'POST' }),
+    start: (idOrSlug: string, body?: any, params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/tests/${idOrSlug}/start${q}`, {
+        method: 'POST',
+        body: JSON.stringify(body || {}),
+      });
+    },
     saveProgress: (idOrSlug: string, body: any) =>
       request<any>(`/tests/${idOrSlug}/save-progress`, { method: 'POST', body: JSON.stringify(body) }),
     takeTest: (idOrSlug: string) => request<any>(`/tests/${idOrSlug}/take`),

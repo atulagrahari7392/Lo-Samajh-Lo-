@@ -600,9 +600,10 @@ export const AdminTestQuestionsPage: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <Link
-              to={`/test-series/${test?.id}/attempt`}
+              to={`/tests/${test?.id}/attempt?preview=true`}
               target="_blank"
               className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-cyan-700 hover:bg-cyan-50 text-xs font-bold transition-all shadow-sm inline-flex items-center gap-1.5"
+              title="Open Direct CBT Exam Simulator Player in Preview Mode"
             >
               <ExternalLink className="w-4 h-4 text-cyan-600" />
               <span>Preview CBT Test</span>

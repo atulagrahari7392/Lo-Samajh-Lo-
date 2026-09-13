@@ -42,9 +42,11 @@ export const TestSeriesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [seriesList, setSeriesList] = useState<TestSeries[]>([]);
+  const [allTests, setAllTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Tests');
+  const [activeTestTypeFilter, setActiveTestTypeFilter] = useState<string>('All');
 
   // Selected series state for Detail View (Page 2 & 3)
   const [selectedSeries, setSelectedSeries] = useState<TestSeries | null>(null);
@@ -57,22 +59,28 @@ export const TestSeriesPage: React.FC = () => {
   // Read series param from URL if present
   const seriesParam = searchParams.get('series');
 
-  // Fetch all series packages on mount
+  // Fetch all series packages and individual mock/subject tests on mount
   useEffect(() => {
-    const fetchAllSeries = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await api.testSeries.getAll();
-        if (data.success && data.series) {
-          setSeriesList(data.series);
+        const [seriesData, testsData] = await Promise.all([
+          api.testSeries.getAll(),
+          api.tests.getAll(),
+        ]);
+        if (seriesData.success && seriesData.series) {
+          setSeriesList(seriesData.series);
+        }
+        if (testsData.success && testsData.tests) {
+          setAllTests(testsData.tests);
         }
       } catch (err) {
-        console.error('Error fetching test series:', err);
+        console.error('Error fetching test data:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchAllSeries();
+    fetchData();
   }, []);
 
   // Handle URL deep-link to a specific series
@@ -83,7 +91,7 @@ export const TestSeriesPage: React.FC = () => {
       setSelectedSeries(null);
       setSeriesTests([]);
     }
-  }, [seriesParam]);
+  }, [seriesParam, allTests]);
 
   const loadSeriesDetail = async (idOrSlug: string) => {
     try {
@@ -91,7 +99,16 @@ export const TestSeriesPage: React.FC = () => {
       const data = await api.testSeries.getById(idOrSlug);
       if (data.success && data.series) {
         setSelectedSeries(data.series);
-        setSeriesTests(data.tests || []);
+        let tList = data.tests || data.series?.tests || [];
+        // Fallback to allTests matching series.id or examCategory if empty
+        if (tList.length === 0) {
+          tList = allTests.filter(
+            (t) =>
+              t.seriesId === data.series.id ||
+              (t.category?.name && t.category.name.toLowerCase().includes(data.series.examCategory.toLowerCase()))
+          );
+        }
+        setSeriesTests(tList);
         setActiveSubFilter('All');
       }
     } catch (err) {
@@ -111,38 +128,8 @@ export const TestSeriesPage: React.FC = () => {
   };
 
   const handleStartTest = (testId: string) => {
-    if (!user) {
-      navigate('/login');
-    } else {
-      navigate(`/test-series/${testId}/attempt`);
-    }
+    navigate(`/tests/${testId}/attempt`);
   };
-
-  // Categories list
-  const categoryFilters = useMemo(() => {
-    const cats = Array.from(new Set(seriesList.map((s) => s.examCategory).filter(Boolean)));
-    return ['All', ...cats];
-  }, [seriesList]);
-
-  // Filtered series list for Page 1
-  const filteredSeries = useMemo(() => {
-    return seriesList.filter((s) => {
-      const matchSearch =
-        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.examCategory.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.subTitle && s.subTitle.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchCategory = selectedCategory === 'All' || s.examCategory === selectedCategory;
-      return matchSearch && matchCategory;
-    });
-  }, [seriesList, searchQuery, selectedCategory]);
-
-  // Recent / Enrolled series
-  const recentSeries = useMemo(() => {
-    // Show series with user progress or top featured series
-    const withProgress = seriesList.filter((s) => (s.userStats?.attemptedCount || 0) > 0);
-    if (withProgress.length > 0) return withProgress;
-    return seriesList.slice(0, 4);
-  }, [seriesList]);
 
   const normalizeSubCat = (cat?: string) => {
     if (!cat) return '';
@@ -151,10 +138,88 @@ export const TestSeriesPage: React.FC = () => {
     if (c.includes('CHAPTER')) return 'CHAPTER_TEST';
     if (c.includes('SUBJECT')) return 'SUBJECT_TEST';
     if (c.includes('SECTION')) return 'SECTIONAL_TEST';
-    if (c.includes('FULL')) return 'FULL_TEST';
+    if (c.includes('FULL') || c.includes('MOCK')) return 'FULL_TEST';
     if (c.includes('PYP') || c.includes('PREVIOUS')) return 'PYP';
     return c;
   };
+
+  // Categories list combining both Exam Packages and individual tests
+  const categoryFilters = useMemo(() => {
+    const cats = new Set<string>();
+    seriesList.forEach((s) => {
+      if (s.examCategory) cats.add(s.examCategory);
+    });
+    allTests.forEach((t) => {
+      if (t.category?.name) cats.add(t.category.name);
+    });
+    return ['All Tests', ...Array.from(cats)];
+  }, [seriesList, allTests]);
+
+  // Filtered individual tests for direct test list view
+  const filteredIndividualTests = useMemo(() => {
+    return allTests.filter((t) => {
+      const matchSearch =
+        !searchQuery ||
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.category?.name && t.category.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const catName = t.category?.name || '';
+      const matchCategory =
+        selectedCategory === 'All' ||
+        selectedCategory === 'All Tests' ||
+        catName.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        selectedCategory.toLowerCase().includes(catName.toLowerCase());
+
+      const norm = normalizeSubCat(t.subCategory);
+      let matchType = true;
+      if (activeTestTypeFilter === 'Live Test') matchType = norm === 'LIVE_TEST' || !!t.isLive;
+      else if (activeTestTypeFilter === 'Chapter Test') matchType = norm === 'CHAPTER_TEST';
+      else if (activeTestTypeFilter === 'Subject Test') matchType = norm === 'SUBJECT_TEST';
+      else if (activeTestTypeFilter === 'Sectional Test') matchType = norm === 'SECTIONAL_TEST';
+      else if (activeTestTypeFilter === 'Full Test' || activeTestTypeFilter === 'Mock Tests') {
+        matchType = norm === 'FULL_TEST';
+      } else if (activeTestTypeFilter === 'PYPs') matchType = norm === 'PYP';
+
+      return matchSearch && matchCategory && matchType;
+    });
+  }, [allTests, searchQuery, selectedCategory, activeTestTypeFilter]);
+
+  // Sub-type filter tabs for individual tests
+  const testTypeTabs = useMemo(() => {
+    return [
+      { name: 'All', count: filteredIndividualTests.length },
+      { name: 'Subject Test', count: allTests.filter((t) => normalizeSubCat(t.subCategory) === 'SUBJECT_TEST').length },
+      { name: 'Mock Tests', count: allTests.filter((t) => normalizeSubCat(t.subCategory) === 'FULL_TEST').length },
+      { name: 'Live Test', count: allTests.filter((t) => normalizeSubCat(t.subCategory) === 'LIVE_TEST' || t.isLive).length },
+      { name: 'Chapter Test', count: allTests.filter((t) => normalizeSubCat(t.subCategory) === 'CHAPTER_TEST').length },
+      { name: 'Sectional Test', count: allTests.filter((t) => normalizeSubCat(t.subCategory) === 'SECTIONAL_TEST').length },
+      { name: 'PYPs', count: allTests.filter((t) => normalizeSubCat(t.subCategory) === 'PYP').length },
+    ].filter((tab) => tab.name === 'All' || tab.count > 0);
+  }, [allTests, filteredIndividualTests]);
+
+  // Filtered series list for Page 1
+  const filteredSeries = useMemo(() => {
+    return seriesList.filter((s) => {
+      const matchSearch =
+        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.examCategory.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.subTitle && s.subTitle.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchCategory =
+        selectedCategory === 'All' ||
+        selectedCategory === 'All Tests' ||
+        s.examCategory.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        selectedCategory.toLowerCase().includes(s.examCategory.toLowerCase());
+      return matchSearch && matchCategory;
+    });
+  }, [seriesList, searchQuery, selectedCategory]);
+
+  // Recent / Enrolled series
+  const recentSeries = useMemo(() => {
+    const withProgress = seriesList.filter((s) => (s.userStats?.attemptedCount || 0) > 0);
+    if (withProgress.length > 0) return withProgress;
+    return seriesList.slice(0, 4);
+  }, [seriesList]);
 
   // Sub-categories for selected series
   const subCategoryTabs = useMemo(() => {
@@ -647,6 +712,181 @@ export const TestSeriesPage: React.FC = () => {
               {cat}
             </button>
           ))}
+        </div>
+
+        {/* Section: Available Subject & Mock Tests (Direct Exam Simulator) */}
+        <div className="space-y-5 pt-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                  {selectedCategory === 'All Tests' || selectedCategory === 'All' ? 'All Practice & Mock Tests' : `${selectedCategory} Tests`}
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 text-xs font-black">
+                  {filteredIndividualTests.length} Tests
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Attempt chapter tests, subject tests, and full mock simulations with instant CBT evaluation.
+              </p>
+            </div>
+
+            {/* Sub-type Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+              {testTypeTabs.map((tab) => (
+                <button
+                  key={tab.name}
+                  onClick={() => setActiveTestTypeFilter(tab.name)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activeTestTypeFilter === tab.name
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span>{tab.name}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      activeTestTypeFilter === tab.name ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Test Cards Grid */}
+          {filteredIndividualTests.length === 0 ? (
+            <div className="bg-white rounded-3xl p-10 text-center space-y-3 border border-slate-200">
+              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
+              <h3 className="font-bold text-base text-slate-800">No Tests in this Category</h3>
+              <p className="text-xs text-slate-400">
+                No mock tests or subject tests found matching "{selectedCategory}" with filter "{activeTestTypeFilter}".
+              </p>
+              <button
+                onClick={() => {
+                  setSelectedCategory('All Tests');
+                  setActiveTestTypeFilter('All');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 rounded-xl bg-cyan-600 text-white font-bold text-xs"
+              >
+                Show All Tests
+              </button>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredIndividualTests.map((t) => {
+                const isLive = !!t.isLive;
+                const isCompleted =
+                  t.userAttempt?.status === 'EVALUATED' ||
+                  t.userAttempt?.status === 'SUBMITTED' ||
+                  t.userAttempt?.status === 'COMPLETED';
+                const isInProgress = t.userAttempt?.status === 'IN_PROGRESS';
+                const subCatLabel = (t.subCategory || t.testType || 'Mock Test').replace('_', ' ');
+
+                return (
+                  <div
+                    key={t.id}
+                    className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs hover:shadow-lg transition-all flex flex-col justify-between space-y-4 group hover:border-cyan-200"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isLive && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-wider animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              LIVE
+                            </span>
+                          )}
+                          <span className="px-2.5 py-0.5 rounded-full bg-purple-50 text-[#6C63FF] text-[10px] font-bold uppercase tracking-wider">
+                            {subCatLabel}
+                          </span>
+                          {t.category?.name && (
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                              {t.category.name}
+                            </span>
+                          )}
+                        </div>
+
+                        {t.isFree ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase">
+                            FREE
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase">
+                            PRO
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-base font-bold text-slate-900 leading-snug group-hover:text-cyan-600 transition-colors line-clamp-2">
+                        {t.title}
+                      </h3>
+
+                      {t.description && (
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                          {t.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-3 text-xs text-slate-500 pt-1">
+                        <span className="font-semibold text-slate-700">
+                          {t.questionsCount || 0} Questions
+                        </span>
+                        <span>•</span>
+                        <span>{t.totalMarks || 100} Marks</span>
+                        <span>•</span>
+                        <span>{t.durationMinutes || 60} Mins</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-medium text-slate-400">
+                        Bilingual (EN/HI)
+                      </span>
+
+                      {isCompleted && t.userAttempt ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate(`/test-series/${t.id}/result/${t.userAttempt!.id}`)}
+                            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            <span>Result</span>
+                          </button>
+                          <button
+                            onClick={() => handleStartTest(t.id)}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all"
+                            title="Reattempt Test"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : isInProgress ? (
+                        <button
+                          onClick={() => handleStartTest(t.id)}
+                          className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Resume</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStartTest(t.id)}
+                          className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Start Test</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Section: Your Recent Test Series (Matching Screenshot Page 1) */}

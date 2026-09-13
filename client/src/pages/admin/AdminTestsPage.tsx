@@ -778,10 +778,10 @@ export const AdminTestsPage: React.FC = () => {
                                 <span>Questions</span>
                               </Link>
                               <Link
-                                to={`/test-series/${t.id}/attempt`}
+                                to={`/tests/${t.id}/attempt?preview=true`}
                                 target="_blank"
                                 className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
-                                title="Preview Test CBT"
+                                title="Preview Test CBT in Direct Player"
                               >
                                 <Eye className="w-4 h-4" />
                               </Link>

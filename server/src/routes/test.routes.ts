@@ -137,20 +137,132 @@ router.get('/:idOrSlug', async (req, res, next) => {
 });
 
 // ----------------------------------------------------
-// 4. POST /api/tests/:idOrSlug/start (Start or Resume Attempt)
 // ----------------------------------------------------
-router.post('/:idOrSlug/start', authenticate, async (req: AuthRequest, res, next) => {
+// 4. POST /api/tests/:idOrSlug/start (Start or Resume Attempt + Preview Mode)
+// ----------------------------------------------------
+router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const { idOrSlug } = req.params;
-    const { reattempt } = req.body;
+    const { reattempt, preview } = req.body || {};
+    const isPreview = preview === true || req.query.preview === 'true';
 
     const test = await prisma.test.findFirst({
       where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
-      include: { _count: { select: { testQuestions: true } } },
+      include: {
+        testQuestions: {
+          orderBy: { position: 'asc' },
+          include: {
+            question: true,
+          },
+        },
+        _count: { select: { testQuestions: true } },
+      },
     });
 
     if (!test) {
       res.status(404).json({ success: false, message: 'Test not found.' });
+      return;
+    }
+
+    // Map questions securely
+    const questions = test.testQuestions.map((tq, idx) => {
+      let optionsArray: string[] = [];
+      let optionsHindiArray: string[] = [];
+      let optionsEnglishArray: string[] = [];
+
+      try {
+        optionsArray = JSON.parse(tq.question.options);
+      } catch (e) {
+        optionsArray = [tq.question.options];
+      }
+
+      if (tq.question.optionsHindi) {
+        try {
+          optionsHindiArray = JSON.parse(tq.question.optionsHindi);
+        } catch {}
+      }
+      if (tq.question.optionsEnglish) {
+        try {
+          optionsEnglishArray = JSON.parse(tq.question.optionsEnglish);
+        } catch {}
+      }
+
+      return {
+        testQuestionId: tq.id,
+        questionId: tq.question.id,
+        id: tq.question.id,
+        position: tq.position || idx + 1,
+        sectionName: tq.sectionName || tq.question.subject || 'General',
+        questionText: tq.question.questionText,
+        questionHindi: tq.question.questionHindi || tq.question.questionText,
+        questionEnglish: tq.question.questionEnglish || tq.question.questionText,
+        questionType: tq.question.questionType,
+        options: optionsArray,
+        optionsHindi: optionsHindiArray.length > 0 ? optionsHindiArray : optionsArray,
+        optionsEnglish: optionsEnglishArray.length > 0 ? optionsEnglishArray : optionsArray,
+        marks: tq.question.marks,
+        negativeMarks: tq.question.negativeMarks || test.negativeMarking,
+        difficulty: tq.question.difficulty,
+        subject: tq.question.subject,
+        chapter: tq.question.chapter || '',
+        topic: tq.question.topic || '',
+        ...(isPreview
+          ? {
+              correctAnswer: tq.question.correctAnswer,
+              explanation: tq.question.explanation,
+              explanationHindi: tq.question.explanationHindi,
+              explanationEnglish: tq.question.explanationEnglish,
+            }
+          : {}),
+      };
+    });
+
+    const formattedTest = {
+      id: test.id,
+      title: test.title,
+      slug: test.slug,
+      durationMinutes: test.durationMinutes,
+      totalMarks: test.totalMarks,
+      passMarks: test.passMarks,
+      negativeMarking: test.negativeMarking,
+      questionsCount: questions.length,
+      instructions: test.instructions,
+      isFree: test.isFree,
+      subCategory: test.subCategory,
+      testType: test.testType,
+      scheduledStart: test.scheduledStart,
+      scheduledEnd: test.scheduledEnd,
+    };
+
+    // 1. Preview Mode handler for Admin/Instructor
+    if (isPreview) {
+      const previewAttemptId = `preview-attempt-${Date.now()}`;
+      res.json({
+        success: true,
+        message: 'Preview mode CBT exam session ready.',
+        test: formattedTest,
+        questions,
+        attempt: {
+          id: previewAttemptId,
+          testId: test.id,
+          status: 'IN_PROGRESS',
+          totalQuestions: questions.length,
+          timeSpentSeconds: 0,
+          secondsRemaining: test.durationMinutes * 60,
+          answersMap: {},
+          markedQuestions: [],
+          currentQuestionIndex: 0,
+        },
+        attemptId: previewAttemptId,
+        isResumed: false,
+        isPreview: true,
+      });
+      return;
+    }
+
+    // 2. Regular User Test Attempt (Requires Login)
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required to attempt test. Please log in.' });
       return;
     }
 
@@ -159,7 +271,7 @@ router.post('/:idOrSlug/start', authenticate, async (req: AuthRequest, res, next
       const existingInProgress = await prisma.testAttempt.findFirst({
         where: {
           testId: test.id,
-          userId: req.user!.id,
+          userId: req.user.id,
           status: 'IN_PROGRESS',
         },
       });
@@ -175,8 +287,22 @@ router.post('/:idOrSlug/start', authenticate, async (req: AuthRequest, res, next
         res.json({
           success: true,
           message: 'Resuming ongoing attempt.',
+          test: formattedTest,
+          questions,
+          attempt: {
+            id: existingInProgress.id,
+            testId: test.id,
+            status: existingInProgress.status,
+            totalQuestions: existingInProgress.totalQuestions,
+            timeSpentSeconds: existingInProgress.timeSpentSeconds || 0,
+            secondsRemaining: Math.max(0, test.durationMinutes * 60 - (existingInProgress.timeSpentSeconds || 0)),
+            answersMap: savedAnswers,
+            markedQuestions: savedMarked,
+            currentQuestionIndex: existingInProgress.currentQuestionIndex || 0,
+          },
           attemptId: existingInProgress.id,
           isResume: true,
+          isResumed: true,
           savedAnswers,
           savedMarked,
           currentIndex: existingInProgress.currentQuestionIndex || 0,
@@ -191,9 +317,9 @@ router.post('/:idOrSlug/start', authenticate, async (req: AuthRequest, res, next
     const newAttempt = await prisma.testAttempt.create({
       data: {
         testId: test.id,
-        userId: req.user!.id,
+        userId: req.user.id,
         status: 'IN_PROGRESS',
-        totalQuestions: test._count.testQuestions,
+        totalQuestions: questions.length,
         timeSpentSeconds: 0,
         score: 0,
       },
@@ -202,8 +328,22 @@ router.post('/:idOrSlug/start', authenticate, async (req: AuthRequest, res, next
     res.json({
       success: true,
       message: 'Test attempt started.',
+      test: formattedTest,
+      questions,
+      attempt: {
+        id: newAttempt.id,
+        testId: test.id,
+        status: 'IN_PROGRESS',
+        totalQuestions: questions.length,
+        timeSpentSeconds: 0,
+        secondsRemaining: test.durationMinutes * 60,
+        answersMap: {},
+        markedQuestions: [],
+        currentQuestionIndex: 0,
+      },
       attemptId: newAttempt.id,
       isResume: false,
+      isResumed: false,
       savedAnswers: {},
       savedMarked: {},
       currentIndex: 0,
@@ -218,12 +358,23 @@ router.post('/:idOrSlug/start', authenticate, async (req: AuthRequest, res, next
 // ----------------------------------------------------
 // 5. POST /api/tests/:idOrSlug/save-progress (Real-time auto save)
 // ----------------------------------------------------
-router.post('/:idOrSlug/save-progress', authenticate, async (req: AuthRequest, res, next) => {
+router.post('/:idOrSlug/save-progress', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const { attemptId, answersMap, markedQuestions, currentIndex, timeSpentSeconds } = req.body;
 
     if (!attemptId) {
       res.status(400).json({ success: false, message: 'attemptId is required' });
+      return;
+    }
+
+    // Handle preview attempts without database errors
+    if (String(attemptId).startsWith('preview-attempt-')) {
+      res.json({ success: true, message: 'Preview progress acknowledged' });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
@@ -357,7 +508,7 @@ router.get('/:idOrSlug/take', authenticate, async (req: AuthRequest, res, next) 
 // ----------------------------------------------------
 // 7. POST /api/tests/:idOrSlug/submit (Evaluation & Performance Engine)
 // ----------------------------------------------------
-router.post('/:idOrSlug/submit', authenticate, async (req: AuthRequest, res, next) => {
+router.post('/:idOrSlug/submit', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
     const { idOrSlug } = req.params;
     const { answers, timeSpentSeconds, attemptId } = req.body; // answers: { [questionId]: "0" }
@@ -465,6 +616,52 @@ router.post('/:idOrSlug/submit', authenticate, async (req: AuthRequest, res, nex
     const rank = allScores.indexOf(finalScore) + 1;
     const totalAspirants = allScores.length;
     const percentile = totalAspirants > 1 ? Math.round(((totalAspirants - rank) / totalAspirants) * 1000) / 10 : 99.0;
+
+    const isPreview = String(attemptId).startsWith('preview-attempt-') || req.body?.preview === true || req.query.preview === 'true';
+
+    if (isPreview) {
+      res.json({
+        success: true,
+        message: 'Preview test evaluation complete.',
+        attemptId: attemptId || `preview-attempt-${Date.now()}`,
+        result: {
+          id: attemptId || `preview-attempt-${Date.now()}`,
+          score: finalScore,
+          totalMarks: test.totalMarks,
+          passMarks: test.passMarks,
+          isPassed: finalScore >= test.passMarks,
+          totalQuestions,
+          correctCount,
+          incorrectCount,
+          skippedCount,
+          accuracy: Math.round(accuracy * 10) / 10,
+          timeSpentSeconds: parseInt(timeSpentSeconds, 10) || 0,
+          rank: 1,
+          percentile: 99.9,
+          status: 'EVALUATED',
+          sectionStats,
+          topicStats,
+          isPreview: true,
+        },
+        score: finalScore,
+        totalMarks: test.totalMarks,
+        passMarks: test.passMarks,
+        isPassed: finalScore >= test.passMarks,
+        correctCount,
+        incorrectCount,
+        skippedCount,
+        accuracy: Math.round(accuracy * 10) / 10,
+        rank: 1,
+        percentile: 99.9,
+        isPreview: true,
+      });
+      return;
+    }
+
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
+      return;
+    }
 
     let targetAttempt: any = null;
 

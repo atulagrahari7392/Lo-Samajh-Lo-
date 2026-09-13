@@ -177,6 +177,32 @@ router.get('/:idOrSlug', optionalAuth, async (req: AuthRequest, res, next) => {
       return;
     }
 
+    // Also find any published tests that belong directly to this series OR match its exam category
+    const categoryOrSeriesTests = await prisma.test.findMany({
+      where: {
+        status: 'PUBLISHED',
+        OR: [
+          { seriesId: series.id },
+          { category: { name: { contains: series.examCategory } } },
+          { category: { slug: { contains: series.slug } } },
+        ],
+      },
+      orderBy: [{ createdAt: 'asc' }],
+      include: {
+        _count: {
+          select: { testQuestions: true, attempts: true },
+        },
+      },
+    });
+
+    // Merge unique tests prioritizing explicit series.tests
+    const testMap = new Map<string, any>();
+    (series.tests || []).forEach((t) => testMap.set(t.id, t));
+    categoryOrSeriesTests.forEach((t) => {
+      if (!testMap.has(t.id)) testMap.set(t.id, t);
+    });
+    const allMatchingTests = Array.from(testMap.values());
+
     // User attempts map
     let userAttemptsMap: Record<string, { status: string; score: number; attemptId: string }> = {};
     if (req.user) {
@@ -191,7 +217,7 @@ router.get('/:idOrSlug', optionalAuth, async (req: AuthRequest, res, next) => {
       });
     }
 
-    const enhancedTests = series.tests.map((t) => {
+    const enhancedTests = allMatchingTests.map((t) => {
       const userAtt = userAttemptsMap[t.id];
       let stateAction: 'START' | 'RESUME' | 'REATTEMPT' | 'VIEW_RESULT' = 'START';
 
@@ -260,6 +286,7 @@ router.get('/:idOrSlug', optionalAuth, async (req: AuthRequest, res, next) => {
         tests: enhancedTests,
         testsBySubCategory,
       },
+      tests: enhancedTests,
     });
   } catch (error) {
     next(error);

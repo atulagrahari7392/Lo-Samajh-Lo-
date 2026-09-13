@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Clock,
   ChevronLeft,
@@ -31,6 +31,8 @@ import { useAuth } from '../../context/AuthContext';
 export const TestAttemptPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === 'true';
   const { user } = useAuth();
   const { error: toastError, success, info } = useToast();
 
@@ -52,6 +54,7 @@ export const TestAttemptPage: React.FC = () => {
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Modals inside live exam
   const [showSubmitModal, setShowSubmitModal] = useState(false); // Page 7
@@ -75,11 +78,12 @@ export const TestAttemptPage: React.FC = () => {
     const loadTest = async () => {
       try {
         setLoading(true);
-        // Call start endpoint to register or resume test attempt
-        const data = await api.tests.start(id);
-        if (data.success) {
+        setErrorMessage(null);
+        // Call start endpoint to register or resume test attempt (passing preview flag if set)
+        const data = await api.tests.start(id, { preview: isPreview }, isPreview ? { preview: 'true' } : undefined);
+        if (data.success && data.test) {
           setTestInfo(data.test);
-          setAttemptId(data.attempt?.id || null);
+          setAttemptId(data.attempt?.id || data.attemptId || null);
           const qList = data.questions || [];
           setQuestions(qList);
 
@@ -120,16 +124,22 @@ export const TestAttemptPage: React.FC = () => {
             const firstId = qList[0].questionId || qList[0].id;
             setVisitedQuestions({ [firstId]: true });
           }
+        } else {
+          throw new Error(data.message || 'Unable to start examination.');
         }
       } catch (err: any) {
-        toastError(err.message || 'Unable to start test.');
-        navigate('/test-series');
+        if (isPreview) {
+          setErrorMessage(err.message || 'Unable to start direct CBT preview.');
+        } else {
+          toastError(err.message || 'Unable to start test.');
+          navigate('/test-series');
+        }
       } finally {
         setLoading(false);
       }
     };
     loadTest();
-  }, [id]);
+  }, [id, isPreview]);
 
   // Debounced auto-save function
   const triggerAutoSave = useCallback(
@@ -265,11 +275,13 @@ export const TestAttemptPage: React.FC = () => {
       const res = await api.tests.submitTest(id, {
         answers: answerPayload,
         timeSpentSeconds: (testInfo?.durationMinutes || 60) * 60 - secondsRemaining,
+        preview: isPreview,
       });
 
-      if (res.success && res.attempt) {
+      if (res.success) {
         success('Examination successfully submitted!');
-        navigate(`/test-series/${id}/result/${res.attempt.id}`);
+        const resId = res.attempt?.id || res.attemptId || res.result?.id || 'preview-result';
+        navigate(`/test-series/${id}/result/${resId}${isPreview ? '?preview=true' : ''}`);
       } else {
         toastError('Failed to record submission.');
       }
@@ -321,19 +333,61 @@ export const TestAttemptPage: React.FC = () => {
     );
   }
 
+  if (errorMessage) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+        <div className="bg-slate-800 p-8 rounded-3xl text-center space-y-4 max-w-md border border-slate-700 shadow-2xl">
+          <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
+          <h3 className="font-bold text-lg text-white">Preview CBT Session Notice</h3>
+          <p className="text-xs text-slate-300 leading-relaxed">{errorMessage}</p>
+          <div className="flex items-center justify-center gap-3 pt-3">
+            <Link
+              to={`/admin/tests/${id}/questions`}
+              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
+            >
+              Open Question Manager
+            </Link>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!testInfo || questions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-3xl text-center space-y-4 max-w-md border border-slate-200 shadow-xl">
-          <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto" />
-          <h3 className="font-bold text-lg text-slate-900">No Questions Found</h3>
-          <p className="text-xs text-slate-500">The administrator has not added questions to this test paper yet.</p>
-          <button
-            onClick={() => navigate('/test-series')}
-            className="px-5 py-2.5 rounded-xl bg-cyan-500 text-white font-bold text-xs"
-          >
-            Back to Test Series
-          </button>
+          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
+          <h3 className="font-bold text-lg text-slate-900">
+            {isPreview ? 'No Questions Added to Test' : 'No Questions Found'}
+          </h3>
+          <p className="text-xs text-slate-500">
+            {isPreview
+              ? 'This test currently has 0 questions attached. Click below to add questions via manual input, Excel/CSV upload, or Question Bank import.'
+              : 'The administrator has not added questions to this test paper yet.'}
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            {isPreview && (
+              <Link
+                to={`/admin/tests/${id}/questions`}
+                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
+              >
+                Manage Questions
+              </Link>
+            )}
+            <button
+              onClick={() => navigate('/test-series')}
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+            >
+              Back to Test Series
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -345,6 +399,20 @@ export const TestAttemptPage: React.FC = () => {
   if (examStep === 'general_instructions') {
     return (
       <div className="min-h-screen bg-white flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+        {isPreview && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-xs sticky top-0 z-50">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-mono text-[10px] tracking-wider uppercase">ADMIN PREVIEW MODE</span>
+              <span>Direct CBT Exam Simulator • Questions: {questions.length} • Total Marks: {testInfo?.totalMarks || 100} • Duration: {testInfo?.durationMinutes || 60}m</span>
+            </div>
+            <Link
+              to={`/admin/tests/${id}/questions`}
+              className="px-3 py-1 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-[11px] font-bold shadow-xs transition-all"
+            >
+              Manage Questions
+            </Link>
+          </div>
+        )}
         {/* Top Header */}
         <header className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
@@ -462,6 +530,20 @@ export const TestAttemptPage: React.FC = () => {
   if (examStep === 'specific_instructions') {
     return (
       <div className="min-h-screen bg-white flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+        {isPreview && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-xs sticky top-0 z-50">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-mono text-[10px] tracking-wider uppercase">ADMIN PREVIEW MODE</span>
+              <span>Direct CBT Exam Simulator • Questions: {questions.length} • Total Marks: {testInfo?.totalMarks || 100} • Duration: {testInfo?.durationMinutes || 60}m</span>
+            </div>
+            <Link
+              to={`/admin/tests/${id}/questions`}
+              className="px-3 py-1 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-[11px] font-bold shadow-xs transition-all"
+            >
+              Manage Questions
+            </Link>
+          </div>
+        )}
         {/* Top Header */}
         <header className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
@@ -628,6 +710,20 @@ export const TestAttemptPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between selection:bg-cyan-500 selection:text-white select-none">
+      {isPreview && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-xs sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-mono text-[10px] tracking-wider uppercase">ADMIN PREVIEW MODE</span>
+            <span>Direct CBT Exam Simulator • Questions: {questions.length} • Total Marks: {testInfo?.totalMarks || 100} • Duration: {testInfo?.durationMinutes || 60}m</span>
+          </div>
+          <Link
+            to={`/admin/tests/${id}/questions`}
+            className="px-3 py-1 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-[11px] font-bold shadow-xs transition-all"
+          >
+            Manage Questions
+          </Link>
+        </div>
+      )}
       {/* Top Header Bar */}
       <header className="px-4 sm:px-6 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-3">
