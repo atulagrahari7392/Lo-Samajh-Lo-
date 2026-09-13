@@ -388,4 +388,12 @@ export const api = {
     getFooter: () => request<any>('/settings/footer'),
     updateFooter: (body: any) => request<any>('/settings/footer', { method: 'PUT', body: JSON.stringify(body) }),
   },
+
+  // Google Drive Storage Management (5 TB Personal Storage)
+  googleDrive: {
+    getAuthUrl: () => request<any>('/google-drive/auth'),
+    getStatus: () => request<any>('/google-drive/status'),
+    testConnection: () => request<any>('/google-drive/test', { method: 'POST' }),
+    disconnect: () => request<any>('/google-drive/disconnect', { method: 'POST' }),
+  },
 };

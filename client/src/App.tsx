@@ -47,6 +47,7 @@ import AdminRecordedClassesPage from './pages/admin/AdminRecordedClassesPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminSlidersPage from './pages/admin/AdminSlidersPage';
 import AdminFooterSettingsPage from './pages/admin/AdminFooterSettingsPage';
+import AdminStoragePage from './pages/admin/AdminStoragePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminTypingPage from './pages/admin/AdminTypingPage';
 
@@ -202,6 +203,7 @@ export const App: React.FC = () => {
                 <Route path="/admin/recorded-classes" element={<AdminRecordedClassesPage />} />
                 <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
                 <Route path="/admin/sliders" element={<AdminSlidersPage />} />
+                <Route path="/admin/storage" element={<AdminStoragePage />} />
                 <Route path="/admin/footer-settings" element={<AdminFooterSettingsPage />} />
 
                 {/* 404 Fallback */}

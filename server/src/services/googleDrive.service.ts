@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import fs from 'fs';
+import { prisma } from '../db';
 
 export interface DriveUploadResult {
   fileId: string;
@@ -19,108 +20,198 @@ export type DriveFolderCategory =
   | 'STUDY_MATERIALS_NCERT'
   | 'STUDY_MATERIALS_CURRENT_AFFAIRS'
   | 'STUDY_MATERIALS_EBOOKS'
+  | 'STUDY_MATERIALS_OTHER'
   | 'VIDEOS'
   | 'LIVE_CLASSES'
   | 'TESTS'
-  | 'UPLOADS_IMAGES'
-  | 'UPLOADS_PDFS'
-  | 'UPLOADS_DOCS'
+  | 'TYPING'
+  | 'IMAGES'
+  | 'PDFS'
+  | 'DOCUMENTS'
   | 'GENERAL';
 
 class GoogleDriveService {
   private driveClient: any = null;
   private folderCache: Map<string, string> = new Map();
   private rootFolderId: string | null = null;
+  private connectedEmail: string | null = null;
 
   constructor() {
     this.rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || null;
   }
 
-  public isConfigured(): boolean {
+  public resetClient() {
+    this.driveClient = null;
+    this.folderCache.clear();
+  }
+
+  public async isConfigured(): Promise<boolean> {
+    const status = await this.getConnectionStatus();
+    return status.connected;
+  }
+
+  public async getConnectionStatus(): Promise<{
+    connected: boolean;
+    storageProvider: string;
+    authMethod: 'OAUTH2' | 'SERVICE_ACCOUNT' | 'NONE';
+    connectedEmail?: string | null;
+    rootFolderId?: string | null;
+    rootFolderConfigured: boolean;
+    hasClientCredentials: boolean;
+  }> {
+    const hasClientCredentials = Boolean(
+      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    );
+
+    // 1. Check for OAuth refresh token in environment
+    const envRefreshToken =
+      process.env.GOOGLE_OAUTH_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN;
+
+    if (hasClientCredentials && envRefreshToken) {
+      return {
+        connected: true,
+        storageProvider: 'Google Drive (OAuth 2.0 - 5 TB Storage)',
+        authMethod: 'OAUTH2',
+        connectedEmail: this.connectedEmail || 'Environment Configured Account',
+        rootFolderId: this.rootFolderId,
+        rootFolderConfigured: Boolean(this.rootFolderId),
+        hasClientCredentials: true,
+      };
+    }
+
+    // 2. Check for OAuth refresh token saved in database
+    try {
+      const setting = await prisma.siteSetting.findUnique({
+        where: { key: 'google_drive_oauth' },
+      });
+      if (setting && setting.value) {
+        const parsed = JSON.parse(setting.value);
+        if (parsed.refreshToken) {
+          this.connectedEmail = parsed.connectedEmail || null;
+          return {
+            connected: true,
+            storageProvider: 'Google Drive (OAuth 2.0 - 5 TB Storage)',
+            authMethod: 'OAUTH2',
+            connectedEmail: parsed.connectedEmail || 'Connected Google Account',
+            rootFolderId: this.rootFolderId,
+            rootFolderConfigured: Boolean(this.rootFolderId),
+            hasClientCredentials,
+          };
+        }
+      }
+    } catch (e) {
+      // Database query failed or table not ready
+    }
+
+    // 3. Fallback: Check for Service Account if explicitly present
     const hasServiceAccount = Boolean(
       (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) ||
       process.env.GOOGLE_SERVICE_ACCOUNT_KEY
     );
-    const hasOAuth = Boolean(
-      process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REFRESH_TOKEN
-    );
-    return hasServiceAccount || hasOAuth;
-  }
 
-  private getClient() {
-    if (this.driveClient) return this.driveClient;
-
-    if (!this.isConfigured()) {
-      return null;
+    if (hasServiceAccount) {
+      return {
+        connected: true,
+        storageProvider: 'Google Drive (Service Account)',
+        authMethod: 'SERVICE_ACCOUNT',
+        connectedEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || 'Service Account',
+        rootFolderId: this.rootFolderId,
+        rootFolderConfigured: Boolean(this.rootFolderId),
+        hasClientCredentials,
+      };
     }
 
-    const scopes = ['https://www.googleapis.com/auth/drive'];
+    return {
+      connected: false,
+      storageProvider: 'Local Storage',
+      authMethod: 'NONE',
+      connectedEmail: null,
+      rootFolderId: null,
+      rootFolderConfigured: false,
+      hasClientCredentials,
+    };
+  }
 
-    // 1. Service Account authentication (Preferred)
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+  private async getClient() {
+    if (this.driveClient) return this.driveClient;
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.CLIENT_URL || 'http://localhost:5000'}/api/google-drive/callback`;
+
+    // 1. Primary: OAuth 2.0 User Account (User's 5 TB Google Drive)
+    let refreshToken =
+      process.env.GOOGLE_OAUTH_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN;
+
+    if (!refreshToken && clientId && clientSecret) {
       try {
-        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-        const auth = new google.auth.JWT({
-          email: credentials.client_email,
-          key: credentials.private_key,
-          scopes,
+        const setting = await prisma.siteSetting.findUnique({
+          where: { key: 'google_drive_oauth' },
         });
-        this.driveClient = google.drive({ version: 'v3', auth });
-        return this.driveClient;
+        if (setting && setting.value) {
+          const parsed = JSON.parse(setting.value);
+          refreshToken = parsed.refreshToken;
+          this.connectedEmail = parsed.connectedEmail || null;
+        }
       } catch (err: any) {
-        console.error('Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY JSON:', err.message);
+        console.warn('Could not read google_drive_oauth setting from DB:', err.message);
       }
     }
 
+    if (clientId && clientSecret && refreshToken) {
+      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+      oauth2Client.setCredentials({ refresh_token: refreshToken });
+      this.driveClient = google.drive({ version: 'v3', auth: oauth2Client });
+      return this.driveClient;
+    }
+
+    // 2. Secondary Fallback: Service Account (only if OAuth is not configured)
     if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
       const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, '\n');
       const auth = new google.auth.JWT({
         email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
         key: privateKey,
-        scopes,
+        scopes: ['https://www.googleapis.com/auth/drive'],
       });
       this.driveClient = google.drive({ version: 'v3', auth });
-      return this.driveClient;
-    }
-
-    // 2. OAuth2 Refresh Token authentication
-    if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REFRESH_TOKEN) {
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI || 'https://developers.google.com/oauthplayground'
-      );
-      oauth2Client.setCredentials({
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-      });
-      this.driveClient = google.drive({ version: 'v3', auth: oauth2Client });
       return this.driveClient;
     }
 
     return null;
   }
 
-  public async testConnection(): Promise<{ connected: boolean; message: string }> {
-    const drive = this.getClient();
+  public async testConnection(): Promise<{ connected: boolean; message: string; email?: string; rootFolderId?: string }> {
+    const drive = await this.getClient();
     if (!drive) {
-      return { connected: false, message: 'Google Drive credentials are not configured in environment.' };
+      return { connected: false, message: 'Google Drive OAuth is not connected. Please authorize via Admin Panel or environment variables.' };
     }
 
     try {
+      // Test listing root folder or files
       const res = await drive.files.list({
-        pageSize: 1,
-        fields: 'files(id, name)',
+        pageSize: 5,
+        fields: 'files(id, name, mimeType)',
       });
-      return { connected: true, message: `Successfully connected to Google Drive. (${res.data.files?.length || 0} files accessible)` };
+
+      // Ensure root LoSamajhLo folder exists
+      const rootId = await this.resolveCategoryFolder('GENERAL');
+
+      const status = await this.getConnectionStatus();
+
+      return {
+        connected: true,
+        message: `Successfully connected to Google Drive. Accessible files: ${res.data.files?.length || 0}`,
+        email: status.connectedEmail || undefined,
+        rootFolderId: rootId || undefined,
+      };
     } catch (error: any) {
+      console.error('Google Drive connection test error:', error.message);
       return { connected: false, message: `Google Drive connection failed: ${error.message}` };
     }
   }
 
   public async getOrCreateFolder(folderName: string, parentId?: string): Promise<string | null> {
-    const drive = this.getClient();
+    const drive = await this.getClient();
     if (!drive) return null;
 
     const cacheKey = `${parentId || 'root'}_${folderName}`;
@@ -171,7 +262,7 @@ class GoogleDriveService {
   }
 
   public async resolveCategoryFolder(category: DriveFolderCategory): Promise<string | null> {
-    const drive = this.getClient();
+    const drive = await this.getClient();
     if (!drive) return null;
 
     const rootId = this.rootFolderId
@@ -181,34 +272,48 @@ class GoogleDriveService {
     switch (category) {
       case 'COURSES':
         return this.getOrCreateFolder('Courses', rootId || undefined);
+
       case 'STUDY_MATERIALS':
       case 'STUDY_MATERIALS_NCERT':
       case 'STUDY_MATERIALS_CURRENT_AFFAIRS':
-      case 'STUDY_MATERIALS_EBOOKS': {
+      case 'STUDY_MATERIALS_EBOOKS':
+      case 'STUDY_MATERIALS_OTHER': {
         const matRoot = await this.getOrCreateFolder('Study-Materials', rootId || undefined);
         if (category === 'STUDY_MATERIALS_NCERT') return this.getOrCreateFolder('NCERT', matRoot || undefined);
         if (category === 'STUDY_MATERIALS_CURRENT_AFFAIRS') return this.getOrCreateFolder('Current-Affairs', matRoot || undefined);
         if (category === 'STUDY_MATERIALS_EBOOKS') return this.getOrCreateFolder('E-Books', matRoot || undefined);
+        if (category === 'STUDY_MATERIALS_OTHER') return this.getOrCreateFolder('Other', matRoot || undefined);
         return matRoot;
       }
+
       case 'VIDEOS':
         return this.getOrCreateFolder('Videos', rootId || undefined);
+
       case 'LIVE_CLASSES':
         return this.getOrCreateFolder('Live-Classes', rootId || undefined);
+
       case 'TESTS':
         return this.getOrCreateFolder('Test-Series', rootId || undefined);
-      case 'UPLOADS_IMAGES':
-      case 'UPLOADS_PDFS':
-      case 'UPLOADS_DOCS': {
-        const uploadsRoot = await this.getOrCreateFolder('Uploads', rootId || undefined);
-        if (category === 'UPLOADS_IMAGES') return this.getOrCreateFolder('Images', uploadsRoot || undefined);
-        if (category === 'UPLOADS_PDFS') return this.getOrCreateFolder('PDFs', uploadsRoot || undefined);
-        if (category === 'UPLOADS_DOCS') return this.getOrCreateFolder('Documents', uploadsRoot || undefined);
-        return uploadsRoot;
-      }
+
+      case 'TYPING':
+        return this.getOrCreateFolder('Typing', rootId || undefined);
+
+      case 'IMAGES':
+        return this.getOrCreateFolder('Images', rootId || undefined);
+
+      case 'PDFS':
+        return this.getOrCreateFolder('PDFs', rootId || undefined);
+
+      case 'DOCUMENTS':
+        return this.getOrCreateFolder('Documents', rootId || undefined);
+
       default:
         return rootId;
     }
+  }
+
+  public async getDriveFolderForCategory(category: DriveFolderCategory): Promise<string | null> {
+    return this.resolveCategoryFolder(category);
   }
 
   public async uploadFile(options: {
@@ -218,9 +323,9 @@ class GoogleDriveService {
     category?: DriveFolderCategory;
     isPublic?: boolean;
   }): Promise<DriveUploadResult> {
-    const drive = this.getClient();
+    const drive = await this.getClient();
     if (!drive) {
-      throw new Error('Google Drive service is not configured. Configure credentials in environment.');
+      throw new Error('Google Drive service is not connected. Please authorize Google Drive in Admin Panel Settings.');
     }
 
     const category = options.category || 'GENERAL';
@@ -230,7 +335,6 @@ class GoogleDriveService {
     if (Buffer.isBuffer(options.streamOrBuffer)) {
       body = Readable.from(options.streamOrBuffer);
     } else if (typeof options.streamOrBuffer === 'string') {
-      // Path to file
       body = fs.createReadStream(options.streamOrBuffer);
     } else {
       body = options.streamOrBuffer;
@@ -284,7 +388,7 @@ class GoogleDriveService {
   }
 
   public async trashFile(fileId: string): Promise<boolean> {
-    const drive = this.getClient();
+    const drive = await this.getClient();
     if (!drive) return false;
 
     try {
@@ -301,8 +405,8 @@ class GoogleDriveService {
   }
 
   public async getFileStream(fileId: string): Promise<Readable> {
-    const drive = this.getClient();
-    if (!drive) throw new Error('Google Drive service is not configured.');
+    const drive = await this.getClient();
+    if (!drive) throw new Error('Google Drive service is not connected.');
 
     const res = await drive.files.get(
       { fileId, alt: 'media', supportsAllDrives: true },

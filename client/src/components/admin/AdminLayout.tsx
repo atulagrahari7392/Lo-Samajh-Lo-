@@ -25,6 +25,7 @@ import {
   Settings,
   Keyboard,
   Share2,
+  HardDrive,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -82,6 +83,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { name: 'Recorded Classes', path: '/admin/recorded-classes', icon: Film },
     { name: 'Notifications', path: '/admin/notifications', icon: Bell },
     { name: 'Home Sliders', path: '/admin/sliders', icon: Sliders },
+    { name: 'Google Drive Storage', path: '/admin/storage', icon: HardDrive },
     { name: 'Social Links & Footer', path: '/admin/footer-settings', icon: Share2 },
   ];
 

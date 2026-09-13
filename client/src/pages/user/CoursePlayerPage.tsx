@@ -178,7 +178,11 @@ export const CoursePlayerPage: React.FC = () => {
                 />
               ) : (
                 <iframe
-                  src={activeLesson.videoUrl}
+                  src={
+                    activeLesson.videoUrl.includes('drive.google.com')
+                      ? activeLesson.videoUrl.replace(/\/view(\?.*)?$/, '/preview')
+                      : activeLesson.videoUrl
+                  }
                   title={activeLesson.title}
                   className="w-full h-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

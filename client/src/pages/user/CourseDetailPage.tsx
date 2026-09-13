@@ -182,7 +182,11 @@ export const CourseDetailPage: React.FC = () => {
               <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-950 shadow-inner">
                 {previewLesson?.videoUrl ? (
                   <iframe
-                    src={previewLesson.videoUrl}
+                    src={
+                      previewLesson.videoUrl.includes('drive.google.com')
+                        ? previewLesson.videoUrl.replace(/\/view(\?.*)?$/, '/preview')
+                        : previewLesson.videoUrl
+                    }
                     title={previewLesson.title}
                     className="w-full h-full border-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

@@ -24,6 +24,7 @@ import uploadRoutes from './routes/upload.routes';
 import sliderRoutes from './routes/slider.routes';
 import settingsRoutes from './routes/settings.routes';
 import currentAffairsRoutes from './routes/current-affairs.routes';
+import googleDriveRoutes from './routes/googleDrive.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './db';
 
@@ -96,6 +97,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/sliders', sliderRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/current-affairs', currentAffairsRoutes);
+app.use('/api/google-drive', googleDriveRoutes);
 
 // Serve frontend client build in production if available
 const possibleClientPaths = [

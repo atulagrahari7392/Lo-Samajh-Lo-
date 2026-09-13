@@ -48,7 +48,7 @@ const upload = multer({
 // GET /api/upload/status (Check Google Drive connectivity)
 router.get('/status', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const isConfigured = googleDriveService.isConfigured();
+    const isConfigured = await googleDriveService.isConfigured();
     if (!isConfigured) {
       res.json({
         configured: false,
@@ -87,7 +87,7 @@ router.post('/', authenticate, requireAdmin, upload.single('file'), async (req: 
 
   try {
     // If Google Drive is configured, upload to Google Drive
-    if (googleDriveService.isConfigured()) {
+    if (await googleDriveService.isConfigured()) {
       const driveResult = await googleDriveService.uploadFile({
         streamOrBuffer: localFilePath,
         fileName: originalName,

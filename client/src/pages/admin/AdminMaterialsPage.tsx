@@ -1559,18 +1559,14 @@ export const AdminMaterialsPage: React.FC = () => {
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const token = localStorage.getItem('token');
-                    const res = await fetch('/api/upload', {
-                      method: 'POST',
-                      headers: token ? { Authorization: `Bearer ${token}` } : {},
-                      body: formData,
-                    });
-                    const d = await res.json();
-                    if (d.success) {
-                      toastSuccess('Uploaded to File Library!');
-                      fetchFileLibrary();
+                    try {
+                      const d = await api.upload.file(file, { category: 'STUDY_MATERIALS' });
+                      if (d.success) {
+                        toastSuccess('Uploaded to File Library!');
+                        fetchFileLibrary();
+                      }
+                    } catch (err: any) {
+                      toastError(err.message || 'Upload failed');
                     }
                   }}
                   className="hidden"
