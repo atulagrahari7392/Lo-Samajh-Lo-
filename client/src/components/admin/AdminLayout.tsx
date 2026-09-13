@@ -21,6 +21,8 @@ import {
   Menu,
   X,
   ShieldAlert,
+  Sliders,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -76,6 +78,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { name: 'Live Classes', path: '/admin/live-classes', icon: Video },
     { name: 'Recorded Classes', path: '/admin/recorded-classes', icon: Film },
     { name: 'Notifications', path: '/admin/notifications', icon: Bell },
+    { name: 'Home Sliders', path: '/admin/sliders', icon: Sliders },
+    { name: 'Footer Settings', path: '/admin/footer-settings', icon: Settings },
   ];
 
   const isActive = (path: string) => {

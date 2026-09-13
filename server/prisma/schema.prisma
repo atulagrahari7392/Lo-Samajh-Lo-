@@ -452,3 +452,28 @@ model NotificationRead {
   @@unique([notificationId, userId])
   @@map("notification_reads")
 }
+
+model SliderBanner {
+  id          String   @id @default(uuid())
+  title       String
+  subtitle    String?
+  badge       String?  // e.g. "NEW 2026 BATCH", "ALL INDIA FREE MOCK", "FLAT 50% OFF"
+  imageUrl    String
+  linkUrl     String?  // e.g. "/courses" or "/test-series"
+  buttonText  String?  @default("Enroll Now / शामिल हों")
+  position    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("slider_banners")
+}
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   // JSON string
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}

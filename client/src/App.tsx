@@ -43,6 +43,9 @@ import AdminPromoCodesPage from './pages/admin/AdminPromoCodesPage';
 import AdminLiveClassesPage from './pages/admin/AdminLiveClassesPage';
 import AdminRecordedClassesPage from './pages/admin/AdminRecordedClassesPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
+import AdminSlidersPage from './pages/admin/AdminSlidersPage';
+import AdminFooterSettingsPage from './pages/admin/AdminFooterSettingsPage';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
 
 export const App: React.FC = () => {
   return (
@@ -162,6 +165,11 @@ export const App: React.FC = () => {
                   }
                 />
 
+                {/* Dedicated Admin Login Routes */}
+                <Route path="/Admin.login" element={<AdminLoginPage />} />
+                <Route path="/admin.login" element={<AdminLoginPage />} />
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+
                 {/* Admin Control Panel Routes (AdminLayout handled per-page) */}
                 <Route path="/admin" element={<AdminDashboardPage />} />
                 <Route path="/admin/courses" element={<AdminCoursesPage />} />
@@ -179,6 +187,8 @@ export const App: React.FC = () => {
                 <Route path="/admin/live-classes" element={<AdminLiveClassesPage />} />
                 <Route path="/admin/recorded-classes" element={<AdminRecordedClassesPage />} />
                 <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
+                <Route path="/admin/sliders" element={<AdminSlidersPage />} />
+                <Route path="/admin/footer-settings" element={<AdminFooterSettingsPage />} />
 
                 {/* 404 Fallback */}
                 <Route

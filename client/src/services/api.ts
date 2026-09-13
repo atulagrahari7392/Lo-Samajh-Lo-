@@ -232,4 +232,19 @@ export const api = {
       return data;
     },
   },
+
+  // Sliders / Hero Banners
+  sliders: {
+    getAll: () => request<any>('/sliders'),
+    adminGetAll: () => request<any>('/sliders/admin/all'),
+    create: (body: any) => request<any>('/sliders', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/sliders/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (id: string) => request<any>(`/sliders/${id}`, { method: 'DELETE' }),
+  },
+
+  // Site Settings (Footer & Social Media)
+  settings: {
+    getFooter: () => request<any>('/settings/footer'),
+    updateFooter: (body: any) => request<any>('/settings/footer', { method: 'PUT', body: JSON.stringify(body) }),
+  },
 };

@@ -20,6 +20,7 @@ import {
 import { api } from '../../services/api';
 import { Course, Category, Material, Test, LiveClass, Review, Notification } from '../../types';
 import CourseCard from '../../components/course/CourseCard';
+import { HeroSlider } from '../../components/home/HeroSlider';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -96,6 +97,11 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Featured Banner Slider */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mb-6">
+        <HeroSlider />
+      </div>
 
       {/* 2. Hero Section */}
       <section className="relative overflow-hidden pt-8 sm:pt-14 pb-16">

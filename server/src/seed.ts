@@ -7,6 +7,8 @@ async function main() {
   // Clean old data
   await prisma.notificationRead.deleteMany();
   await prisma.notification.deleteMany();
+  await prisma.sliderBanner.deleteMany();
+  await prisma.siteSetting.deleteMany();
   await prisma.recordedClass.deleteMany();
   await prisma.liveClass.deleteMany();
   await prisma.review.deleteMany();
@@ -900,6 +902,67 @@ async function main() {
         isFeatured: true,
       },
     ],
+  });
+
+  // 15. Create Initial Hero Slider Banners
+  console.log('🖼️ Seeding Hero Sliders...');
+  await prisma.sliderBanner.createMany({
+    data: [
+      {
+        title: 'UPSSSC PET 2026 संपूर्ण सिलेक्शन लाइव बैच',
+        subtitle: 'लाइव कक्षाएं, द्विभाषी हस्तलिखित क्लास नोट्स, अध्यायवार PYQs एवं 50+ फुल-लेंथ ऑनलाइन मॉक टेस्ट।',
+        badge: '🔥 2026 NEW BATCH OPEN',
+        buttonText: 'Explore Courses / बैच देखें',
+        imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1400',
+        linkUrl: '/courses',
+        position: 1,
+        isActive: true,
+      },
+      {
+        title: 'All India Live CBT Mock Test Series 2026',
+        subtitle: 'NTA व SSC पैटर्न पर आधारित ऑनलाइन परीक्षा इंजन, तुरंत एक्यूरेसी %, रैंक एवं विस्तृत समाधान।',
+        badge: '🎯 100% FREE ALL INDIA MOCK',
+        buttonText: 'Attempt Free Test / मॉक टेस्ट दें',
+        imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1400',
+        linkUrl: '/test-series',
+        position: 2,
+        isActive: true,
+      },
+      {
+        title: 'दृष्टि IAS शैली में हस्तलिखित पीडीएफ नोट्स व पुस्तकें',
+        subtitle: 'मनोविज्ञान, सामान्य विज्ञान, जीव विज्ञान, अर्थव्यवस्था, संविधान, भूगोल व इतिहास के रंग-बिरंगे सार नोट्स।',
+        badge: '📚 FREE STUDY MATERIALS',
+        buttonText: 'Download Notes / मुफ्त डाउनलोड',
+        imageUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1400',
+        linkUrl: '/study-materials',
+        position: 3,
+        isActive: true,
+      },
+    ],
+  });
+
+  // 16. Create Initial Site Settings (Footer & Social Media)
+  console.log('⚙️ Seeding Footer & Social Settings...');
+  await prisma.siteSetting.create({
+    data: {
+      key: 'footer',
+      value: JSON.stringify({
+        aboutText: "India's premier digital learning platform dedicated to competitive exams (UPSSSC, Railway, SSC, UP Police) and graduation studies. Concept-based learning with comprehensive study materials, live mock tests, and bilingual notes.",
+        address: "Raebareli, Uttar Pradesh",
+        email: "support@losamajhlo.in",
+        phone: "+91 99999 99999",
+        whatsappUrl: "https://wa.me/919999999999?text=Hello%20Lo%20Samajh%20Lo%20Team%2C%20I%20need%20course%20guidance",
+        youtubeUrl: "https://youtube.com/@losamajhlo",
+        telegramUrl: "https://t.me/losamajhlo",
+        instagramUrl: "https://instagram.com/losamajhlo",
+        facebookUrl: "https://facebook.com/losamajhlo",
+        twitterUrl: "https://twitter.com/losamajhlo",
+        linkedinUrl: "https://linkedin.com/company/losamajhlo",
+        copyrightText: "Lo Samajh Lo (लो समझ लो). All rights reserved.",
+        newsletterHeadline: "Stay Connected with Lo Samajh Lo",
+        newsletterText: "Subscribe to get immediate alerts for new government job vacancies, PDF circulars, and test updates.",
+      }),
+    },
   });
 
   console.log('✅ Seeding completed successfully!');

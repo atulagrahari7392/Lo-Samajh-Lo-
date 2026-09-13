@@ -317,3 +317,34 @@ export interface Notification {
   status: string;
   isRead?: boolean;
 }
+
+export interface SliderBanner {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  badge?: string | null;
+  imageUrl: string;
+  linkUrl?: string | null;
+  buttonText?: string | null;
+  position: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FooterSettings {
+  aboutText: string;
+  address: string;
+  email: string;
+  phone: string;
+  whatsappUrl: string;
+  youtubeUrl: string;
+  telegramUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  twitterUrl: string;
+  linkedinUrl: string;
+  copyrightText: string;
+  newsletterHeadline: string;
+  newsletterText: string;
+}

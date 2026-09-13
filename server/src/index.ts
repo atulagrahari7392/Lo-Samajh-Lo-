@@ -20,6 +20,8 @@ import recordedRoutes from './routes/recorded.routes';
 import notificationRoutes from './routes/notification.routes';
 import adminRoutes from './routes/admin.routes';
 import uploadRoutes from './routes/upload.routes';
+import sliderRoutes from './routes/slider.routes';
+import settingsRoutes from './routes/settings.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -73,6 +75,8 @@ app.use('/api/recorded-classes', recordedRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/sliders', sliderRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Serve frontend client build in production if available
 const possibleClientPaths = [
