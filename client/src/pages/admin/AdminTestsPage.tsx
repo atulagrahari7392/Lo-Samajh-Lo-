@@ -730,8 +730,9 @@ export const AdminTestsPage: React.FC = () => {
                           </td>
                           <td className="py-3.5 px-4 text-center">
                             <Link
-                              to={`/admin/questions?testId=${t.id}`}
-                              className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-[#6C63FF] font-bold text-[11px] inline-flex items-center gap-1"
+                              to={`/admin/tests/${t.id}/questions`}
+                              className="px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-[#6C63FF] font-black text-[11px] inline-flex items-center gap-1.5 transition-all hover:scale-105 border border-purple-200 shadow-xs"
+                              title="Click to manage questions directly for this test"
                             >
                               <HelpCircle className="w-3.5 h-3.5" />
                               <span>{t.questionsCount || 0} Qs</span>
@@ -759,8 +760,8 @@ export const AdminTestsPage: React.FC = () => {
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 t.status === 'PUBLISHED'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-slate-100 text-slate-600'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-slate-100 text-slate-600'
                               }`}
                             >
                               {t.status}
@@ -768,6 +769,14 @@ export const AdminTestsPage: React.FC = () => {
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              <Link
+                                to={`/admin/tests/${t.id}/questions`}
+                                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-[#6C63FF] rounded-lg transition-colors text-[11px] font-bold inline-flex items-center gap-1 border border-purple-100"
+                                title="Manage Questions (Direct Add / Bulk Upload / Bank Import)"
+                              >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                <span>Questions</span>
+                              </Link>
                               <Link
                                 to={`/test-series/${t.id}/attempt`}
                                 target="_blank"

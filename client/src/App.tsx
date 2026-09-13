@@ -38,6 +38,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminMaterialsPage from './pages/admin/AdminMaterialsPage';
 import AdminTestsPage from './pages/admin/AdminTestsPage';
+import AdminTestQuestionsPage from './pages/admin/AdminTestQuestionsPage';
 import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
 import AdminReviewsPage from './pages/admin/AdminReviewsPage';
 import AdminPromoCodesPage from './pages/admin/AdminPromoCodesPage';
@@ -191,6 +192,7 @@ export const App: React.FC = () => {
                 <Route path="/admin/orders" element={<AdminOrdersPage />} />
                 <Route path="/admin/materials" element={<AdminMaterialsPage />} />
                 <Route path="/admin/tests" element={<AdminTestsPage />} />
+                <Route path="/admin/tests/:testId/questions" element={<AdminTestQuestionsPage />} />
                 <Route path="/admin/typing" element={<AdminTypingPage />} />
                 <Route path="/admin/questions" element={<AdminQuestionsPage />} />
                 <Route path="/admin/reviews" element={<AdminReviewsPage />} />

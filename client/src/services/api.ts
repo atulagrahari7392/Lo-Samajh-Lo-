@@ -180,6 +180,14 @@ export const api = {
     update: (id: string, body: any) => request<any>(`/questions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/questions/${id}`, { method: 'DELETE' }),
     assignToTest: (body: any) => request<any>('/questions/assign-to-test', { method: 'POST', body: JSON.stringify(body) }),
+    getAvailableForTest: (testId: string, params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/questions/available-for-test/${testId}${q}`);
+    },
+    batchAssignToTest: (body: { testId: string; questionIds: string[]; sectionName?: string }) =>
+      request<any>('/questions/batch-assign-to-test', { method: 'POST', body: JSON.stringify(body) }),
+    removeFromTest: (testId: string, questionId: string) =>
+      request<any>('/questions/remove-from-test', { method: 'POST', body: JSON.stringify({ testId, questionId }) }),
   },
 
   // Typing Tests & Hub
