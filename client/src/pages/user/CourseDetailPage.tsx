@@ -20,6 +20,7 @@ import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useToast } from '../../context/ToastContext';
 import SyllabusAccordion from '../../components/course/SyllabusAccordion';
+import { CustomVideoPlayer } from '../../components/video/CustomVideoPlayer';
 
 export const CourseDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -47,8 +48,10 @@ export const CourseDetailPage: React.FC = () => {
         const data = await api.courses.getBySlug(slug);
         if (data.success && data.course) {
           setCourse(data.course);
-          // Set first free preview lesson if available
-          const freeLesson = data.course.lessons?.find((l: CourseLesson) => l.isFreePreview);
+          // Set first free preview lesson or first playable lesson if enrolled
+          const freeLesson = data.course.lessons?.find(
+            (l: CourseLesson) => l.isFreePreview || (data.course.isEnrolled && l.videoUrl)
+          );
           if (freeLesson) setPreviewLesson(freeLesson);
         }
       } catch (err) {
@@ -178,28 +181,24 @@ export const CourseDetailPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Video Player */}
-              <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-950 shadow-inner">
-                {previewLesson?.videoUrl ? (
-                  <iframe
-                    src={
-                      previewLesson.videoUrl.includes('drive.google.com')
-                        ? previewLesson.videoUrl.replace(/\/view(\?.*)?$/, '/preview')
-                        : previewLesson.videoUrl
-                    }
-                    title={previewLesson.title}
-                    className="w-full h-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center space-y-2">
-                    <PlayCircle className="w-12 h-12 text-[#6C63FF]" />
-                    <p className="text-sm font-semibold text-white">Interactive Lesson Preview</p>
-                    <p className="text-xs text-slate-400">Click any demo lesson below to watch the preview video</p>
-                  </div>
-                )}
-              </div>
+              {/* Video Player with Custom Anti-Download Player */}
+              {previewLesson?.videoUrl ? (
+                <CustomVideoPlayer
+                  url={previewLesson.videoUrl}
+                  title={previewLesson.title}
+                  chapterTitle={previewLesson.chapterTitle}
+                  thumbnail={previewLesson.thumbnail || course.thumbnail}
+                  studentName={user?.name || 'Visitor'}
+                  studentContact={user?.phone || user?.email || ''}
+                  studentId={user?.id || 'GUEST'}
+                />
+              ) : (
+                <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-950 shadow-inner flex flex-col items-center justify-center text-slate-400 p-6 text-center space-y-2">
+                  <PlayCircle className="w-12 h-12 text-[#6C63FF]" />
+                  <p className="text-sm font-semibold text-white">Interactive Lesson Preview</p>
+                  <p className="text-xs text-slate-400">Click any demo or unlocked lecture below to watch</p>
+                </div>
+              )}
             </div>
 
             {/* Navigation Tabs */}

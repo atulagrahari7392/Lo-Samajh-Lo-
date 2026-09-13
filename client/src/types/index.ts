@@ -41,6 +41,8 @@ export interface CourseLesson {
   content?: string | null;
   isFreePreview: boolean;
   position: number;
+  thumbnail?: string | null;
+  isRecordedClass?: boolean;
 }
 
 export interface Course {
@@ -62,6 +64,7 @@ export interface Course {
   createdAt: string;
   category?: Category;
   lessons?: CourseLesson[];
+  recordedClasses?: RecordedClass[];
   reviews?: Review[];
   isEnrolled?: boolean;
   isWishlisted?: boolean;
@@ -70,6 +73,7 @@ export interface Course {
     lessons?: number;
     enrollments?: number;
     reviews?: number;
+    recordedClasses?: number;
   };
 }
 

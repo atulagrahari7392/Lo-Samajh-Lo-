@@ -99,6 +99,11 @@ export const SyllabusAccordion: React.FC<SyllabusAccordionProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {lesson.isRecordedClass && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-700 border border-purple-200">
+                            RECORDED LECTURE
+                          </span>
+                        )}
                         {lesson.isFreePreview && !isEnrolled && (
                           <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
                             FREE PREVIEW

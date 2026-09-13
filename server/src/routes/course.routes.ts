@@ -53,6 +53,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res, next) => {
             lessons: true,
             enrollments: true,
             reviews: true,
+            recordedClasses: true,
           },
         },
       },
@@ -83,9 +84,13 @@ router.get('/', optionalAuth, async (req: AuthRequest, res, next) => {
       userCartIds = new Set(cart.map((c) => c.courseId));
     }
 
-    const enhancedCourses = courses.map((course) => ({
+    const enhancedCourses = courses.map((course: any) => ({
       ...course,
-      isEnrolled: userEnrolledIds.has(course.id),
+      _count: {
+        ...course._count,
+        lessons: (course._count?.lessons || 0) + (course._count?.recordedClasses || 0),
+      },
+      isEnrolled: req.user?.role === 'ADMIN' || userEnrolledIds.has(course.id),
       isWishlisted: userWishlistIds.has(course.id),
       isInCart: userCartIds.has(course.id),
     }));
@@ -104,7 +109,7 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
       include: {
         category: { select: { id: true, name: true, slug: true } },
         _count: {
-          select: { lessons: true, enrollments: true, reviews: true },
+          select: { lessons: true, enrollments: true, reviews: true, recordedClasses: true },
         },
       },
     });
@@ -138,6 +143,20 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
             pdfUrl: true,
           },
         },
+        recordedClasses: {
+          where: { isPublished: true },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            title: true,
+            chapter: true,
+            durationMinutes: true,
+            videoUrl: true,
+            thumbnail: true,
+            description: true,
+            createdAt: true,
+          },
+        },
         reviews: {
           where: { isApproved: true },
           orderBy: { createdAt: 'desc' },
@@ -146,7 +165,7 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
           },
         },
         _count: {
-          select: { enrollments: true, lessons: true, reviews: true },
+          select: { enrollments: true, lessons: true, reviews: true, recordedClasses: true },
         },
       },
     });
@@ -166,7 +185,7 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
           userId_courseId: { userId: req.user.id, courseId: course.id },
         },
       });
-      isEnrolled = !!(enrollment && enrollment.status === 'ACTIVE');
+      isEnrolled = !!(enrollment && enrollment.status === 'ACTIVE') || req.user.role === 'ADMIN';
 
       const wish = await prisma.wishlistItem.findUnique({
         where: {
@@ -195,11 +214,43 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
       return lesson;
     });
 
+    // Map recorded classes into syllabus lessons
+    const isFreeCourse = course.price === 0 || course.discountedPrice === 0;
+    const hasFreePreviewInLessons = course.lessons.some((l) => l.isFreePreview);
+
+    const mappedRecordedClasses = (course.recordedClasses || []).map((rc: any, idx: number) => {
+      // If course has no free preview lessons, allow the 1st recorded class as free preview demo
+      const isFirstClassPreview = idx === 0 && (course.lessons.length === 0 || !hasFreePreviewInLessons);
+      const canAccess = isEnrolled || isFreeCourse || isFirstClassPreview;
+
+      return {
+        id: rc.id,
+        courseId: course.id,
+        title: rc.title,
+        chapterTitle: rc.chapter || 'Recorded Lectures',
+        durationMinutes: rc.durationMinutes || 45,
+        videoUrl: canAccess ? rc.videoUrl : null,
+        pdfUrl: null,
+        content: rc.description || null,
+        isFreePreview: isFirstClassPreview || isFreeCourse,
+        position: (course.lessons.length || 0) + idx + 1,
+        thumbnail: rc.thumbnail || null,
+        isRecordedClass: true,
+      };
+    });
+
+    const combinedLessons = [...protectedLessons, ...mappedRecordedClasses];
+
     res.json({
       success: true,
       course: {
         ...course,
-        lessons: protectedLessons,
+        lessons: combinedLessons,
+        recordedClasses: course.recordedClasses,
+        _count: {
+          ...course._count,
+          lessons: combinedLessons.length,
+        },
         isEnrolled,
         isWishlisted,
         isInCart,
@@ -224,6 +275,10 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
         lessons: {
           orderBy: { position: 'asc' },
         },
+        recordedClasses: {
+          where: { isPublished: true },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -239,7 +294,23 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       },
     });
 
-    const hasAccess = req.user!.role === 'ADMIN' || (enrollment && enrollment.status === 'ACTIVE');
+    let isEnrolled = !!(enrollment && enrollment.status === 'ACTIVE');
+    if (!isEnrolled && (course.price === 0 || course.discountedPrice === 0)) {
+      await prisma.enrollment.upsert({
+        where: {
+          userId_courseId: { userId: req.user!.id, courseId: course.id },
+        },
+        update: { status: 'ACTIVE' },
+        create: {
+          userId: req.user!.id,
+          courseId: course.id,
+          status: 'ACTIVE',
+        },
+      });
+      isEnrolled = true;
+    }
+
+    const hasAccess = req.user!.role === 'ADMIN' || isEnrolled;
 
     if (!hasAccess) {
       res.status(403).json({
@@ -249,9 +320,30 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       return;
     }
 
+    // Merge recorded classes into lessons for the player
+    const mappedRecordedClasses = (course.recordedClasses || []).map((rc: any, idx: number) => ({
+      id: rc.id,
+      courseId: course.id,
+      title: rc.title,
+      chapterTitle: rc.chapter || 'Recorded Lectures',
+      durationMinutes: rc.durationMinutes || 45,
+      videoUrl: rc.videoUrl,
+      pdfUrl: null,
+      content: rc.description || null,
+      isFreePreview: true,
+      position: (course.lessons?.length || 0) + idx + 1,
+      thumbnail: rc.thumbnail || null,
+      isRecordedClass: true,
+    }));
+
+    const combinedLessons = [...course.lessons, ...mappedRecordedClasses];
+
     res.json({
       success: true,
-      course,
+      course: {
+        ...course,
+        lessons: combinedLessons,
+      },
       enrollment,
     });
   } catch (error) {
