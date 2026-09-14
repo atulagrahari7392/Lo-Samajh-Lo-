@@ -21,11 +21,13 @@ export default {
           danger: '#E74C3C',
           bg: '#F8FAFC',
           card: '#FFFFFF',
-          border: '#E2E8F0',
+          navy: '#0B2A63',
+          royal: '#1D64D8',
+          crimson: '#DC2626',
         }
       },
       fontFamily: {
-        poppins: ['Poppins', 'system-ui', 'sans-serif'],
+        poppins: ['Poppins', 'Noto Sans Devanagari', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',

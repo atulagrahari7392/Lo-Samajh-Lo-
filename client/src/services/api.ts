@@ -309,6 +309,10 @@ export const api = {
     create: (body: any) => request<any>('/recorded-classes', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: any) => request<any>(`/recorded-classes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/recorded-classes/${id}`, { method: 'DELETE' }),
+    addResource: (classId: string, body: any) =>
+      request<any>(`/recorded-classes/${classId}/resources`, { method: 'POST', body: JSON.stringify(body) }),
+    deleteResource: (resourceId: string) =>
+      request<any>(`/recorded-classes/resources/${resourceId}`, { method: 'DELETE' }),
   },
 
   // Notifications

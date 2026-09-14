@@ -5,7 +5,6 @@ import {
   Shield,
   AlertTriangle,
   PlayCircle,
-  Settings,
 } from 'lucide-react';
 import { formatImageUrl } from '../../utils/image';
 
@@ -238,13 +237,8 @@ export const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           <h3 className="font-bold text-sm sm:text-base text-white truncate mt-1">{title}</h3>
         </div>
 
-        {/* Right Info & Fullscreen (Single Clean Place) */}
+        {/* Fullscreen Button */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400 bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-700/50">
-            <Settings className="w-3.5 h-3.5 text-[#6C63FF]" />
-            <span>Speed (0.5x–2x) & HD Quality in player ⚙️</span>
-          </div>
-
           <button
             onClick={toggleFullscreen}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"

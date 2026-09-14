@@ -99,7 +99,10 @@ model CourseLesson {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  quizId          String?
+  quiz            Test?           @relation("LessonQuiz", fields: [quizId], references: [id], onDelete: SetNull)
+  resources       ClassResource[]
 
   @@map("course_lessons")
 }
@@ -298,6 +301,8 @@ model Test {
   course               Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
   testQuestions        TestQuestion[]
   attempts             TestAttempt[]
+  courseLessons        CourseLesson[]  @relation("LessonQuiz")
+  recordedClasses      RecordedClass[] @relation("RecordedClassQuiz")
 
   @@map("tests")
 }
@@ -730,7 +735,10 @@ model RecordedClass {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  quizId          String?
+  quiz            Test?           @relation("RecordedClassQuiz", fields: [quizId], references: [id], onDelete: SetNull)
+  resources       ClassResource[]
 
   @@map("recorded_classes")
 }
@@ -808,7 +816,31 @@ model FileAsset {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  classResources ClassResource[]
+
   @@index([folderCategory])
   @@index([entityType, entityId])
   @@map("file_assets")
 }
+
+model ClassResource {
+  id              String         @id @default(uuid())
+  title           String
+  resourceType    String         @default("NOTES") // NOTES, PRACTICE_SHEET, WORKSHEET, OTHER
+  fileUrl         String
+  fileAssetId     String?
+  fileSize        String?        @default("1.0 MB")
+  isPublished     Boolean        @default(true)
+  courseLessonId  String?
+  courseLesson    CourseLesson?  @relation(fields: [courseLessonId], references: [id], onDelete: Cascade)
+  recordedClassId String?
+  recordedClass   RecordedClass? @relation(fields: [recordedClassId], references: [id], onDelete: Cascade)
+  fileAsset       FileAsset?     @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([courseLessonId])
+  @@index([recordedClassId])
+  @@map("class_resources")
+}
+

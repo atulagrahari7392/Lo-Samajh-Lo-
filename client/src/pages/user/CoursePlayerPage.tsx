@@ -10,12 +10,15 @@ import {
   AlertCircle,
   Shield,
   Lock,
+  HelpCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Course, CourseLesson } from '../../types';
+import { Course, CourseLesson, ClassResource } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { CustomVideoPlayer } from '../../components/video/CustomVideoPlayer';
 import { formatImageUrl } from '../../utils/image';
+import { PdfReaderModal } from '../../components/materials/PdfReaderModal';
 
 export const CoursePlayerPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -25,6 +28,10 @@ export const CoursePlayerPage: React.FC = () => {
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // In-app Document Viewer
+  const [selectedPdfResource, setSelectedPdfResource] = useState<any | null>(null);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -173,29 +180,125 @@ export const CoursePlayerPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Downloadable PDF Resource */}
-          {activeLesson?.pdfUrl && (
-            <div className="p-4 rounded-2xl bg-slate-800/50 border border-slate-700 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-500/20 text-[#6C63FF]">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-white">Lesson Hand-Written Notes (PDF)</h4>
-                  <p className="text-xs text-slate-400">Download and revise offline anytime</p>
-                </div>
-              </div>
-              <a
-                href={activeLesson.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#6C63FF] text-white text-xs font-bold shadow hover:bg-[#564ec9]"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download Notes</span>
-              </a>
+          {/* Class Study Resources & Related Quiz Action Bar */}
+          <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/80 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-2.5">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-[#6C63FF]" />
+                Class Learning Resources & Quiz
+              </span>
+              {(activeLesson?.quizId || activeLesson?.quiz) && (
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                  Quiz Available
+                </span>
+              )}
             </div>
-          )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Class Notes */}
+              {activeLesson?.resources?.filter((r) => r.resourceType === 'NOTES').map((notesRes) => (
+                <button
+                  key={notesRes.id}
+                  onClick={() => {
+                    setSelectedPdfResource({
+                      id: notesRes.id,
+                      title: `${activeLesson.title} — ${notesRes.title || 'Class Notes'}`,
+                      fileUrl: notesRes.fileUrl,
+                      materialType: 'CLASS_NOTES',
+                      subject: activeLesson.chapterTitle || 'General',
+                      fileSize: notesRes.fileSize || 'PDF',
+                    });
+                    setIsPdfModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  <span>Class Notes (PDF)</span>
+                </button>
+              ))}
+
+              {/* Practice Sheet */}
+              {activeLesson?.resources?.filter((r) => r.resourceType === 'PRACTICE_SHEET').map((psRes) => (
+                <button
+                  key={psRes.id}
+                  onClick={() => {
+                    setSelectedPdfResource({
+                      id: psRes.id,
+                      title: `${activeLesson.title} — ${psRes.title || 'Practice Sheet'}`,
+                      fileUrl: psRes.fileUrl,
+                      materialType: 'PRACTICE_SET',
+                      subject: activeLesson.chapterTitle || 'General',
+                      fileSize: psRes.fileSize || 'PDF',
+                    });
+                    setIsPdfModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span>Practice Sheet (PDF)</span>
+                </button>
+              ))}
+
+              {/* Other Attached Resources */}
+              {activeLesson?.resources?.filter((r) => r.resourceType !== 'NOTES' && r.resourceType !== 'PRACTICE_SHEET').map((otherRes) => (
+                <button
+                  key={otherRes.id}
+                  onClick={() => {
+                    setSelectedPdfResource({
+                      id: otherRes.id,
+                      title: `${activeLesson.title} — ${otherRes.title}`,
+                      fileUrl: otherRes.fileUrl,
+                      materialType: otherRes.resourceType,
+                      subject: activeLesson.chapterTitle || 'General',
+                      fileSize: otherRes.fileSize || 'Document',
+                    });
+                    setIsPdfModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-purple-400" />
+                  <span>{otherRes.title}</span>
+                </button>
+              ))}
+
+              {/* Fallback for legacy single pdfUrl if resources list is empty */}
+              {(!activeLesson?.resources || activeLesson.resources.length === 0) && activeLesson?.pdfUrl && (
+                <button
+                  onClick={() => {
+                    setSelectedPdfResource({
+                      id: activeLesson.id,
+                      title: `${activeLesson.title} — Hand-Written Notes`,
+                      fileUrl: activeLesson.pdfUrl!,
+                      materialType: 'CLASS_NOTES',
+                      subject: activeLesson.chapterTitle || 'General',
+                      fileSize: 'PDF',
+                    });
+                    setIsPdfModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  <span>Class Notes (PDF)</span>
+                </button>
+              )}
+
+              {/* Take Quiz Button */}
+              {(activeLesson?.quizId || activeLesson?.quiz) && (
+                <Link
+                  to={`/test-series/${activeLesson.quizId || activeLesson.quiz?.id}/attempt`}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black shadow-md shadow-amber-500/20 transition-all ml-auto hover:scale-105 active:scale-95"
+                >
+                  <HelpCircle className="w-4 h-4 text-white" />
+                  <span>Take Quiz</span>
+                </Link>
+              )}
+
+              {/* Empty notice if no study resources attached */}
+              {(!activeLesson?.resources || activeLesson.resources.length === 0) && !activeLesson?.pdfUrl && !activeLesson?.quizId && !activeLesson?.quiz && (
+                <span className="text-xs text-slate-400 italic">No notes or quiz attached for this class.</span>
+              )}
+            </div>
+          </div>
 
           {/* Lesson Content / Notes */}
           {activeLesson?.content && (
@@ -252,6 +355,24 @@ export const CoursePlayerPage: React.FC = () => {
                       >
                         {lesson.title}
                       </h4>
+                    </div>
+                    {/* Badges for study resources and quiz */}
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                      {lesson.isRecordedClass && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-500/20 text-purple-300 uppercase tracking-wider">
+                          Recorded
+                        </span>
+                      )}
+                      {((lesson.resources && lesson.resources.length > 0) || lesson.pdfUrl) && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/20 text-blue-300 flex items-center gap-0.5">
+                          <FileText className="w-2.5 h-2.5" /> PDF
+                        </span>
+                      )}
+                      {(lesson.quizId || lesson.quiz) && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 flex items-center gap-0.5">
+                          <HelpCircle className="w-2.5 h-2.5" /> Quiz
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10px] text-slate-400 block mt-1">
                       {lesson.durationMinutes} mins • {lesson.chapterTitle}

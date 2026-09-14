@@ -279,9 +279,11 @@ router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next
       if (existingInProgress) {
         let savedAnswers = {};
         let savedMarked = {};
+        let savedQuestionTimes = {};
         try {
           if (existingInProgress.answersMap) savedAnswers = JSON.parse(existingInProgress.answersMap);
           if (existingInProgress.markedQuestions) savedMarked = JSON.parse(existingInProgress.markedQuestions);
+          if (existingInProgress.timeSpentPerQuestion) savedQuestionTimes = JSON.parse(existingInProgress.timeSpentPerQuestion);
         } catch {}
 
         res.json({
@@ -298,6 +300,7 @@ router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next
             secondsRemaining: Math.max(0, test.durationMinutes * 60 - (existingInProgress.timeSpentSeconds || 0)),
             answersMap: savedAnswers,
             markedQuestions: savedMarked,
+            timeSpentPerQuestion: savedQuestionTimes,
             currentQuestionIndex: existingInProgress.currentQuestionIndex || 0,
           },
           attemptId: existingInProgress.id,
@@ -305,6 +308,7 @@ router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next
           isResumed: true,
           savedAnswers,
           savedMarked,
+          savedQuestionTimes,
           currentIndex: existingInProgress.currentQuestionIndex || 0,
           timeSpentSeconds: existingInProgress.timeSpentSeconds || 0,
           remainingSeconds: Math.max(0, test.durationMinutes * 60 - (existingInProgress.timeSpentSeconds || 0)),
@@ -339,6 +343,7 @@ router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next
         secondsRemaining: test.durationMinutes * 60,
         answersMap: {},
         markedQuestions: [],
+        timeSpentPerQuestion: {},
         currentQuestionIndex: 0,
       },
       attemptId: newAttempt.id,
@@ -346,6 +351,7 @@ router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next
       isResumed: false,
       savedAnswers: {},
       savedMarked: {},
+      savedQuestionTimes: {},
       currentIndex: 0,
       timeSpentSeconds: 0,
       remainingSeconds: test.durationMinutes * 60,
@@ -360,35 +366,53 @@ router.post('/:idOrSlug/start', optionalAuth, async (req: AuthRequest, res, next
 // ----------------------------------------------------
 router.post('/:idOrSlug/save-progress', optionalAuth, async (req: AuthRequest, res, next) => {
   try {
-    const { attemptId, answersMap, markedQuestions, currentIndex, timeSpentSeconds } = req.body;
-
-    if (!attemptId) {
-      res.status(400).json({ success: false, message: 'attemptId is required' });
-      return;
-    }
+    const { idOrSlug } = req.params;
+    let { attemptId, answersMap, markedQuestions, currentIndex, timeSpentSeconds, timeSpentPerQuestion } = req.body;
 
     // Handle preview attempts without database errors
-    if (String(attemptId).startsWith('preview-attempt-')) {
+    if (attemptId && String(attemptId).startsWith('preview-attempt-')) {
       res.json({ success: true, message: 'Preview progress acknowledged' });
       return;
     }
 
-    if (!req.user) {
+    if (!req.user && !attemptId) {
       res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
+    let targetAttemptId = attemptId;
+    if (!targetAttemptId && req.user) {
+      const ongoing = await prisma.testAttempt.findFirst({
+        where: {
+          test: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+          userId: req.user.id,
+          status: 'IN_PROGRESS',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (ongoing) {
+        targetAttemptId = ongoing.id;
+      }
+    }
+
+    if (!targetAttemptId) {
+      res.status(400).json({ success: false, message: 'Active attempt not found.' });
+      return;
+    }
+
+    const updateData: any = {};
+    if (answersMap !== undefined) updateData.answersMap = typeof answersMap === 'object' ? JSON.stringify(answersMap) : answersMap;
+    if (markedQuestions !== undefined) updateData.markedQuestions = typeof markedQuestions === 'object' ? JSON.stringify(markedQuestions) : markedQuestions;
+    if (currentIndex !== undefined) updateData.currentQuestionIndex = parseInt(currentIndex, 10) || 0;
+    if (timeSpentSeconds !== undefined) updateData.timeSpentSeconds = parseInt(timeSpentSeconds, 10) || 0;
+    if (timeSpentPerQuestion !== undefined) updateData.timeSpentPerQuestion = typeof timeSpentPerQuestion === 'object' ? JSON.stringify(timeSpentPerQuestion) : timeSpentPerQuestion;
+
     await prisma.testAttempt.update({
-      where: { id: attemptId },
-      data: {
-        answersMap: typeof answersMap === 'object' ? JSON.stringify(answersMap) : answersMap,
-        markedQuestions: typeof markedQuestions === 'object' ? JSON.stringify(markedQuestions) : markedQuestions,
-        currentQuestionIndex: parseInt(currentIndex, 10) || 0,
-        timeSpentSeconds: parseInt(timeSpentSeconds, 10) || 0,
-      },
+      where: { id: targetAttemptId },
+      data: updateData,
     });
 
-    res.json({ success: true, message: 'Progress saved' });
+    res.json({ success: true, message: 'Progress saved', attemptId: targetAttemptId });
   } catch (error) {
     next(error);
   }

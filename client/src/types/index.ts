@@ -30,6 +30,19 @@ export interface Category {
   };
 }
 
+export interface ClassResource {
+  id: string;
+  title: string;
+  resourceType: 'NOTES' | 'PRACTICE_SHEET' | 'WORKSHEET' | 'OTHER' | string;
+  fileUrl: string;
+  fileAssetId?: string | null;
+  fileSize?: string | null;
+  isPublished: boolean;
+  courseLessonId?: string | null;
+  recordedClassId?: string | null;
+  createdAt: string;
+}
+
 export interface CourseLesson {
   id: string;
   courseId: string;
@@ -43,6 +56,14 @@ export interface CourseLesson {
   position: number;
   thumbnail?: string | null;
   isRecordedClass?: boolean;
+  quizId?: string | null;
+  quiz?: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    totalMarks: number;
+  } | null;
+  resources?: ClassResource[];
 }
 
 export interface Course {
@@ -598,6 +619,14 @@ export interface RecordedClass {
   description?: string | null;
   isPublished: boolean;
   createdAt: string;
+  quizId?: string | null;
+  quiz?: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    totalMarks: number;
+  } | null;
+  resources?: ClassResource[];
   course?: {
     id: string;
     title: string;

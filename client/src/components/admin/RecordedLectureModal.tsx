@@ -21,9 +21,12 @@ import {
   Check,
   AlertTriangle,
   Sliders,
+  FileText,
+  Plus,
+  HelpCircle,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Course, RecordedClass } from '../../types';
+import { Course, RecordedClass, ClassResource } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { formatImageUrl, handleImageError, DEFAULT_LECTURE_THUMBNAIL } from '../../utils/image';
 
@@ -66,6 +69,17 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [description, setDescription] = useState('');
   const [isPublished, setIsPublished] = useState(true);
+
+  // Related Quiz / Test
+  const [quizId, setQuizId] = useState<string>('');
+  const [availableTests, setAvailableTests] = useState<any[]>([]);
+
+  // Class Resources (Notes, Practice Sheets, Worksheets)
+  const [resources, setResources] = useState<ClassResource[]>([]);
+  const [pendingResources, setPendingResources] = useState<any[]>([]);
+  const [uploadingResource, setUploadingResource] = useState(false);
+  const [resourceTypeToAdd, setResourceTypeToAdd] = useState<'NOTES' | 'PRACTICE_SHEET' | 'WORKSHEET' | 'OTHER'>('NOTES');
+  const [resourceTitleToAdd, setResourceTitleToAdd] = useState('');
 
   // Video Source: 'drive' (Google Drive 5TB), 'upload' (Local server upload), 'youtube' (YouTube / URL)
   const [videoSource, setVideoSource] = useState<'drive' | 'upload' | 'youtube'>('drive');
@@ -134,6 +148,13 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
       return;
     }
 
+    // Fetch available tests for quiz association
+    api.tests.adminGetAll().then((res) => {
+      if (res.success && res.tests) {
+        setAvailableTests(res.tests);
+      }
+    }).catch(() => {});
+
     if (initialData) {
       setCourseId(initialData.courseId);
       setTitle(initialData.title);
@@ -143,6 +164,9 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
       setThumbnailUrl(initialData.thumbnail || '');
       setDescription(initialData.description || '');
       setIsPublished(Boolean(initialData.isPublished));
+      setQuizId(initialData.quizId || '');
+      setResources(initialData.resources || []);
+      setPendingResources([]);
       if (initialData.videoUrl.includes('youtube.com') || initialData.videoUrl.includes('youtu.be')) {
         setVideoSource('youtube');
       } else if (initialData.videoUrl.includes('drive.google.com')) {
@@ -161,6 +185,9 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
       setThumbnailUrl('');
       setDescription('');
       setIsPublished(true);
+      setQuizId('');
+      setResources([]);
+      setPendingResources([]);
       setVideoSource('drive');
       setSelectedVideoFile(null);
       setVideoMetadata(null);
@@ -432,6 +459,70 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
     }
   };
 
+  const handleUploadResource = async (file: File) => {
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    const allowedExts = ['.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx'];
+    if (!allowedExts.includes(ext)) {
+      toastError('Please upload a valid document (PDF, PNG, JPG, DOC).');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toastError('File size exceeds the allowed limit (50 MB).');
+      return;
+    }
+    if (file.size === 0) {
+      toastError('Selected file is empty or corrupted.');
+      return;
+    }
+
+    try {
+      setUploadingResource(true);
+      const title = resourceTitleToAdd.trim() || file.name.replace(/\.[^/.]+$/, '');
+      const uploadRes = await api.upload.file(file, { category: 'COURSES', entityType: 'RECORDED_CLASS' });
+      if (!uploadRes.success) throw new Error('Upload failed');
+
+      const sizeFormatted = (uploadRes as any).sizeFormatted || formatBytes(file.size);
+      const newResData = {
+        title,
+        resourceType: resourceTypeToAdd,
+        fileUrl: uploadRes.fileUrl,
+        fileAssetId: uploadRes.driveFileId || null,
+        fileSize: sizeFormatted,
+        isPublished: true,
+      };
+
+      if (initialData?.id) {
+        const addRes = await api.recorded.addResource(initialData.id, newResData);
+        if (addRes.success && addRes.resource) {
+          setResources((prev) => [...prev, addRes.resource]);
+          toastSuccess(`${resourceTypeToAdd.replace('_', ' ')} attached successfully!`);
+        }
+      } else {
+        setPendingResources((prev) => [...prev, newResData]);
+        toastSuccess(`${resourceTypeToAdd.replace('_', ' ')} uploaded and will be saved with lecture.`);
+      }
+      setResourceTitleToAdd('');
+    } catch (err: any) {
+      toastError(err.message || 'Failed to upload study resource');
+    } finally {
+      setUploadingResource(false);
+    }
+  };
+
+  const handleRemoveResource = async (resItem: any, index: number) => {
+    try {
+      if (resItem.id) {
+        await api.recorded.deleteResource(resItem.id);
+        setResources((prev) => prev.filter((r) => r.id !== resItem.id));
+      } else {
+        setPendingResources((prev) => prev.filter((_, i) => i !== index));
+      }
+      toastSuccess('Resource removed.');
+    } catch (err: any) {
+      toastError(err.message || 'Failed to remove resource');
+    }
+  };
+
   const handleSubmit = async (publishImmediate: boolean) => {
     if (!courseId) {
       toastError('Please select a course for this lecture.');
@@ -466,6 +557,7 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
         thumbnail: thumbnailUrl.trim() || null,
         description: description.trim() || null,
         isPublished: publishImmediate,
+        quizId: quizId.trim() || null,
       };
 
       let resultLecture: RecordedClass;
@@ -478,6 +570,13 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
         const res = await api.recorded.create(payload);
         if (!res.success) throw new Error(res.message || 'Creation failed');
         resultLecture = res.recorded;
+
+        // Attach any pending resources
+        if (pendingResources.length > 0) {
+          for (const pr of pendingResources) {
+            await api.recorded.addResource(resultLecture.id, pr).catch(() => {});
+          }
+        }
         toastSuccess(publishImmediate ? 'Recorded lecture published successfully!' : 'Recorded lecture saved as draft!');
       }
 
@@ -1109,7 +1208,131 @@ export const RecordedLectureModal: React.FC<RecordedLectureModalProps> = ({
                 </div>
               </div>
 
-              {/* SECTION 6: PUBLISH SETTINGS */}
+              {/* SECTION 6: RELATED QUIZ / TEST */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <HelpCircle className="w-4 h-4 text-[#6C63FF]" />
+                    Related Examination / Quiz (Optional)
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Link an existing test to this class. Students will see a "Take Quiz" option directly beside the lecture.
+                  </p>
+                </div>
+
+                <select
+                  value={quizId}
+                  onChange={(e) => setQuizId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-[#6C63FF]/30 outline-none"
+                >
+                  <option value="">-- No Quiz Associated (None) --</option>
+                  {availableTests.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title} ({t.durationMinutes} mins • {t.totalMarks} marks)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* SECTION 7: CLASS STUDY RESOURCES (Class Notes & Practice Sheets) */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3.5">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-[#6C63FF]" />
+                    Class Study Resources (Notes & Practice Sheets)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Attach PDFs stored in Google Drive 5TB storage. Students can open notes inside the website.
+                  </p>
+                </div>
+
+                {/* Attached Resources List */}
+                {[...resources, ...pendingResources].length > 0 ? (
+                  <div className="space-y-2">
+                    {[...resources, ...pendingResources].map((item, idx) => (
+                      <div
+                        key={item.id || idx}
+                        className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200 shadow-2xs text-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                            item.resourceType === 'NOTES'
+                              ? 'bg-blue-100 text-blue-800'
+                              : item.resourceType === 'PRACTICE_SHEET'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {item.resourceType?.replace('_', ' ') || 'NOTES'}
+                          </span>
+                          <span className="font-bold text-slate-800 truncate">{item.title}</span>
+                          <span className="text-[10px] text-slate-400">({item.fileSize || 'PDF'})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={item.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                            title="Preview file"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveResource(item, idx)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
+                            title="Remove resource"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">No study resources attached to this lecture yet.</p>
+                )}
+
+                {/* Upload New Resource Strip */}
+                <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-2">
+                  <select
+                    value={resourceTypeToAdd}
+                    onChange={(e) => setResourceTypeToAdd(e.target.value as any)}
+                    className="w-full sm:w-44 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white outline-none"
+                  >
+                    <option value="NOTES">Class Notes (PDF)</option>
+                    <option value="PRACTICE_SHEET">Practice Sheet (PDF)</option>
+                    <option value="WORKSHEET">Worksheet</option>
+                    <option value="OTHER">Other Material</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    value={resourceTitleToAdd}
+                    onChange={(e) => setResourceTitleToAdd(e.target.value)}
+                    placeholder="Document title (optional)"
+                    className="w-full sm:flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 bg-white outline-none"
+                  />
+
+                  <label className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>{uploadingResource ? 'Uploading...' : 'Upload PDF'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      disabled={uploadingResource}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadResource(file);
+                        e.target.value = '';
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* SECTION 8: PUBLISH SETTINGS */}
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between">
                 <div>
                   <label htmlFor="publish-immediate" className="text-xs font-bold text-slate-800 cursor-pointer block">

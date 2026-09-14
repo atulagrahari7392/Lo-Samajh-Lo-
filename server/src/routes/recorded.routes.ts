@@ -28,6 +28,11 @@ router.get('/', async (req, res, next) => {
       orderBy: { createdAt: 'desc' },
       include: {
         course: { select: { id: true, title: true, slug: true } },
+        quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+        resources: {
+          where: { isPublished: true },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -49,6 +54,10 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
       orderBy: { createdAt: 'desc' },
       include: {
         course: { select: { id: true, title: true } },
+        quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+        resources: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -65,7 +74,7 @@ router.get('/admin/all', authenticate, requireAdmin, async (req, res, next) => {
 
 router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   try {
-    const { courseId, title, chapter, durationMinutes, videoUrl, thumbnail, description, isPublished } = req.body;
+    const { courseId, title, chapter, durationMinutes, videoUrl, thumbnail, description, isPublished, quizId } = req.body;
 
     if (!courseId || !title || !videoUrl) {
       res.status(400).json({ success: false, message: 'Course ID, title, and video URL are required.' });
@@ -82,6 +91,11 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
         thumbnail: normalizeImageUrl(thumbnail?.trim()) || null,
         description: description?.trim() || null,
         isPublished: isPublished !== undefined ? Boolean(isPublished) : true,
+        quizId: quizId ? String(quizId).trim() : null,
+      },
+      include: {
+        quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+        resources: true,
       },
     });
 
@@ -130,7 +144,7 @@ router.get('/:id', async (req, res, next) => {
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { courseId, title, chapter, durationMinutes, videoUrl, thumbnail, description, isPublished } = req.body;
+    const { courseId, title, chapter, durationMinutes, videoUrl, thumbnail, description, isPublished, quizId } = req.body;
 
     const data: any = {};
     if (courseId !== undefined) data.courseId = courseId;
@@ -141,12 +155,15 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
     if (thumbnail !== undefined) data.thumbnail = thumbnail ? normalizeImageUrl(thumbnail.trim()) : null;
     if (description !== undefined) data.description = description ? description.trim() : null;
     if (isPublished !== undefined) data.isPublished = Boolean(isPublished);
+    if (quizId !== undefined) data.quizId = quizId ? String(quizId).trim() : null;
 
     const updated = await prisma.recordedClass.update({
       where: { id },
       data,
       include: {
         course: { select: { id: true, title: true } },
+        quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+        resources: { orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -158,6 +175,46 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
         thumbnail: normalizeImageUrl(updated.thumbnail),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/recorded-classes/:id/resources (Attach Study Resource: Notes, Practice Sheet, Worksheet, Other)
+router.post('/:id/resources', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { title, resourceType, fileUrl, fileAssetId, fileSize, isPublished } = req.body;
+
+    if (!title || !fileUrl) {
+      res.status(400).json({ success: false, message: 'Resource title and file URL are required.' });
+      return;
+    }
+
+    const resource = await prisma.classResource.create({
+      data: {
+        recordedClassId: id,
+        title: title.trim(),
+        resourceType: resourceType || 'NOTES',
+        fileUrl: fileUrl.trim(),
+        fileAssetId: fileAssetId || null,
+        fileSize: fileSize || '1.0 MB',
+        isPublished: isPublished !== undefined ? Boolean(isPublished) : true,
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'Study resource added.', resource });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/recorded-classes/resources/:resourceId (Remove Study Resource)
+router.delete('/resources/:resourceId', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { resourceId } = req.params;
+    await prisma.classResource.delete({ where: { id: resourceId } });
+    res.json({ success: true, message: 'Resource removed.' });
   } catch (error) {
     next(error);
   }

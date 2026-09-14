@@ -244,11 +244,23 @@ export const AdminRecordedClassesPage: React.FC = () => {
                             <p className="font-bold text-slate-900 truncate" title={rec.title}>
                               {rec.title}
                             </p>
-                            {rec.description && (
-                              <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
-                                {rec.description}
-                              </p>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              {rec.quiz && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">
+                                  📝 Quiz: {rec.quiz.title}
+                                </span>
+                              )}
+                              {rec.resources && rec.resources.length > 0 && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-800">
+                                  📄 {rec.resources.length} Resource{rec.resources.length > 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {rec.description && (
+                                <span className="text-[10px] text-slate-400 truncate">
+                                  {rec.description}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>

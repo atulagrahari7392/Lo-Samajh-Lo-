@@ -146,29 +146,17 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
         category: true,
         lessons: {
           orderBy: { position: 'asc' },
-          select: {
-            id: true,
-            title: true,
-            chapterTitle: true,
-            durationMinutes: true,
-            isFreePreview: true,
-            position: true,
-            videoUrl: true, // Only show preview video or will mask if not enrolled
-            pdfUrl: true,
+          include: {
+            quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+            resources: { where: { isPublished: true }, orderBy: { createdAt: 'asc' } },
           },
         },
         recordedClasses: {
           where: { isPublished: true },
           orderBy: { createdAt: 'asc' },
-          select: {
-            id: true,
-            title: true,
-            chapter: true,
-            durationMinutes: true,
-            videoUrl: true,
-            thumbnail: true,
-            description: true,
-            createdAt: true,
+          include: {
+            quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+            resources: { where: { isPublished: true }, orderBy: { createdAt: 'asc' } },
           },
         },
         reviews: {
@@ -232,6 +220,9 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
       return {
         ...lesson,
         videoUrl: finalVideoUrl,
+        quizId: (lesson as any).quizId || null,
+        quiz: (lesson as any).quiz || null,
+        resources: (lesson as any).resources || [],
       };
     });
 
@@ -264,6 +255,9 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
         position: (course.lessons.length || 0) + idx + 1,
         thumbnail: normalizeImageUrl(rc.thumbnail),
         isRecordedClass: true,
+        quizId: rc.quizId || null,
+        quiz: rc.quiz || null,
+        resources: rc.resources || [],
       };
     });
 
@@ -306,10 +300,18 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
         category: true,
         lessons: {
           orderBy: { position: 'asc' },
+          include: {
+            quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+            resources: { where: { isPublished: true }, orderBy: { createdAt: 'asc' } },
+          },
         },
         recordedClasses: {
           where: { isPublished: true },
           orderBy: { createdAt: 'asc' },
+          include: {
+            quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
+            resources: { where: { isPublished: true }, orderBy: { createdAt: 'asc' } },
+          },
         },
       },
     });
@@ -361,6 +363,9 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
       return {
         ...lesson,
         videoUrl: finalVideoUrl,
+        quizId: (lesson as any).quizId || null,
+        quiz: (lesson as any).quiz || null,
+        resources: (lesson as any).resources || [],
       };
     });
 
@@ -384,6 +389,9 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
         position: (course.lessons?.length || 0) + idx + 1,
         thumbnail: normalizeImageUrl(rc.thumbnail),
         isRecordedClass: true,
+        quizId: rc.quizId || null,
+        quiz: rc.quiz || null,
+        resources: rc.resources || [],
       };
     });
 
