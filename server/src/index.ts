@@ -1,8 +1,10 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { initSocket } from './socket';
 import authRoutes from './routes/auth.routes';
 import courseRoutes from './routes/course.routes';
 import categoryRoutes from './routes/category.routes';
@@ -122,8 +124,42 @@ app.use(errorHandler);
 
 import { migrateData } from './scripts/migrate-data';
 
-app.listen(Number(PORT), '0.0.0.0', async () => {
-  console.log(`🚀 Lo Samajh Lo Server running on port ${PORT}`);
+const httpServer = http.createServer(app);
+initSocket(httpServer);
+
+// Periodic Live Scheduler (Phase 34)
+// Checks for scheduled classes approaching start time, stale live sessions, and recording status
+setInterval(async () => {
+  try {
+    const now = new Date();
+    // 1. Transition SCHEDULED classes that are past their start time to STARTING
+    const startingClasses = await prisma.liveClass.findMany({
+      where: {
+        status: 'SCHEDULED',
+        scheduledAt: { lte: now },
+      },
+      select: { id: true, title: true, slug: true },
+      take: 10,
+    });
+
+    for (const sc of startingClasses) {
+      await prisma.liveClass.update({
+        where: { id: sc.id },
+        data: { status: 'STARTING' },
+      });
+      // Broadcast to room if connected
+      const { io } = await import('./socket');
+      if (io) {
+        io.to(`liveClass:${sc.id}`).emit('live:status_change', { status: 'STARTING' });
+      }
+    }
+  } catch (err: any) {
+    // Suppress background schedule error
+  }
+}, 30000);
+
+httpServer.listen(Number(PORT), '0.0.0.0', async () => {
+  console.log(`🚀 Lo Samajh Lo Server + Socket.IO running on port ${PORT}`);
 
   // Safe initial data import if target PostgreSQL database is completely empty
   try {
@@ -140,3 +176,4 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
 });
 
 export default app;
+

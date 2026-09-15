@@ -590,21 +590,167 @@ export interface Review {
   };
 }
 
+export interface LiveSession {
+  id: string;
+  liveClassId: string;
+  streamProvider: string;
+  providerStreamId?: string | null;
+  streamKey?: string | null;
+  rtmpIngestUrl?: string | null;
+  hlsPlaybackUrl?: string | null;
+  streamStatus: 'IDLE' | 'CONNECTING' | 'LIVE' | 'INTERRUPTED' | 'ENDED' | string;
+  actualStartedAt?: string | null;
+  actualEndedAt?: string | null;
+  peakViewers?: number;
+  totalUniqueViewers?: number;
+  recordingStatus?: 'NONE' | 'PROCESSING' | 'READY' | 'FAILED' | string;
+}
+
+export interface LiveAttendance {
+  id: string;
+  liveClassId: string;
+  userId: string;
+  joinedAt: string;
+  leftAt?: string | null;
+  lastSeenAt: string;
+  totalWatchSeconds: number;
+  reconnectCount: number;
+  completionPercentage: number;
+  deviceInfo?: string | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+  };
+}
+
+export interface LiveChatMessage {
+  id: string;
+  liveClassId: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  message: string;
+  status: 'VISIBLE' | 'DELETED' | 'FLAGGED' | 'BLOCKED' | string;
+  isPinned: boolean;
+  createdAt: string;
+}
+
+export interface LiveQuestion {
+  id: string;
+  liveClassId: string;
+  userId: string;
+  userName: string;
+  question: string;
+  upvotes: number;
+  status: 'PENDING' | 'ANSWERED' | 'PINNED' | 'DISMISSED' | string;
+  answer?: string | null;
+  answeredBy?: string | null;
+  answeredAt?: string | null;
+  createdAt: string;
+}
+
+export interface LivePollOption {
+  id: string;
+  pollId: string;
+  optionText: string;
+  position: number;
+  isCorrect?: boolean | null;
+  voteCount: number;
+}
+
+export interface LivePoll {
+  id: string;
+  liveClassId: string;
+  question: string;
+  status: 'DRAFT' | 'LIVE' | 'ENDED' | string;
+  multipleChoice: boolean;
+  isAnonymous: boolean;
+  showResults: boolean;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  options: LivePollOption[];
+  userVotedOptionId?: string | null;
+  _count?: {
+    responses: number;
+  };
+}
+
+export interface LiveAnnouncement {
+  id: string;
+  liveClassId: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  type: 'NORMAL' | 'PINNED' | 'URGENT' | string;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface LiveClass {
   id: string;
   courseId?: string | null;
-  title: string;
+  batchId?: string | null;
+  subject?: string | null;
+  chapter?: string | null;
+  topic?: string | null;
+  teacherId?: string | null;
   instructor: string;
+  title: string;
+  slug?: string | null;
   description?: string | null;
-  scheduledAt: string;
-  durationMinutes: number;
-  meetingUrl: string;
-  status: 'UPCOMING' | 'LIVE' | 'COMPLETED';
   thumbnail?: string | null;
+  thumbnailAssetId?: string | null;
+  classType: 'REGULAR' | 'DOUBT' | 'REVISION' | 'CURRENT_AFFAIRS' | 'SPECIAL' | 'DEMO' | 'WEBINAR' | 'LIVE_TEST' | string;
+  language: string;
+  scheduledAt: string;
+  scheduledEndAt?: string | null;
+  durationMinutes: number;
+  timezone?: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'STARTING' | 'LIVE' | 'ENDED' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'ARCHIVED' | 'STREAM_INTERRUPTED' | string;
+  accessType: 'PUBLIC' | 'AUTHENTICATED' | 'COURSE' | 'BATCH' | 'PRODUCT' | 'SELECTED_USERS' | string;
+  isPublished: boolean;
+  meetingUrl?: string | null;
+  createdBy?: string | null;
+  recordedClassId?: string | null;
+  quizId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   course?: {
     id: string;
     title: string;
     slug: string;
+    thumbnail?: string | null;
+    price?: number;
+  } | null;
+  quiz?: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    totalMarks: number;
+  } | null;
+  resources?: ClassResource[];
+  announcements?: LiveAnnouncement[];
+  activePoll?: LivePoll | null;
+  session?: {
+    id: string;
+    streamStatus: string;
+    hlsPlaybackUrl?: string | null;
+    actualStartedAt?: string | null;
+  } | null;
+  recordedClass?: {
+    id: string;
+    videoUrl: string;
+    durationMinutes: number;
+  } | null;
+  isAccessGranted?: boolean;
+  _count?: {
+    attendances?: number;
+    chatMessages?: number;
+    questions?: number;
+    polls?: number;
+    resources?: number;
   };
 }
 

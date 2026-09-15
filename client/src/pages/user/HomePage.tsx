@@ -436,14 +436,12 @@ export const HomePage: React.FC = () => {
                       <Clock className="w-3.5 h-3.5 text-emerald-400" />
                       {new Date(cls.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <a
-                      href={cls.meetingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Link
+                      to={`/live/${cls.slug || cls.id}`}
                       className="px-4 py-2 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white text-xs font-bold shadow transition-all"
                     >
                       Join Live Class
-                    </a>
+                    </Link>
                   </div>
                 </div>
               ))}

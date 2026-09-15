@@ -49,6 +49,7 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
+    { name: 'Live Classes', path: '/live-classes', isLive: true },
     { name: 'Study Materials', path: '/study-materials' },
     { name: 'Test Series', path: '/test-series' },
     { name: 'Typing Test', path: '/typing-test' },
@@ -78,12 +79,13 @@ export const Navbar: React.FC = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${
                   isActive(link.path)
                     ? 'bg-[#6C63FF]/10 text-[#6C63FF]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
+                {link.isLive && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />}
                 {link.name}
               </Link>
             ))}

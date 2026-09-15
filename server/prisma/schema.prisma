@@ -31,6 +31,11 @@ model User {
   materialBookmarks  MaterialBookmark[]
   materialDownloads  MaterialDownload[]
   typingProgress     TypingUserProgress?
+  teacherLiveClasses LiveClass[]          @relation("TeacherLiveClasses")
+  liveAttendances    LiveAttendance[]
+  liveChatMessages   LiveChatMessage[]
+  liveQuestions      LiveQuestion[]
+  livePollResponses  LivePollResponse[]
 
   @@map("users")
 }
@@ -303,6 +308,7 @@ model Test {
   attempts             TestAttempt[]
   courseLessons        CourseLesson[]  @relation("LessonQuiz")
   recordedClasses      RecordedClass[] @relation("RecordedClassQuiz")
+  liveClasses          LiveClass[]     @relation("LiveClassQuizLink")
 
   @@map("tests")
 }
@@ -706,19 +712,51 @@ model Review {
 model LiveClass {
   id              String   @id @default(uuid())
   courseId        String?
-  title           String
+  batchId         String?
+  subject         String?
+  chapter         String?
+  topic           String?
+  teacherId       String?
   instructor      String   @default("Atul Agrahari")
+  title           String
+  slug            String?  @unique
   description     String?
-  scheduledAt     DateTime
-  durationMinutes Int      @default(60)
-  meetingUrl      String   @default("https://meet.google.com/lsl-live")
-  status          String   @default("UPCOMING") // UPCOMING, LIVE, COMPLETED
   thumbnail       String?
+  thumbnailAssetId String?
+  classType       String   @default("REGULAR") // REGULAR, DOUBT, REVISION, CURRENT_AFFAIRS, SPECIAL, DEMO, WEBINAR, LIVE_TEST
+  language        String   @default("HINDI")
+  scheduledAt     DateTime
+  scheduledEndAt  DateTime?
+  durationMinutes Int      @default(60)
+  timezone        String   @default("Asia/Kolkata")
+  status          String   @default("SCHEDULED") // DRAFT, SCHEDULED, STARTING, LIVE, ENDED, PROCESSING, COMPLETED, CANCELLED, ARCHIVED, STREAM_INTERRUPTED
+  accessType      String   @default("PUBLIC") // PUBLIC, AUTHENTICATED, COURSE, BATCH, PRODUCT, SELECTED_USERS
+  isPublished     Boolean  @default(true)
+  meetingUrl      String?  @default("https://meet.google.com/lsl-live")
+  createdBy       String?
+  recordedClassId String?
+  quizId          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  course          Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  course          Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  teacher         User?            @relation("TeacherLiveClasses", fields: [teacherId], references: [id], onDelete: SetNull)
+  recordedClass   RecordedClass?   @relation("LiveClassRecordedLink", fields: [recordedClassId], references: [id], onDelete: SetNull)
+  quiz            Test?            @relation("LiveClassQuizLink", fields: [quizId], references: [id], onDelete: SetNull)
+  sessions        LiveSession[]
+  attendances     LiveAttendance[]
+  chatMessages    LiveChatMessage[]
+  questions       LiveQuestion[]
+  polls           LivePoll[]
+  announcements   LiveAnnouncement[]
+  recordings      LiveRecording[]
+  auditLogs       LiveAuditLog[]
+  resources       ClassResource[]
 
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([courseId])
+  @@index([teacherId])
   @@map("live_classes")
 }
 
@@ -739,6 +777,7 @@ model RecordedClass {
   quizId          String?
   quiz            Test?           @relation("RecordedClassQuiz", fields: [quizId], references: [id], onDelete: SetNull)
   resources       ClassResource[]
+  liveClasses     LiveClass[]     @relation("LiveClassRecordedLink")
 
   @@map("recorded_classes")
 }
@@ -817,6 +856,7 @@ model FileAsset {
   updatedAt      DateTime @updatedAt
 
   classResources ClassResource[]
+  liveRecordings LiveRecording[]
 
   @@index([folderCategory])
   @@index([entityType, entityId])
@@ -835,12 +875,207 @@ model ClassResource {
   courseLesson    CourseLesson?  @relation(fields: [courseLessonId], references: [id], onDelete: Cascade)
   recordedClassId String?
   recordedClass   RecordedClass? @relation(fields: [recordedClassId], references: [id], onDelete: Cascade)
+  liveClassId     String?
+  liveClass       LiveClass?     @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
   fileAsset       FileAsset?     @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   @@index([courseLessonId])
   @@index([recordedClassId])
+  @@index([liveClassId])
   @@map("class_resources")
 }
+
+model LiveSession {
+  id                 String          @id @default(uuid())
+  liveClassId        String
+  streamProvider     String          @default("CUSTOM_RTMP") // CUSTOM_RTMP, CLOUDFLARE_STREAM, MUX, AWS_IVS, YOUTUBE
+  providerStreamId   String?
+  streamKey          String?
+  rtmpIngestUrl      String?
+  hlsPlaybackUrl     String?
+  streamStatus       String          @default("IDLE") // IDLE, CONNECTING, LIVE, INTERRUPTED, ENDED
+  actualStartedAt    DateTime?
+  actualEndedAt      DateTime?
+  peakViewers        Int             @default(0)
+  totalUniqueViewers Int             @default(0)
+  recordingStatus    String          @default("NONE") // NONE, PROCESSING, READY, FAILED
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  liveClass          LiveClass       @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  recordings         LiveRecording[]
+
+  @@index([liveClassId])
+  @@index([streamStatus])
+  @@map("live_sessions")
+}
+
+model LiveAttendance {
+  id                   String      @id @default(uuid())
+  liveClassId          String
+  liveSessionId        String?
+  userId               String
+  joinedAt             DateTime    @default(now())
+  leftAt               DateTime?
+  lastSeenAt           DateTime    @default(now())
+  totalWatchSeconds    Int         @default(0)
+  reconnectCount       Int         @default(0)
+  completionPercentage Float       @default(0)
+  deviceInfo           String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  liveClass            LiveClass   @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, liveClassId])
+  @@index([liveClassId])
+  @@index([lastSeenAt])
+  @@map("live_attendances")
+}
+
+model LiveChatMessage {
+  id            String      @id @default(uuid())
+  liveClassId   String
+  liveSessionId String?
+  userId        String
+  userName      String
+  userRole      String      @default("USER")
+  message       String
+  status        String      @default("VISIBLE") // VISIBLE, DELETED, FLAGGED, BLOCKED
+  isPinned      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  liveClass     LiveClass   @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([liveClassId, createdAt])
+  @@map("live_chat_messages")
+}
+
+model LiveQuestion {
+  id            String      @id @default(uuid())
+  liveClassId   String
+  liveSessionId String?
+  userId        String
+  userName      String
+  question      String
+  upvotes       Int         @default(0)
+  status        String      @default("PENDING") // PENDING, ANSWERED, PINNED, DISMISSED
+  answer        String?
+  answeredBy    String?
+  answeredAt    DateTime?
+  createdAt     DateTime    @default(now())
+
+  liveClass     LiveClass   @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([liveClassId, status])
+  @@index([liveClassId, createdAt])
+  @@map("live_questions")
+}
+
+model LivePoll {
+  id             String             @id @default(uuid())
+  liveClassId    String
+  liveSessionId  String?
+  question       String
+  status         String             @default("DRAFT") // DRAFT, LIVE, ENDED
+  multipleChoice Boolean            @default(false)
+  isAnonymous    Boolean            @default(false)
+  showResults    Boolean            @default(true)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime           @default(now())
+
+  liveClass      LiveClass          @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  options        LivePollOption[]
+  responses      LivePollResponse[]
+
+  @@index([liveClassId, status])
+  @@map("live_polls")
+}
+
+model LivePollOption {
+  id         String             @id @default(uuid())
+  pollId     String
+  optionText String
+  position   Int                @default(0)
+  isCorrect  Boolean?
+  voteCount  Int                @default(0)
+
+  poll       LivePoll           @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  responses  LivePollResponse[]
+
+  @@index([pollId])
+  @@map("live_poll_options")
+}
+
+model LivePollResponse {
+  id        String         @id @default(uuid())
+  pollId    String
+  optionId  String
+  userId    String
+  createdAt DateTime       @default(now())
+
+  poll      LivePoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option    LivePollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@map("live_poll_responses")
+}
+
+model LiveAnnouncement {
+  id          String    @id @default(uuid())
+  liveClassId String
+  senderId    String
+  senderName  String
+  message     String
+  type        String    @default("NORMAL") // NORMAL, PINNED, URGENT
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  liveClass   LiveClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  @@index([liveClassId])
+  @@map("live_announcements")
+}
+
+model LiveRecording {
+  id                  String       @id @default(uuid())
+  liveClassId         String
+  liveSessionId       String?
+  providerRecordingId String?
+  processingStatus    String       @default("PROCESSING") // PROCESSING, READY, FAILED
+  playbackUrl         String?
+  durationSeconds     Int          @default(0)
+  fileAssetId         String?
+  readyAt             DateTime?
+  createdAt           DateTime     @default(now())
+
+  liveClass           LiveClass    @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  liveSession         LiveSession? @relation(fields: [liveSessionId], references: [id], onDelete: SetNull)
+  fileAsset           FileAsset?   @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+
+  @@index([liveClassId])
+  @@map("live_recordings")
+}
+
+model LiveAuditLog {
+  id          String    @id @default(uuid())
+  liveClassId String
+  userId      String
+  action      String    // CREATED_CLASS, EDITED_CLASS, SCHEDULED, CANCELLED, REGENERATED_STREAM_KEY, STARTED, ENDED, POLL_CREATED, QUIZ_LAUNCHED, ANNOUNCEMENT_SENT, USER_MUTED, USER_BLOCKED, RECORDING_PUBLISHED
+  details     String?   // JSON details
+  createdAt   DateTime  @default(now())
+
+  liveClass   LiveClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  @@index([liveClassId])
+  @@map("live_audit_logs")
+}
+
 

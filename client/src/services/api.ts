@@ -293,12 +293,47 @@ export const api = {
   },
 
   // Live Classes
+  // Live Classes
   live: {
-    getAll: () => request<any>('/live-classes'),
-    adminGetAll: () => request<any>('/live-classes/admin/all'),
+    getAll: (params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/live-classes${q}`);
+    },
+    getBySlugOrId: (slugOrId: string) => request<any>(`/live-classes/${slugOrId}`),
+    adminGetAll: (params?: Record<string, any>) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      return request<any>(`/live-classes/admin/all${q}`);
+    },
     create: (body: any) => request<any>('/live-classes', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: any) => request<any>(`/live-classes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/live-classes/${id}`, { method: 'DELETE' }),
+
+    // OBS Streaming & Session State
+    getStreamConfig: (id: string) => request<any>(`/live-classes/${id}/stream-config`),
+    rotateStreamKey: (id: string) => request<any>(`/live-classes/${id}/rotate-stream-key`, { method: 'POST' }),
+    startSession: (id: string) => request<any>(`/live-classes/${id}/start`, { method: 'POST' }),
+    interruptedSession: (id: string) => request<any>(`/live-classes/${id}/interrupted`, { method: 'POST' }),
+    endSession: (id: string) => request<any>(`/live-classes/${id}/end`, { method: 'POST' }),
+    convertToRecording: (id: string, body: any) =>
+      request<any>(`/live-classes/${id}/convert-to-recording`, { method: 'POST', body: JSON.stringify(body) }),
+
+    // Doubts & Q&A
+    getQuestions: (id: string) => request<any>(`/live-classes/${id}/questions`),
+    askQuestion: (id: string, question: string) =>
+      request<any>(`/live-classes/${id}/questions`, { method: 'POST', body: JSON.stringify({ question }) }),
+    upvoteQuestion: (id: string, qId: string) =>
+      request<any>(`/live-classes/${id}/questions/${qId}/upvote`, { method: 'POST' }),
+
+    // Attendance & Heartbeat
+    joinAttendance: (id: string, deviceInfo?: string) =>
+      request<any>(`/live-classes/${id}/attendance/join`, { method: 'POST', body: JSON.stringify({ deviceInfo }) }),
+    sendHeartbeat: (id: string, secondsWatched?: number) =>
+      request<any>(`/live-classes/${id}/attendance/heartbeat`, { method: 'POST', body: JSON.stringify({ secondsWatched }) }),
+
+    // Resources & Analytics
+    attachResource: (id: string, body: any) =>
+      request<any>(`/live-classes/${id}/resources`, { method: 'POST', body: JSON.stringify(body) }),
+    getAnalytics: (id: string) => request<any>(`/live-classes/${id}/analytics`),
   },
 
   // Recorded Classes

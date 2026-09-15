@@ -28,6 +28,8 @@ import LoginPage from './pages/user/LoginPage';
 import RegisterPage from './pages/user/RegisterPage';
 import DashboardPage from './pages/user/DashboardPage';
 import NotFoundPage from './pages/user/NotFoundPage';
+import LiveClassesHubPage from './pages/user/LiveClassesHubPage';
+import LiveClassRoomPage from './pages/user/LiveClassRoomPage';
 
 // Admin Pages
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
@@ -43,6 +45,8 @@ import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
 import AdminReviewsPage from './pages/admin/AdminReviewsPage';
 import AdminPromoCodesPage from './pages/admin/AdminPromoCodesPage';
 import AdminLiveClassesPage from './pages/admin/AdminLiveClassesPage';
+import AdminLiveControlRoomPage from './pages/admin/AdminLiveControlRoomPage';
+import AdminLiveClassAnalyticsPage from './pages/admin/AdminLiveClassAnalyticsPage';
 import AdminRecordedClassesPage from './pages/admin/AdminRecordedClassesPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminSlidersPage from './pages/admin/AdminSlidersPage';
@@ -63,8 +67,17 @@ export const App: React.FC = () => {
                 <Route path="/courses/:slug/learn" element={<CoursePlayerPage />} />
                 <Route path="/test-series/:id/attempt" element={<TestAttemptPage />} />
                 <Route path="/tests/:id/attempt" element={<TestAttemptPage />} />
+                <Route path="/live/:slug" element={<LiveClassRoomPage />} />
 
                 {/* User Facing Routes with Navbar and Footer */}
+                <Route
+                  path="/live-classes"
+                  element={
+                    <UserLayout>
+                      <LiveClassesHubPage />
+                    </UserLayout>
+                  }
+                />
                 <Route
                   path="/"
                   element={
@@ -198,8 +211,9 @@ export const App: React.FC = () => {
                 <Route path="/admin/typing" element={<AdminTypingPage />} />
                 <Route path="/admin/questions" element={<AdminQuestionsPage />} />
                 <Route path="/admin/reviews" element={<AdminReviewsPage />} />
-                <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />
                 <Route path="/admin/live-classes" element={<AdminLiveClassesPage />} />
+                <Route path="/admin/live-classes/:id/control-room" element={<AdminLiveControlRoomPage />} />
+                <Route path="/admin/live-classes/:id/analytics" element={<AdminLiveClassAnalyticsPage />} />
                 <Route path="/admin/recorded-classes" element={<AdminRecordedClassesPage />} />
                 <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
                 <Route path="/admin/sliders" element={<AdminSlidersPage />} />
