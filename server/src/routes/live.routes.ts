@@ -553,7 +553,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
     let generatedSlug = slugify(cleanTitle);
 
     // Ensure unique slug
-    const existingWithSlug = await prisma.liveClass.findUnique({ where: { slug: generatedSlug } });
+    const existingWithSlug = await prisma.liveClass.findFirst({ where: { slug: generatedSlug } });
     if (existingWithSlug) {
       generatedSlug = `${generatedSlug}-${Date.now().toString().slice(-4)}`;
     }

@@ -16,8 +16,8 @@ ALTER TABLE "live_classes" ADD COLUMN IF NOT EXISTS "createdBy" TEXT;
 ALTER TABLE "live_classes" ADD COLUMN IF NOT EXISTS "recordedClassId" TEXT;
 ALTER TABLE "live_classes" ADD COLUMN IF NOT EXISTS "quizId" TEXT;
 
--- Unique index on live_classes.slug
-CREATE UNIQUE INDEX IF NOT EXISTS "live_classes_slug_key" ON "live_classes"("slug");
+-- Index on live_classes.slug
+CREATE INDEX IF NOT EXISTS "live_classes_slug_idx" ON "live_classes"("slug");
 CREATE INDEX IF NOT EXISTS "live_classes_status_idx" ON "live_classes"("status");
 CREATE INDEX IF NOT EXISTS "live_classes_scheduledAt_idx" ON "live_classes"("scheduledAt");
 CREATE INDEX IF NOT EXISTS "live_classes_courseId_idx" ON "live_classes"("courseId");

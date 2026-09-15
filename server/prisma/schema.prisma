@@ -719,7 +719,7 @@ model LiveClass {
   teacherId       String?
   instructor      String   @default("Atul Agrahari")
   title           String
-  slug            String?  @unique
+  slug            String?
   description     String?
   thumbnail       String?
   thumbnailAssetId String?
@@ -757,6 +757,7 @@ model LiveClass {
   @@index([scheduledAt])
   @@index([courseId])
   @@index([teacherId])
+  @@index([slug])
   @@map("live_classes")
 }
 
