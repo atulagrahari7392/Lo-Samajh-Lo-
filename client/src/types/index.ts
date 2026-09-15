@@ -86,6 +86,7 @@ export interface Course {
   category?: Category;
   lessons?: CourseLesson[];
   recordedClasses?: RecordedClass[];
+  liveClasses?: LiveClass[];
   reviews?: Review[];
   isEnrolled?: boolean;
   isWishlisted?: boolean;
@@ -95,6 +96,7 @@ export interface Course {
     enrollments?: number;
     reviews?: number;
     recordedClasses?: number;
+    liveClasses?: number;
   };
 }
 

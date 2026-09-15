@@ -12,6 +12,8 @@ import {
   Lock,
   HelpCircle,
   ExternalLink,
+  Radio,
+  Clock,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Course, CourseLesson, ClassResource } from '../../types';
@@ -95,6 +97,9 @@ export const CoursePlayerPage: React.FC = () => {
   }
 
   const lessons = course.lessons || [];
+  const activeLiveSession = course.liveClasses?.find(
+    (c) => c.status === 'LIVE' || c.status === 'STARTING'
+  );
   const completedCount = Object.values(completedLessons).filter(Boolean).length;
   const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
 
@@ -136,6 +141,41 @@ export const CoursePlayerPage: React.FC = () => {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left: Video Player & Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Active Live Session Alert Banner */}
+          {activeLiveSession && (
+            <div className="bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 rounded-3xl p-4 sm:p-5 text-white flex flex-wrap items-center justify-between gap-4 shadow-xl border border-white/20">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Radio className="w-6 h-6 text-white animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white text-rose-600 uppercase tracking-wider animate-bounce">
+                      ● LIVE STREAMING NOW
+                    </span>
+                    <span className="text-xs text-rose-100 font-semibold">
+                      Faculty: {activeLiveSession.instructor}
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-white mt-1">
+                    {activeLiveSession.title}
+                  </h3>
+                </div>
+              </div>
+
+              <Link
+                to={`/live/${activeLiveSession.slug || activeLiveSession.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-xl bg-white text-rose-600 hover:bg-slate-100 font-black text-xs shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                <Radio className="w-4 h-4 text-rose-600 animate-pulse" />
+                <span>Join Live Classroom</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
+
           {/* Custom Video Player with Resolution, Speed & Anti-Download Protection */}
           {activeLesson ? (
             <CustomVideoPlayer
@@ -311,8 +351,65 @@ export const CoursePlayerPage: React.FC = () => {
           )}
         </div>
 
-        {/* Right Sidebar: Lessons List */}
+        {/* Right Sidebar: Lessons List & Live Sessions */}
         <aside className="w-full lg:w-80 bg-slate-950 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col">
+          {/* Live Sessions Header Section */}
+          {course.liveClasses && course.liveClasses.length > 0 && (
+            <div className="border-b border-slate-800 bg-slate-900/80 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                <span className="flex items-center gap-1.5 text-rose-400">
+                  <Radio className="w-3.5 h-3.5 animate-pulse" />
+                  Live Sessions ({course.liveClasses.length})
+                </span>
+                {activeLiveSession && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-500 text-white animate-pulse">
+                    LIVE NOW
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {course.liveClasses.map((cls) => {
+                  const isLive = cls.status === 'LIVE' || cls.status === 'STARTING';
+                  return (
+                    <Link
+                      key={cls.id}
+                      to={`/live/${cls.slug || cls.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`block p-2.5 rounded-xl border text-xs transition-all ${
+                        isLive
+                          ? 'bg-rose-500/20 border-rose-500/50 text-white hover:bg-rose-500/30'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-850'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span
+                          className={`text-[9px] font-black uppercase tracking-wider ${
+                            isLive ? 'text-rose-400' : 'text-slate-400'
+                          }`}
+                        >
+                          {isLive ? '🔴 LIVE STREAM' : '📅 UPCOMING'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(cls.scheduledAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <div className="font-bold line-clamp-1 text-white">{cls.title}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        👨‍🏫 {cls.instructor}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="p-4 border-b border-slate-800 font-bold text-xs uppercase tracking-wider text-slate-400">
             Course Content ({lessons.length} Lessons)
           </div>

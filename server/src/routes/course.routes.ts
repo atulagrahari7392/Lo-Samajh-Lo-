@@ -159,6 +159,19 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
             resources: { where: { isPublished: true }, orderBy: { createdAt: 'asc' } },
           },
         },
+        liveClasses: {
+          where: { isPublished: true },
+          orderBy: { scheduledAt: 'asc' },
+          include: {
+            sessions: {
+              where: { streamStatus: 'LIVE' },
+              take: 1,
+            },
+            resources: {
+              where: { isPublished: true },
+            },
+          },
+        },
         reviews: {
           where: { isApproved: true },
           orderBy: { createdAt: 'desc' },
@@ -273,9 +286,15 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
           ...rc,
           thumbnail: normalizeImageUrl(rc.thumbnail),
         })),
+        liveClasses: (course.liveClasses || []).map((lc: any) => ({
+          ...lc,
+          thumbnail: normalizeImageUrl(lc.thumbnail),
+          session: lc.sessions && lc.sessions.length > 0 ? lc.sessions[0] : null,
+        })),
         _count: {
           ...course._count,
           lessons: combinedLessons.length,
+          liveClasses: course.liveClasses?.length || 0,
         },
         isEnrolled,
         isWishlisted,
@@ -311,6 +330,19 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
           include: {
             quiz: { select: { id: true, title: true, durationMinutes: true, totalMarks: true } },
             resources: { where: { isPublished: true }, orderBy: { createdAt: 'asc' } },
+          },
+        },
+        liveClasses: {
+          where: { isPublished: true },
+          orderBy: { scheduledAt: 'asc' },
+          include: {
+            sessions: {
+              where: { streamStatus: 'LIVE' },
+              take: 1,
+            },
+            resources: {
+              where: { isPublished: true },
+            },
           },
         },
       },
@@ -403,6 +435,11 @@ router.get('/:slugOrId/learn', authenticate, async (req: AuthRequest, res, next)
         ...course,
         thumbnail: normalizeImageUrl(course.thumbnail),
         lessons: combinedLessons,
+        liveClasses: (course.liveClasses || []).map((lc: any) => ({
+          ...lc,
+          thumbnail: normalizeImageUrl(lc.thumbnail),
+          session: lc.sessions && lc.sessions.length > 0 ? lc.sessions[0] : null,
+        })),
       },
       enrollment,
     });

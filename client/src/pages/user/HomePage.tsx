@@ -18,7 +18,7 @@ import {
   Download,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Course, Category, Material, Test, LiveClass, Review, Notification } from '../../types';
+import { Course, Category, Material, Test, Review, Notification } from '../../types';
 import CourseCard from '../../components/course/CourseCard';
 import { HeroSlider } from '../../components/home/HeroSlider';
 
@@ -29,7 +29,6 @@ export const HomePage: React.FC = () => {
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
   const [studyMaterials, setStudyMaterials] = useState<Material[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
-  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,13 +37,12 @@ export const HomePage: React.FC = () => {
     const fetchHomeData = async () => {
       try {
         setLoading(true);
-        const [catsRes, coursesRes, matsRes, testsRes, liveRes, revsRes, notifsRes] =
+        const [catsRes, coursesRes, matsRes, testsRes, revsRes, notifsRes] =
           await Promise.all([
             api.categories.getAll(),
             api.courses.getAll({ limit: 6 }),
             api.materials.getAll(),
             api.tests.getAll(),
-            api.live.getAll(),
             api.reviews.getFeatured(),
             api.notifications.getAll(),
           ]);
@@ -53,7 +51,6 @@ export const HomePage: React.FC = () => {
         if (coursesRes.success) setFeaturedCourses(coursesRes.courses || []);
         if (matsRes.success) setStudyMaterials((matsRes.materials || []).slice(0, 4));
         if (testsRes.success) setTests((testsRes.tests || []).slice(0, 3));
-        if (liveRes.success) setLiveClasses((liveRes.classes || []).slice(0, 2));
         if (revsRes.success) setReviews(revsRes.reviews || []);
         if (notifsRes.success) setNotifications((notifsRes.notifications || []).slice(0, 3));
       } catch (err) {
@@ -398,59 +395,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. Live Classes Widget */}
-      {liveClasses.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-[#1a1a2e] to-slate-900 text-white shadow-xl relative overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-[#FF6584] text-xs font-bold border border-rose-500/30">
-                  <span className="w-2 h-2 rounded-full bg-[#FF6584] animate-ping"></span>
-                  LIVE & UPCOMING SESSIONS
-                </span>
-                <h3 className="text-2xl font-black text-white">Join Live Marathon Classes</h3>
-              </div>
-              <Link
-                to="/courses"
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
-              >
-                Browse Schedule
-              </Link>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              {liveClasses.map((cls) => (
-                <div
-                  key={cls.id}
-                  className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 flex flex-col justify-between space-y-4"
-                >
-                  <div className="space-y-2">
-                    <span className="text-[11px] font-bold text-purple-300">
-                      Instructor: {cls.instructor}
-                    </span>
-                    <h4 className="font-bold text-base text-white">{cls.title}</h4>
-                    <p className="text-xs text-slate-300 line-clamp-2">{cls.description}</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                    <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                      {new Date(cls.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <Link
-                      to={`/live/${cls.slug || cls.id}`}
-                      className="px-4 py-2 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white text-xs font-bold shadow transition-all"
-                    >
-                      Join Live Class
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 6. Free Study Materials Preview */}
+      {/* 5. Free Study Materials Preview */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>
