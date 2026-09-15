@@ -49,7 +49,6 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
-    { name: 'Live Classes', path: '/live-classes', isLive: true },
     { name: 'Study Materials', path: '/study-materials' },
     { name: 'Test Series', path: '/test-series' },
     { name: 'Typing Test', path: '/typing-test' },
@@ -85,7 +84,6 @@ export const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                {link.isLive && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />}
                 {link.name}
               </Link>
             ))}
