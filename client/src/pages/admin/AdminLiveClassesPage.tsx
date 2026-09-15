@@ -82,6 +82,7 @@ export const AdminLiveClassesPage: React.FC = () => {
   const [scheduledAt, setScheduledAt] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [meetingUrl, setMeetingUrl] = useState('');
 
   // Form Fields - Step 3: Access
   const [accessType, setAccessType] = useState('PUBLIC');
@@ -97,8 +98,11 @@ export const AdminLiveClassesPage: React.FC = () => {
   // Form Fields - Step 5: Notifications
   const [notifyStudents, setNotifyStudents] = useState(true);
 
-  // OBS Setup Quick Modal (Phase 4)
+  // OBS Setup Quick Modal
   const [obsModalOpen, setObsModalOpen] = useState(false);
+  const [activeStreamTab, setActiveStreamTab] = useState<'YOUTUBE' | 'RTMP'>('YOUTUBE');
+  const [obsMeetingUrlInput, setObsMeetingUrlInput] = useState('');
+  const [savingObsStream, setSavingObsStream] = useState(false);
   const [activeObsConfig, setActiveObsConfig] = useState<{
     id: string;
     title: string;
@@ -107,6 +111,7 @@ export const AdminLiveClassesPage: React.FC = () => {
     streamKey: string;
     hlsPlaybackUrl: string;
     streamStatus: string;
+    meetingUrl?: string | null;
   } | null>(null);
   const [showStreamKey, setShowStreamKey] = useState(false);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
@@ -175,6 +180,7 @@ export const AdminLiveClassesPage: React.FC = () => {
     setScheduledAt(localISOTime);
     setDurationMinutes(60);
     setTimezone('Asia/Kolkata');
+    setMeetingUrl('');
     setAccessType('PUBLIC');
     setResourcesList([]);
     setNotifyStudents(true);
@@ -205,6 +211,7 @@ export const AdminLiveClassesPage: React.FC = () => {
     setScheduledAt(localISOTime);
     setDurationMinutes(c.durationMinutes);
     setTimezone(c.timezone || 'Asia/Kolkata');
+    setMeetingUrl(c.meetingUrl || '');
     setAccessType(c.accessType || 'PUBLIC');
     setResourcesList([]);
     setNotifyStudents(false);
@@ -336,6 +343,7 @@ export const AdminLiveClassesPage: React.FC = () => {
         description: description.trim() || null,
         thumbnail: thumbnail.trim() || null,
         thumbnailAssetId: thumbnailAssetId || null,
+        meetingUrl: meetingUrl.trim() || null,
         classType,
         language,
         scheduledAt: new Date(scheduledAt).toISOString(),
@@ -370,8 +378,11 @@ export const AdminLiveClassesPage: React.FC = () => {
               streamKey: res.streamConfig.streamKey,
               hlsPlaybackUrl: res.streamConfig.hlsPlaybackUrl,
               streamStatus: res.streamConfig.streamStatus || 'IDLE',
+              meetingUrl: res.streamConfig.meetingUrl || meetingUrl || '',
             });
-            setShowStreamKey(true);
+            setObsMeetingUrlInput(res.streamConfig.meetingUrl || meetingUrl || '');
+            setShowStreamKey(false);
+            setActiveStreamTab('YOUTUBE');
             setObsModalOpen(true);
           } else if (res.liveClass) {
             openObsSetup(res.liveClass);
@@ -397,12 +408,34 @@ export const AdminLiveClassesPage: React.FC = () => {
           streamKey: res.streamConfig.streamKey,
           hlsPlaybackUrl: res.streamConfig.hlsPlaybackUrl,
           streamStatus: res.streamConfig.streamStatus,
+          meetingUrl: res.streamConfig.meetingUrl || c.meetingUrl || '',
         });
+        setObsMeetingUrlInput(res.streamConfig.meetingUrl || c.meetingUrl || '');
         setShowStreamKey(false);
+        setActiveStreamTab('YOUTUBE');
         setObsModalOpen(true);
       }
     } catch (err: any) {
       toastError(err.message || 'Failed to fetch OBS configuration');
+    }
+  };
+
+  const handleSaveStreamSource = async () => {
+    if (!activeObsConfig) return;
+    try {
+      setSavingObsStream(true);
+      const res = await api.live.update(activeObsConfig.id, {
+        meetingUrl: obsMeetingUrlInput.trim() || null,
+      });
+      if (res.success) {
+        success('Live Stream URL saved! Students will now see this stream.');
+        setActiveObsConfig((prev) => (prev ? { ...prev, meetingUrl: obsMeetingUrlInput.trim() || null } : null));
+        fetchData();
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Failed to save stream URL');
+    } finally {
+      setSavingObsStream(false);
     }
   };
 
@@ -1044,6 +1077,29 @@ export const AdminLiveClassesPage: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  {/* YouTube Live / OBS Stream Source (Optional) */}
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/50 border border-indigo-100/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                        <Radio className="w-3.5 h-3.5 text-[#6C63FF]" />
+                        <span>YouTube Live Stream Link (Optional)</span>
+                      </label>
+                      <span className="text-[10px] font-semibold text-[#6C63FF] bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                        OBS Compatible
+                      </span>
+                    </div>
+                    <input
+                      type="url"
+                      value={meetingUrl}
+                      onChange={(e) => setMeetingUrl(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white outline-none text-xs focus:border-[#6C63FF]"
+                    />
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Stream from OBS Studio to YouTube Live (Unlisted mode). Students watch inside LoSamajhLo without ever opening YouTube! You can also connect this later.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -1295,17 +1351,18 @@ export const AdminLiveClassesPage: React.FC = () => {
           </div>
         )}
 
-        {/* OBS Studio Setup Modal (Phase 4) */}
+        {/* OBS Studio Setup Modal */}
         {obsModalOpen && activeObsConfig && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95 my-8">
+              {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-[#6C63FF] flex items-center justify-center">
-                    <Key className="w-5 h-5" />
+                    <Radio className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-900">OBS Studio Streaming Setup</h3>
+                    <h3 className="font-bold text-base text-slate-900">OBS Studio Live Stream Setup</h3>
                     <p className="text-[11px] text-slate-500 line-clamp-1">{activeObsConfig.title}</p>
                   </div>
                 </div>
@@ -1317,120 +1374,225 @@ export const AdminLiveClassesPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* OBS Setup Instructions Box */}
-              <div className="bg-slate-950 text-slate-200 rounded-2xl p-4 text-xs space-y-3 font-mono">
-                <div className="text-[11px] text-indigo-400 font-sans font-bold flex items-center gap-1.5">
-                  <Settings className="w-3.5 h-3.5" />
-                  Configure in OBS Studio:
-                </div>
-                <div className="space-y-1 text-[11px] text-slate-400 font-sans">
-                  <div>1. Open OBS Studio → <b>Settings</b> → <b>Stream</b></div>
-                  <div>2. Set <b>Service:</b> <span className="text-white font-mono">Custom...</span></div>
-                  <div>3. Paste the <b>Server</b> and <b>Stream Key</b> below:</div>
-                </div>
-
-                {/* RTMP Server URL */}
-                <div className="space-y-1 pt-2">
-                  <div className="text-[10px] text-slate-400 uppercase font-bold">Server (RTMP Ingest)</div>
-                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 px-3">
-                    <span className="flex-1 select-all text-indigo-300 font-mono text-[11px] truncate">
-                      {activeObsConfig.rtmpServer}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(activeObsConfig.rtmpServer, 'RTMP Server')}
-                      className="p-1 text-slate-400 hover:text-white transition-colors"
-                      title="Copy RTMP Server"
-                    >
-                      {copySuccess === 'RTMP Server' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Stream Key */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
-                    <span>Stream Key (Private)</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowStreamKey((prev) => !prev)}
-                      className="text-indigo-400 hover:text-indigo-300 normal-case font-sans"
-                    >
-                      {showStreamKey ? 'Hide' : 'Reveal'}
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 px-3">
-                    <span className="flex-1 select-all text-amber-300 font-mono text-[11px] truncate">
-                      {showStreamKey ? activeObsConfig.streamKey : '••••••••••••••••••••••••••••••••'}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(activeObsConfig.streamKey, 'Stream Key')}
-                      className="p-1 text-slate-400 hover:text-white transition-colors"
-                      title="Copy Stream Key"
-                    >
-                      {copySuccess === 'Stream Key' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Student Joining / Watch Link */}
-                <div className="space-y-1 pt-2 border-t border-slate-800/80">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
-                    <span>Student Classroom Link (Share to Students)</span>
-                    <a
-                      href={`/live/${activeObsConfig.slug || activeObsConfig.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-emerald-400 hover:text-emerald-300 normal-case font-sans flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      Open Live Page
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 px-3">
-                    <span className="flex-1 select-all text-emerald-300 font-mono text-[11px] truncate">
-                      {`${window.location.origin}/live/${activeObsConfig.slug || activeObsConfig.id}`}
-                    </span>
-                    <button
-                      onClick={() =>
-                        copyToClipboard(
-                          `${window.location.origin}/live/${activeObsConfig.slug || activeObsConfig.id}`,
-                          'Student Link'
-                        )
-                      }
-                      className="p-1 text-slate-400 hover:text-white transition-colors"
-                      title="Copy Student Link"
-                    >
-                      {copySuccess === 'Student Link' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Key Rotation & Warning */}
-              <div className="flex items-center justify-between pt-2">
+              {/* Mode Switcher Tabs */}
+              <div className="flex rounded-2xl bg-slate-100 p-1 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={handleRotateKey}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+                  onClick={() => setActiveStreamTab('YOUTUBE')}
+                  className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    activeStreamTab === 'YOUTUBE'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
                 >
-                  Regenerate Stream Key
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  <span>YouTube Live via OBS (Recommended)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveStreamTab('RTMP')}
+                  className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                    activeStreamTab === 'RTMP'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Custom RTMP</span>
+                </button>
+              </div>
+
+              {/* Tab 1: YouTube Live via OBS */}
+              {activeStreamTab === 'YOUTUBE' && (
+                <div className="space-y-4">
+                  <div className="bg-slate-950 text-slate-200 rounded-2xl p-4 text-xs space-y-3 font-sans">
+                    <div className="text-[12px] text-rose-400 font-bold flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      How to stream via OBS in 3 simple steps (100% Free):
+                    </div>
+                    <div className="space-y-2 text-[11px] text-slate-300">
+                      <div className="flex items-start gap-2">
+                        <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                        <span>Open <b>OBS Studio</b> → Click <b>Settings</b> → <b>Stream</b>.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                        <div>
+                          Set <b>Service:</b> <span className="text-white font-semibold">YouTube - RTMPS</span>, click <b>Use Stream Key</b> and paste your YouTube key, then click <b>Start Streaming</b> in OBS.
+                          <div className="text-[10px] text-slate-400 mt-0.5">(Tip: Set visibility to <b>Unlisted</b> on YouTube so only your website students can see it).</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                        <span>Copy your YouTube Live video link and paste it below:</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Connect Stream Link Input */}
+                  <div className="space-y-2 p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>Paste YouTube Live URL</span>
+                      {activeObsConfig.meetingUrl && (
+                        <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Connected
+                        </span>
+                      )}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={obsMeetingUrlInput}
+                        onChange={(e) => setObsMeetingUrlInput(e.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                        className="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs outline-none focus:border-[#6C63FF]"
+                      />
+                      <button
+                        type="button"
+                        disabled={savingObsStream || !obsMeetingUrlInput.trim()}
+                        onClick={handleSaveStreamSource}
+                        className="px-4 py-2 bg-[#6C63FF] hover:bg-[#584fd4] text-white text-xs font-bold rounded-xl transition-all shrink-0 disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                      >
+                        {savingObsStream ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Save Stream</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Students will watch your stream inside LoSamajhLo with live chat, polls, and doubt solving!
+                    </p>
+                  </div>
+
+                  {/* Student Classroom Link */}
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+                    <div className="flex items-center justify-between text-[10px] text-indigo-900 uppercase font-bold">
+                      <span>Student Live Classroom Link</span>
+                      <a
+                        href={`/live/${activeObsConfig.slug || activeObsConfig.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#6C63FF] hover:underline normal-case flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Preview Classroom
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white border border-indigo-200/80 rounded-xl p-2 px-3">
+                      <span className="flex-1 select-all text-indigo-900 font-mono text-[11px] truncate">
+                        {`${window.location.origin}/live/${activeObsConfig.slug || activeObsConfig.id}`}
+                      </span>
+                      <button
+                        onClick={() =>
+                          copyToClipboard(
+                            `${window.location.origin}/live/${activeObsConfig.slug || activeObsConfig.id}`,
+                            'Student Link'
+                          )
+                        }
+                        className="p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                        title="Copy Student Link"
+                      >
+                        {copySuccess === 'Student Link' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Custom RTMP Server */}
+              {activeStreamTab === 'RTMP' && (
+                <div className="space-y-4">
+                  {/* Explanation Banner for Hostname Error */}
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                      <span>⚠️ Note on RTMP Streaming:</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 leading-relaxed">
+                      Render web servers do not run an RTMP live media port (1935). To avoid the OBS <i>"Hostname not found"</i> error, we recommend using <b>YouTube Live via OBS</b> (Tab 1). If you have your own dedicated RTMP server (e.g., MediaMTX, Nginx-RTMP, Cloudflare Stream), use the credentials below:
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-950 text-slate-200 rounded-2xl p-4 text-xs space-y-3 font-mono">
+                    {/* RTMP Server URL */}
+                    <div className="space-y-1">
+                      <div className="text-[10px] text-slate-400 uppercase font-bold">Server (RTMP Ingest)</div>
+                      <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 px-3">
+                        <span className="flex-1 select-all text-indigo-300 font-mono text-[11px] truncate">
+                          {activeObsConfig.rtmpServer}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(activeObsConfig.rtmpServer, 'RTMP Server')}
+                          className="p-1 text-slate-400 hover:text-white transition-colors"
+                          title="Copy RTMP Server"
+                        >
+                          {copySuccess === 'RTMP Server' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stream Key */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
+                        <span>Stream Key (Private)</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowStreamKey((prev) => !prev)}
+                          className="text-indigo-400 hover:text-indigo-300 normal-case font-sans"
+                        >
+                          {showStreamKey ? 'Hide' : 'Reveal'}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 px-3">
+                        <span className="flex-1 select-all text-amber-300 font-mono text-[11px] truncate">
+                          {showStreamKey ? activeObsConfig.streamKey : '••••••••••••••••••••••••••••••••'}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(activeObsConfig.streamKey, 'Stream Key')}
+                          className="p-1 text-slate-400 hover:text-white transition-colors"
+                          title="Copy Stream Key"
+                        >
+                          {copySuccess === 'Stream Key' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      onClick={handleRotateKey}
+                      className="px-3 py-1.5 rounded-xl text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+                    >
+                      Regenerate RTMP Stream Key
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Footer Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setObsModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Close
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setObsModalOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                  >
-                    Done
-                  </button>
-
                   <Link
                     to={`/admin/live-classes/${activeObsConfig.id}/control-room`}
                     className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#6C63FF] hover:bg-[#584fd4] transition-colors shadow-sm flex items-center gap-1.5"
                   >
                     <Sliders className="w-3.5 h-3.5" />
-                    <span>Control Room →</span>
+                    <span>Open Control Room →</span>
                   </Link>
                 </div>
               </div>

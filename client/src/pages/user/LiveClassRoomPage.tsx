@@ -32,6 +32,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { LiveClass, LiveChatMessage, LiveQuestion, LivePoll } from '../../types';
 
+function extractYouTubeVideoId(url?: string | null): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|live\/)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
+}
+
 export const LiveClassRoomPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -42,6 +49,9 @@ export const LiveClassRoomPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessReason, setAccessReason] = useState('');
+
+  // Extract YouTube ID if stream is via YouTube
+  const youtubeVideoId = extractYouTubeVideoId(liveClass?.meetingUrl) || extractYouTubeVideoId(liveClass?.session?.hlsPlaybackUrl);
 
   // Player & Stream State
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -608,8 +618,18 @@ export const LiveClassRoomPage: React.FC = () => {
           ref={playerContainerRef}
           className="flex-1 bg-black flex flex-col justify-center relative select-none min-h-[260px] sm:min-h-[420px] lg:min-h-full"
         >
-          {/* Active Live Video Element */}
-          {liveClass.session?.hlsPlaybackUrl && isLiveNow ? (
+          {/* Active Live Video Element: YouTube Live Embed OR Custom HLS Video */}
+          {youtubeVideoId && !isEnded ? (
+            <div className="w-full h-full aspect-video max-h-[85vh] flex items-center justify-center bg-black">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+                title={liveClass.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full border-0 min-h-[260px] sm:min-h-[420px] lg:min-h-[500px]"
+              />
+            </div>
+          ) : liveClass.session?.hlsPlaybackUrl && isLiveNow ? (
             <video
               ref={videoRef}
               playsInline

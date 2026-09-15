@@ -541,6 +541,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
       accessType,
       isPublished,
       quizId,
+      meetingUrl,
       resources,
       notifyStudents,
     } = req.body;
@@ -583,6 +584,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
         description: description?.trim() || null,
         thumbnail: thumbnail?.trim() || null,
         thumbnailAssetId: thumbnailAssetId || null,
+        meetingUrl: meetingUrl?.trim() || null,
         classType: classType || 'REGULAR',
         language: language || 'HINDI',
         scheduledAt: scheduledDate,
@@ -672,6 +674,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
         streamKey: streamCreds.streamKey,
         hlsPlaybackUrl: streamCreds.hlsPlaybackUrl,
         streamStatus: 'IDLE',
+        meetingUrl: newClass.meetingUrl || null,
       },
     });
   } catch (error) {
@@ -687,6 +690,15 @@ router.get('/:id/stream-config', authenticate, requireAdmin, async (req, res, ne
   try {
     const { id } = req.params;
 
+    const liveClass = await prisma.liveClass.findUnique({
+      where: { id },
+      select: { id: true, title: true, slug: true, meetingUrl: true },
+    });
+    if (!liveClass) {
+      res.status(404).json({ success: false, message: 'Class not found' });
+      return;
+    }
+
     let session = await prisma.liveSession.findFirst({
       where: { liveClassId: id },
       orderBy: { createdAt: 'desc' },
@@ -694,11 +706,6 @@ router.get('/:id/stream-config', authenticate, requireAdmin, async (req, res, ne
 
     // If no session exists, generate one automatically
     if (!session) {
-      const liveClass = await prisma.liveClass.findUnique({ where: { id } });
-      if (!liveClass) {
-        res.status(404).json({ success: false, message: 'Class not found' });
-        return;
-      }
       const streamCreds = await streamingProvider.createStream(id, liveClass.title);
       session = await prisma.liveSession.create({
         data: {
@@ -720,6 +727,7 @@ router.get('/:id/stream-config', authenticate, requireAdmin, async (req, res, ne
         streamKey: session.streamKey,
         hlsPlaybackUrl: session.hlsPlaybackUrl,
         streamStatus: session.streamStatus,
+        meetingUrl: liveClass.meetingUrl || null,
         instructions: {
           service: 'Custom',
           server: session.rtmpIngestUrl,
@@ -1092,6 +1100,8 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res, nex
       classType,
       language,
       quizId,
+      meetingUrl,
+      rtmpServer,
     } = req.body;
 
     const updateData: any = {};
@@ -1104,6 +1114,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res, nex
     if (status !== undefined) updateData.status = status;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail ? thumbnail.trim() : null;
     if (thumbnailAssetId !== undefined) updateData.thumbnailAssetId = thumbnailAssetId || null;
+    if (meetingUrl !== undefined) updateData.meetingUrl = meetingUrl ? meetingUrl.trim() : null;
     if (accessType !== undefined) {
       const finalCourseId = courseId !== undefined ? courseId : undefined;
       updateData.accessType = (!finalCourseId && accessType === 'COURSE') ? 'PUBLIC' : accessType;
@@ -1114,6 +1125,13 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res, nex
     if (classType !== undefined) updateData.classType = classType;
     if (language !== undefined) updateData.language = language;
     if (quizId !== undefined) updateData.quizId = quizId || null;
+
+    if (rtmpServer) {
+      await prisma.liveSession.updateMany({
+        where: { liveClassId: id },
+        data: { rtmpIngestUrl: rtmpServer.trim() },
+      });
+    }
 
     const updated = await prisma.liveClass.update({
       where: { id },

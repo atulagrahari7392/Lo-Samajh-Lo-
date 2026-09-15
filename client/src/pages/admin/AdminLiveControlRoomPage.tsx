@@ -28,12 +28,24 @@ import {
   Plus,
   X,
   VolumeX,
+  ExternalLink,
+  Edit2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { connectSocket, getSocket } from '../../services/socket';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { LiveClass, LiveChatMessage, LiveQuestion, LivePoll, Course } from '../../types';
+
+function extractYouTubeVideoId(url?: string | null): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|live\/)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
+}
 
 export const AdminLiveControlRoomPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +60,10 @@ export const AdminLiveControlRoomPage: React.FC = () => {
   const [obsConfig, setObsConfig] = useState<{ rtmpServer: string; streamKey: string } | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [streamUrlInput, setStreamUrlInput] = useState('');
+  const [savingStreamUrl, setSavingStreamUrl] = useState(false);
+  const [isEditingStream, setIsEditingStream] = useState(false);
+  const [showRtmpDetails, setShowRtmpDetails] = useState(false);
 
   // Real-time Metrics
   const [viewerCount, setViewerCount] = useState<number>(0);
@@ -57,6 +73,9 @@ export const AdminLiveControlRoomPage: React.FC = () => {
   // Video Preview Player
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+
+  // YouTube Video ID (if streaming via YouTube Live)
+  const youtubeVideoId = extractYouTubeVideoId(liveClass?.meetingUrl) || extractYouTubeVideoId(liveClass?.session?.hlsPlaybackUrl);
 
   // Chat State & Controls
   const [chatMessages, setChatMessages] = useState<LiveChatMessage[]>([]);
@@ -109,6 +128,7 @@ export const AdminLiveControlRoomPage: React.FC = () => {
       if (classRes.success && classRes.liveClass) {
         setLiveClass(classRes.liveClass);
         setStreamStatus(classRes.liveClass.status);
+        setStreamUrlInput(classRes.liveClass.meetingUrl || '');
         if (classRes.liveClass.activePoll) {
           setActivePoll(classRes.liveClass.activePoll);
         }
@@ -377,6 +397,26 @@ export const AdminLiveControlRoomPage: React.FC = () => {
     success('Announcement broadcasted to all viewers!');
   };
 
+  // Save / Update Live Stream URL (YouTube Live OBS Stream)
+  const handleSaveStreamUrl = async () => {
+    if (!id) return;
+    try {
+      setSavingStreamUrl(true);
+      const res = await api.live.update(id, {
+        meetingUrl: streamUrlInput.trim() || null,
+      });
+      if (res.success) {
+        success('Live Stream URL saved! Students will now see this stream.');
+        setLiveClass((prev) => (prev ? { ...prev, meetingUrl: streamUrlInput.trim() || null } : null));
+        setIsEditingStream(false);
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Failed to update stream URL');
+    } finally {
+      setSavingStreamUrl(false);
+    }
+  };
+
   // Convert to Recorded Lecture (Phase 13 & 14)
   const handleConvertToRecording = async () => {
     try {
@@ -540,52 +580,178 @@ export const AdminLiveControlRoomPage: React.FC = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
         {/* Column 1 (4 cols): OBS Stream Details & Live Controls */}
         <div className="lg:col-span-4 bg-slate-900/60 border-r border-slate-800 p-4 space-y-4 overflow-y-auto">
-          {/* OBS Studio Setup Box */}
-          {obsConfig && (
+          {/* Live Stream Source Card (OBS / YouTube Live) */}
+          {youtubeVideoId ? (
             <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-indigo-400">
-                <span className="flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5" />
-                  OBS Studio Ingest Setup
-                </span>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                  <span className="font-bold text-white">Live Broadcast Monitor</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowKey((p) => !p)}
-                  className="text-[10px] text-slate-400 hover:text-white font-normal"
+                  onClick={() => setIsEditingStream((prev) => !prev)}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold"
                 >
-                  {showKey ? 'Hide Key' : 'Reveal Key'}
+                  <Edit2 className="w-3 h-3" />
+                  <span>{isEditingStream ? 'Cancel' : 'Change Link'}</span>
                 </button>
               </div>
 
-              {/* RTMP URL */}
-              <div className="space-y-1">
-                <div className="text-[10px] text-slate-500 uppercase font-bold">RTMP Server</div>
-                <div className="flex items-center gap-2 bg-slate-900 border border-slate-800/80 rounded-xl p-2 px-3 text-[11px] font-mono">
-                  <span className="flex-1 truncate text-indigo-300 select-all">{obsConfig.rtmpServer}</span>
-                  <button
-                    onClick={() => copyToClipboard(obsConfig.rtmpServer, 'Server')}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    {copySuccess === 'Server' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
+              {/* Embedded Video Preview */}
+              <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-slate-800">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=0&rel=0&modestbranding=1`}
+                  title="Broadcast Preview"
+                  className="w-full h-full border-0"
+                  allowFullScreen
+                />
               </div>
 
-              {/* Stream Key */}
-              <div className="space-y-1">
-                <div className="text-[10px] text-slate-500 uppercase font-bold">Stream Key</div>
-                <div className="flex items-center gap-2 bg-slate-900 border border-slate-800/80 rounded-xl p-2 px-3 text-[11px] font-mono">
-                  <span className="flex-1 truncate text-amber-300 select-all">
-                    {showKey ? obsConfig.streamKey : '••••••••••••••••••••••••'}
-                  </span>
-                  <button
-                    onClick={() => copyToClipboard(obsConfig.streamKey, 'Key')}
-                    className="text-slate-400 hover:text-white"
+              {/* Edit URL Form if toggled */}
+              {isEditingStream && (
+                <div className="space-y-2 pt-1 border-t border-slate-800 animate-in fade-in">
+                  <input
+                    type="url"
+                    value={streamUrlInput}
+                    onChange={(e) => setStreamUrlInput(e.target.value)}
+                    placeholder="Paste YouTube Live URL..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white outline-none focus:border-[#6C63FF]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingStream(false)}
+                      className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingStreamUrl}
+                      onClick={handleSaveStreamUrl}
+                      className="px-3 py-1.5 rounded-lg bg-[#6C63FF] hover:bg-[#584fd4] text-white text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                      {savingStreamUrl ? 'Saving...' : 'Update Link'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Student Watch Link */}
+              <div className="pt-1 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-900">
+                <span className="truncate mr-2">Student Link: /live/{liveClass.slug || liveClass.id}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={`/live/${liveClass.slug || liveClass.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-slate-400 hover:text-white flex items-center gap-0.5 text-[10px]"
                   >
-                    {copySuccess === 'Key' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <button
+                    onClick={() => copyToClipboard(`${window.location.origin}/live/${liveClass.slug || liveClass.id}`, 'Student Link')}
+                    className="text-indigo-400 hover:text-indigo-300 font-semibold"
+                  >
+                    {copySuccess === 'Student Link' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
               </div>
+            </div>
+          ) : (
+            /* Stream not connected yet: Quick connect card */
+            <div className="bg-slate-950 border border-indigo-500/40 rounded-2xl p-4 space-y-3 shadow-lg">
+              <div className="flex items-center gap-2 text-xs font-bold text-white">
+                <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
+                <span>Connect OBS Live Stream</span>
+              </div>
+              <div className="text-[11px] text-slate-400 space-y-1">
+                <div>1. In OBS Studio: <b>Settings → Stream → Service: YouTube - RTMPS</b></div>
+                <div>2. Paste your YouTube stream key & click <b>Start Streaming</b>.</div>
+                <div>3. Paste your YouTube Live video URL below:</div>
+              </div>
+              <div className="space-y-2">
+                <input
+                  type="url"
+                  value={streamUrlInput}
+                  onChange={(e) => setStreamUrlInput(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white outline-none focus:border-[#6C63FF]"
+                />
+                <button
+                  type="button"
+                  disabled={savingStreamUrl || !streamUrlInput.trim()}
+                  onClick={handleSaveStreamUrl}
+                  className="w-full py-2 bg-[#6C63FF] hover:bg-[#584fd4] text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  {savingStreamUrl ? 'Connecting...' : 'Connect & Preview Stream'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Advanced: Collapsible Custom RTMP Credentials */}
+          {obsConfig && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowRtmpDetails((p) => !p)}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] font-semibold text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Key className="w-3 h-3 text-indigo-400" />
+                  <span>Advanced: Custom RTMP Server Info</span>
+                </span>
+                {showRtmpDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {showRtmpDetails && (
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-3 text-xs animate-in fade-in">
+                  <p className="text-[10px] text-amber-400/90 leading-relaxed">
+                    Note: If OBS gives "Hostname not found", use <b>YouTube Live via OBS</b> above. For self-hosted media servers (MediaMTX / Nginx), use:
+                  </p>
+
+                  {/* RTMP Server URL */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold">RTMP Server</div>
+                    <div className="flex items-center gap-2 bg-slate-900 border border-slate-800/80 rounded-xl p-2 px-3 text-[11px] font-mono">
+                      <span className="flex-1 truncate text-indigo-300 select-all">{obsConfig.rtmpServer}</span>
+                      <button
+                        onClick={() => copyToClipboard(obsConfig.rtmpServer, 'Server')}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        {copySuccess === 'Server' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Stream Key */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 uppercase font-bold">
+                      <span>Stream Key</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowKey((p) => !p)}
+                        className="text-indigo-400 hover:text-indigo-300 font-sans normal-case text-[10px]"
+                      >
+                        {showKey ? 'Hide' : 'Reveal'}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-900 border border-slate-800/80 rounded-xl p-2 px-3 text-[11px] font-mono">
+                      <span className="flex-1 truncate text-amber-300 select-all">
+                        {showKey ? obsConfig.streamKey : '••••••••••••••••••••••••'}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(obsConfig.streamKey, 'Key')}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        {copySuccess === 'Key' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
