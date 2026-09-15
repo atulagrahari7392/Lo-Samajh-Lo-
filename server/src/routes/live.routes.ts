@@ -532,6 +532,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
       instructor,
       description,
       thumbnail,
+      thumbnailAssetId,
       classType,
       language,
       scheduledAt,
@@ -562,6 +563,12 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
     const duration = parseInt(durationMinutes, 10) || 60;
     const scheduledEndAt = new Date(scheduledDate.getTime() + duration * 60000);
 
+    // If no course is attached, ensure open webinar access defaults to PUBLIC
+    let effectiveAccessType = accessType || 'PUBLIC';
+    if (!courseId && effectiveAccessType === 'COURSE') {
+      effectiveAccessType = 'PUBLIC';
+    }
+
     // 1. Create LiveClass
     const newClass = await prisma.liveClass.create({
       data: {
@@ -575,6 +582,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
         instructor: instructor?.trim() || 'Atul Agrahari',
         description: description?.trim() || null,
         thumbnail: thumbnail?.trim() || null,
+        thumbnailAssetId: thumbnailAssetId || null,
         classType: classType || 'REGULAR',
         language: language || 'HINDI',
         scheduledAt: scheduledDate,
@@ -582,7 +590,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
         durationMinutes: duration,
         timezone: timezone || 'Asia/Kolkata',
         status: 'SCHEDULED',
-        accessType: accessType || 'PUBLIC',
+        accessType: effectiveAccessType,
         isPublished: isPublished !== undefined ? Boolean(isPublished) : true,
         createdBy: req.user!.id,
         quizId: quizId || null,
@@ -659,6 +667,12 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res, next)
       success: true,
       message: 'Live class scheduled successfully with OBS stream credentials generated.',
       liveClass: newClass,
+      streamConfig: {
+        rtmpServer: streamCreds.rtmpIngestUrl,
+        streamKey: streamCreds.streamKey,
+        hlsPlaybackUrl: streamCreds.hlsPlaybackUrl,
+        streamStatus: 'IDLE',
+      },
     });
   } catch (error) {
     next(error);
@@ -1070,6 +1084,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res, nex
       durationMinutes,
       status,
       thumbnail,
+      thumbnailAssetId,
       accessType,
       subject,
       chapter,
@@ -1088,7 +1103,11 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res, nex
     if (durationMinutes !== undefined) updateData.durationMinutes = parseInt(durationMinutes, 10) || 60;
     if (status !== undefined) updateData.status = status;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail ? thumbnail.trim() : null;
-    if (accessType !== undefined) updateData.accessType = accessType;
+    if (thumbnailAssetId !== undefined) updateData.thumbnailAssetId = thumbnailAssetId || null;
+    if (accessType !== undefined) {
+      const finalCourseId = courseId !== undefined ? courseId : undefined;
+      updateData.accessType = (!finalCourseId && accessType === 'COURSE') ? 'PUBLIC' : accessType;
+    }
     if (subject !== undefined) updateData.subject = subject ? subject.trim() : null;
     if (chapter !== undefined) updateData.chapter = chapter ? chapter.trim() : null;
     if (topic !== undefined) updateData.topic = topic ? topic.trim() : null;

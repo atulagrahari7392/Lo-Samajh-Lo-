@@ -25,6 +25,12 @@ import {
   Search,
   Users,
   Award,
+  Upload,
+  Image,
+  CheckCircle2,
+  Loader2,
+  Share2,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { LiveClass, Course } from '../../types';
@@ -66,6 +72,9 @@ export const AdminLiveClassesPage: React.FC = () => {
   const [instructor, setInstructor] = useState('Atul Agrahari');
   const [description, setDescription] = useState('');
   const [thumbnail, setThumbnail] = useState('');
+  const [thumbnailAssetId, setThumbnailAssetId] = useState<string | null>(null);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [thumbnailProgress, setThumbnailProgress] = useState(0);
   const [classType, setClassType] = useState('REGULAR');
   const [language, setLanguage] = useState('HINDI');
 
@@ -81,7 +90,9 @@ export const AdminLiveClassesPage: React.FC = () => {
   const [resourceTitle, setResourceTitle] = useState('');
   const [resourceFileUrl, setResourceFileUrl] = useState('');
   const [resourceType, setResourceType] = useState('NOTES');
-  const [resourcesList, setResourcesList] = useState<Array<{ title: string; fileUrl: string; resourceType: string }>>([]);
+  const [resourcesList, setResourcesList] = useState<Array<{ title: string; fileUrl: string; resourceType: string; fileAssetId?: string; fileSize?: string }>>([]);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(0);
 
   // Form Fields - Step 5: Notifications
   const [notifyStudents, setNotifyStudents] = useState(true);
@@ -91,6 +102,7 @@ export const AdminLiveClassesPage: React.FC = () => {
   const [activeObsConfig, setActiveObsConfig] = useState<{
     id: string;
     title: string;
+    slug?: string | null;
     rtmpServer: string;
     streamKey: string;
     hlsPlaybackUrl: string;
@@ -148,6 +160,11 @@ export const AdminLiveClassesPage: React.FC = () => {
     setInstructor('Atul Agrahari');
     setDescription('');
     setThumbnail('');
+    setThumbnailAssetId(null);
+    setUploadingThumbnail(false);
+    setThumbnailProgress(0);
+    setUploadingPdf(false);
+    setPdfProgress(0);
     setClassType('REGULAR');
     setLanguage('HINDI');
 
@@ -174,6 +191,11 @@ export const AdminLiveClassesPage: React.FC = () => {
     setInstructor(c.instructor);
     setDescription(c.description || '');
     setThumbnail(c.thumbnail || '');
+    setThumbnailAssetId(c.thumbnailAssetId || null);
+    setUploadingThumbnail(false);
+    setThumbnailProgress(0);
+    setUploadingPdf(false);
+    setPdfProgress(0);
     setClassType(c.classType || 'REGULAR');
     setLanguage(c.language || 'HINDI');
 
@@ -189,9 +211,103 @@ export const AdminLiveClassesPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toastError('Please select a valid image file (JPG, PNG, WebP)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toastError('Image file size must be less than 10MB');
+      return;
+    }
+
+    try {
+      setUploadingThumbnail(true);
+      setThumbnailProgress(0);
+      const res = await api.upload.uploadWithProgress(
+        file,
+        { category: 'LIVE_CLASSES', entityType: 'LIVE_CLASS' },
+        (progress) => {
+          setThumbnailProgress(progress.percent);
+        }
+      );
+
+      if (res.success && res.fileUrl) {
+        setThumbnail(res.fileUrl);
+        if (res.assetId) setThumbnailAssetId(res.assetId);
+        success('Thumbnail uploaded directly to Google Drive!');
+      } else {
+        toastError(res.message || 'Failed to upload thumbnail');
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Error uploading thumbnail to Google Drive');
+    } finally {
+      setUploadingThumbnail(false);
+      setThumbnailProgress(0);
+      e.target.value = '';
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['.pdf', '.doc', '.docx', '.ppt', '.pptx'];
+    const fileExt = '.' + (file.name.split('.').pop() || '').toLowerCase();
+    if (!allowedTypes.includes(fileExt)) {
+      toastError('Allowed formats: PDF, DOC, DOCX, PPT, PPTX');
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      toastError('Document file size must be under 100MB');
+      return;
+    }
+
+    try {
+      setUploadingPdf(true);
+      setPdfProgress(0);
+      const res = await api.upload.uploadWithProgress(
+        file,
+        { category: 'MATERIALS', entityType: 'LIVE_CLASS_RESOURCE' },
+        (progress) => {
+          setPdfProgress(progress.percent);
+        }
+      );
+
+      if (res.success && res.fileUrl) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, '');
+        const sizeFormatted = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+        setResourcesList((prev) => [
+          ...prev,
+          {
+            title: cleanName,
+            fileUrl: res.fileUrl,
+            resourceType: resourceType || 'NOTES',
+            fileAssetId: res.assetId,
+            fileSize: sizeFormatted,
+          },
+        ]);
+        success(`"${file.name}" uploaded to Google Drive and attached!`);
+      } else {
+        toastError(res.message || 'Failed to upload document');
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Error uploading document to Google Drive');
+    } finally {
+      setUploadingPdf(false);
+      setPdfProgress(0);
+      e.target.value = '';
+    }
+  };
+
   const handleAddResource = () => {
     if (!resourceTitle.trim() || !resourceFileUrl.trim()) {
-      toastError('Resource title and file URL required');
+      toastError('Please enter both resource title and file URL');
       return;
     }
     setResourcesList((prev) => [
@@ -200,6 +316,7 @@ export const AdminLiveClassesPage: React.FC = () => {
     ]);
     setResourceTitle('');
     setResourceFileUrl('');
+    success('Resource link attached!');
   };
 
   const handleSaveClass = async () => {
@@ -218,6 +335,7 @@ export const AdminLiveClassesPage: React.FC = () => {
         instructor: instructor.trim() || 'Atul Agrahari',
         description: description.trim() || null,
         thumbnail: thumbnail.trim() || null,
+        thumbnailAssetId: thumbnailAssetId || null,
         classType,
         language,
         scheduledAt: new Date(scheduledAt).toISOString(),
@@ -238,9 +356,26 @@ export const AdminLiveClassesPage: React.FC = () => {
       } else {
         const res = await api.live.create(payload);
         if (res.success) {
-          success('Live class scheduled with OBS stream credentials generated!');
+          success('Live class scheduled! OBS stream credentials are ready below.');
           setIsModalOpen(false);
           fetchData();
+
+          // Immediately pop open the OBS Streaming Setup modal with all credentials
+          if (res.streamConfig) {
+            setActiveObsConfig({
+              id: res.liveClass?.id || '',
+              title: res.liveClass?.title || title,
+              slug: res.liveClass?.slug || null,
+              rtmpServer: res.streamConfig.rtmpServer,
+              streamKey: res.streamConfig.streamKey,
+              hlsPlaybackUrl: res.streamConfig.hlsPlaybackUrl,
+              streamStatus: res.streamConfig.streamStatus || 'IDLE',
+            });
+            setShowStreamKey(true);
+            setObsModalOpen(true);
+          } else if (res.liveClass) {
+            openObsSetup(res.liveClass);
+          }
         }
       }
     } catch (err: any) {
@@ -257,6 +392,7 @@ export const AdminLiveClassesPage: React.FC = () => {
         setActiveObsConfig({
           id: c.id,
           title: c.title,
+          slug: c.slug,
           rtmpServer: res.streamConfig.rtmpServer,
           streamKey: res.streamConfig.streamKey,
           hlsPlaybackUrl: res.streamConfig.hlsPlaybackUrl,
@@ -469,9 +605,14 @@ export const AdminLiveClassesPage: React.FC = () => {
                       <tr key={cls.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3.5 px-4 max-w-xs">
                           <div className="font-bold text-slate-900 line-clamp-1">{cls.title}</div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 flex-wrap">
                             <span className="uppercase font-bold text-indigo-600">{cls.classType}</span>
                             {cls.subject && <span>• {cls.subject}</span>}
+                            {!cls.courseId && (
+                              <span className="px-2 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                                Open Webinar
+                              </span>
+                            )}
                           </div>
                         </td>
 
@@ -481,7 +622,11 @@ export const AdminLiveClassesPage: React.FC = () => {
                             {cls.instructor}
                           </div>
                           <div className="text-[11px] text-slate-500 line-clamp-1">
-                            {cls.course?.title || 'Open Webinar'}
+                            {cls.course?.title ? (
+                              <span>Course: {cls.course.title}</span>
+                            ) : (
+                              <span className="text-amber-600 font-medium">Free Open Webinar (All Students)</span>
+                            )}
                           </div>
                         </td>
 
@@ -533,10 +678,11 @@ export const AdminLiveClassesPage: React.FC = () => {
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <button
                             onClick={() => openObsSetup(cls)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors shadow-sm"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[#6C63FF] text-xs font-bold transition-all shadow-sm group"
+                            title="View RTMP Server URL and Stream Key for OBS Studio"
                           >
-                            <Key className="w-3.5 h-3.5 text-indigo-600" />
-                            OBS Setup
+                            <Key className="w-3.5 h-3.5 text-[#6C63FF] group-hover:rotate-12 transition-transform" />
+                            <span>OBS Setup & Key</span>
                           </button>
                         </td>
 
@@ -551,9 +697,22 @@ export const AdminLiveClassesPage: React.FC = () => {
                           </Link>
                         </td>
 
-                        {/* Actions: Analytics, Preview, Edit, Delete */}
+                        {/* Actions: Copy Link, Analytics, Preview, Edit, Delete */}
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() =>
+                                copyToClipboard(
+                                  `${window.location.origin}/live/${cls.slug || cls.id}`,
+                                  `Student Link (${cls.title})`
+                                )
+                              }
+                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Copy Student Classroom Link"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+
                             <Link
                               to={`/admin/live-classes/${cls.id}/analytics`}
                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -566,7 +725,7 @@ export const AdminLiveClassesPage: React.FC = () => {
                               to={`/live/${cls.slug || cls.id}`}
                               target="_blank"
                               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                              title="Preview Student Page"
+                              title="Open Student Classroom Page"
                             >
                               <ExternalLink className="w-4 h-4" />
                             </Link>
@@ -732,15 +891,107 @@ export const AdminLiveClassesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Custom Thumbnail URL</label>
-                    <input
-                      type="url"
-                      value={thumbnail}
-                      onChange={(e) => setThumbnail(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none"
-                    />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <Image className="w-3.5 h-3.5 text-[#6C63FF]" />
+                        <span>Class Thumbnail</span>
+                      </label>
+                      <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Stored securely on Google Drive
+                      </span>
+                    </div>
+
+                    {/* If thumbnail is uploaded or present */}
+                    {thumbnail ? (
+                      <div className="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video max-h-44 flex items-center justify-center">
+                        <img
+                          src={thumbnail}
+                          alt="Thumbnail Preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                          <label className="px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-slate-800 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-lg">
+                            <Upload className="w-3.5 h-3.5 text-[#6C63FF]" />
+                            <span>Change Image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleThumbnailUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setThumbnail('');
+                              setThumbnailAssetId(null);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Drag & Drop / Click to Upload Box */
+                      <div className="space-y-2">
+                        <label
+                          className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl transition-all cursor-pointer ${
+                            uploadingThumbnail
+                              ? 'border-[#6C63FF] bg-indigo-50/40'
+                              : 'border-slate-300 hover:border-[#6C63FF] hover:bg-indigo-50/20 bg-slate-50/60'
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleThumbnailUpload}
+                            disabled={uploadingThumbnail}
+                            className="hidden"
+                          />
+                          {uploadingThumbnail ? (
+                            <div className="flex flex-col items-center py-2 space-y-2">
+                              <Loader2 className="w-6 h-6 text-[#6C63FF] animate-spin" />
+                              <div className="text-xs font-bold text-slate-700">
+                                Uploading to Google Drive ({thumbnailProgress}%)...
+                              </div>
+                              <div className="w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-[#6C63FF] transition-all"
+                                  style={{ width: `${thumbnailProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center py-2 text-center space-y-1">
+                              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-[#6C63FF] flex items-center justify-center mb-1 shadow-sm">
+                                <Upload className="w-5 h-5" />
+                              </div>
+                              <span className="font-bold text-slate-800 text-xs">
+                                Choose Image from Computer / Local Drive
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                PNG, JPG, WebP up to 10MB • Auto-uploaded directly to Google Drive
+                              </span>
+                            </div>
+                          )}
+                        </label>
+
+                        {/* Collapsible or Secondary: Enter Image URL */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="url"
+                            value={thumbnail}
+                            onChange={(e) => setThumbnail(e.target.value)}
+                            placeholder="Or paste external image URL (https://...)"
+                            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 outline-none text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -836,54 +1087,132 @@ export const AdminLiveClassesPage: React.FC = () => {
               {/* Step 4: Class Resources */}
               {currentStep === 4 && (
                 <div className="space-y-4 text-xs animate-in fade-in">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Attach Lecture Notes / PDFs (Google Drive / FileAsset)</label>
-                    <div className="flex gap-2 mt-1">
-                      <input
-                        type="text"
-                        placeholder="Resource Title (e.g. Fundamental Rights Notes)"
-                        value={resourceTitle}
-                        onChange={(e) => setResourceTitle(e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl border border-slate-200 outline-none"
-                      />
-                      <select
-                        value={resourceType}
-                        onChange={(e) => setResourceType(e.target.value)}
-                        className="px-2 py-2 rounded-xl border border-slate-200 bg-white outline-none"
-                      >
-                        <option value="NOTES">Notes</option>
-                        <option value="PRACTICE_SHEET">Practice Sheet</option>
-                        <option value="WORKSHEET">Worksheet</option>
-                      </select>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-[#6C63FF]" />
+                        <span>Attach Lecture Notes / PDFs</span>
+                      </label>
+                      <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Stored securely on Google Drive
+                      </span>
                     </div>
-                    <div className="flex gap-2 mt-2">
+
+                    {/* Option A: Upload PDF/Document directly from Local Drive / Computer */}
+                    <label
+                      className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl transition-all cursor-pointer ${
+                        uploadingPdf
+                          ? 'border-[#6C63FF] bg-indigo-50/40'
+                          : 'border-slate-300 hover:border-[#6C63FF] hover:bg-indigo-50/20 bg-slate-50/60'
+                      }`}
+                    >
                       <input
-                        type="url"
-                        placeholder="File / Google Drive PDF URL (https://...)"
-                        value={resourceFileUrl}
-                        onChange={(e) => setResourceFileUrl(e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl border border-slate-200 outline-none"
+                        type="file"
+                        accept=".pdf,.doc,.docx,.ppt,.pptx"
+                        onChange={handlePdfUpload}
+                        disabled={uploadingPdf}
+                        className="hidden"
                       />
-                      <button
-                        type="button"
-                        onClick={handleAddResource}
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors shrink-0"
-                      >
-                        + Add File
-                      </button>
+                      {uploadingPdf ? (
+                        <div className="flex flex-col items-center py-2 space-y-2">
+                          <Loader2 className="w-6 h-6 text-[#6C63FF] animate-spin" />
+                          <div className="text-xs font-bold text-slate-700">
+                            Uploading PDF to Google Drive ({pdfProgress}%)...
+                          </div>
+                          <div className="w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[#6C63FF] transition-all"
+                              style={{ width: `${pdfProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center py-1 text-center space-y-1">
+                          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-[#6C63FF] flex items-center justify-center mb-0.5 shadow-sm">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <span className="font-bold text-slate-800 text-xs">
+                            Choose PDF / Lecture Notes from Computer
+                          </span>
+                          <span className="text-[11px] text-slate-500">
+                            PDF, DOC, DOCX, PPT up to 100MB • Directly stored in Google Drive
+                          </span>
+                        </div>
+                      )}
+                    </label>
+
+                    {/* Option B: Or Add via Existing File Link/URL */}
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                      <div className="font-bold text-slate-700 text-[11px]">
+                        Or Add External File Link:
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Document Title (e.g. Fundamental Rights Handout)"
+                          value={resourceTitle}
+                          onChange={(e) => setResourceTitle(e.target.value)}
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 outline-none text-xs bg-white"
+                        />
+                        <select
+                          value={resourceType}
+                          onChange={(e) => setResourceType(e.target.value)}
+                          className="px-2 py-2 rounded-xl border border-slate-200 bg-white outline-none text-xs"
+                        >
+                          <option value="NOTES">Notes</option>
+                          <option value="PRACTICE_SHEET">Practice Sheet</option>
+                          <option value="WORKSHEET">Worksheet</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          placeholder="Google Drive link or PDF URL (https://...)"
+                          value={resourceFileUrl}
+                          onChange={(e) => setResourceFileUrl(e.target.value)}
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 outline-none text-xs bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddResource}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors shrink-0 text-xs shadow-sm"
+                        >
+                          + Add Link
+                        </button>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Attached Resources List */}
                   {resourcesList.length > 0 && (
                     <div className="space-y-1.5 border-t border-slate-100 pt-3">
-                      <div className="font-bold text-slate-700 text-[11px]">Attached Resources ({resourcesList.length})</div>
+                      <div className="font-bold text-slate-700 text-[11px] flex items-center justify-between">
+                        <span>Attached Resources ({resourcesList.length})</span>
+                        <span className="text-[10px] text-emerald-600 font-medium">Ready to attach on schedule</span>
+                      </div>
                       {resourcesList.map((r, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 text-xs">
-                          <span className="font-medium text-slate-800 line-clamp-1">{r.title} ({r.resourceType})</span>
+                        <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-[#6C63FF] flex items-center justify-center shrink-0">
+                              <FileText className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-slate-800 truncate">{r.title}</div>
+                              <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-semibold text-[9px]">{r.resourceType}</span>
+                                {r.fileSize && <span>• {r.fileSize}</span>}
+                                <span className="text-emerald-600 font-medium flex items-center gap-0.5">
+                                  <CheckCircle2 className="w-2.5 h-2.5" /> Google Drive
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                           <button
                             type="button"
                             onClick={() => setResourcesList((prev) => prev.filter((_, idx) => idx !== i))}
-                            className="text-rose-500 hover:text-rose-700 p-1"
+                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors ml-2 shrink-0"
+                            title="Remove attached resource"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1042,6 +1371,39 @@ export const AdminLiveClassesPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Student Joining / Watch Link */}
+                <div className="space-y-1 pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase font-bold">
+                    <span>Student Classroom Link (Share to Students)</span>
+                    <a
+                      href={`/live/${activeObsConfig.slug || activeObsConfig.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-400 hover:text-emerald-300 normal-case font-sans flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Open Live Page
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2 px-3">
+                    <span className="flex-1 select-all text-emerald-300 font-mono text-[11px] truncate">
+                      {`${window.location.origin}/live/${activeObsConfig.slug || activeObsConfig.id}`}
+                    </span>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(
+                          `${window.location.origin}/live/${activeObsConfig.slug || activeObsConfig.id}`,
+                          'Student Link'
+                        )
+                      }
+                      className="p-1 text-slate-400 hover:text-white transition-colors"
+                      title="Copy Student Link"
+                    >
+                      {copySuccess === 'Student Link' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Key Rotation & Warning */}
@@ -1054,12 +1416,23 @@ export const AdminLiveClassesPage: React.FC = () => {
                   Regenerate Stream Key
                 </button>
 
-                <Link
-                  to={`/admin/live-classes/${activeObsConfig.id}/control-room`}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#6C63FF] hover:bg-[#584fd4] transition-colors shadow-sm"
-                >
-                  Open Control Room →
-                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setObsModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    Done
+                  </button>
+
+                  <Link
+                    to={`/admin/live-classes/${activeObsConfig.id}/control-room`}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#6C63FF] hover:bg-[#584fd4] transition-colors shadow-sm flex items-center gap-1.5"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Control Room →</span>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

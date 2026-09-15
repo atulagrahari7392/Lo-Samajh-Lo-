@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, BookOpen, AlertCircle } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Search, Filter, BookOpen, AlertCircle, Radio, Clock, Calendar, ExternalLink } from 'lucide-react';
 import { api } from '../../services/api';
-import { Course, Category } from '../../types';
+import { Course, Category, LiveClass } from '../../types';
 import CourseCard from '../../components/course/CourseCard';
 
 export const CoursesPage: React.FC = () => {
@@ -12,16 +12,29 @@ export const CoursesPage: React.FC = () => {
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [searchQuery, setSearchQuery] = useState<string>(initialSearch);
   const [selectedSort, setSelectedSort] = useState<string>('newest');
   const [freeOnly, setFreeOnly] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch categories
+  // Fetch categories and live sessions
   useEffect(() => {
     api.categories.getAll().then((data) => {
       if (data.success) setCategories(data.categories || []);
+    });
+
+    api.live.getAll().then((data) => {
+      if (data.success && Array.isArray(data.classes)) {
+        // Show live or scheduled sessions
+        const active = data.classes.filter(
+          (c: LiveClass) => c.status === 'LIVE' || c.status === 'SCHEDULED' || c.status === 'UPCOMING'
+        );
+        setLiveClasses(active);
+      }
+    }).catch((err) => {
+      console.warn('Could not load live sessions:', err);
     });
   }, []);
 
@@ -69,6 +82,110 @@ export const CoursesPage: React.FC = () => {
           Step-by-step video courses, chapter-wise notes, and full test series designed by expert faculty.
         </p>
       </div>
+
+      {/* Active & Scheduled Live Sessions Section */}
+      {liveClasses.length > 0 && (
+        <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 text-white shadow-xl border border-indigo-500/20 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-600/20 text-rose-400 border border-rose-500/30 flex items-center justify-center">
+                <Radio className="w-4 h-4 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                  <span>🔴 Live & Scheduled Interactive Sessions</span>
+                </h2>
+                <p className="text-xs text-slate-300">
+                  Attend real-time faculty lectures, ask doubts live, and access study materials.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/live-classes"
+              className="text-xs font-bold text-indigo-300 hover:text-white flex items-center gap-1 transition-colors"
+            >
+              <span>View All Live Classes</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+            {liveClasses.slice(0, 3).map((cls) => {
+              const isLive = cls.status === 'LIVE';
+              return (
+                <div
+                  key={cls.id}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#6C63FF]/50 rounded-2xl p-4 transition-all flex flex-col justify-between space-y-3 group"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      {isLive ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
+                          <Radio className="w-3 h-3" />
+                          LIVE NOW
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#6C63FF]/30 text-indigo-200 border border-[#6C63FF]/40">
+                          <Clock className="w-3 h-3 text-indigo-300" />
+                          {new Date(cls.scheduledAt).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}{' '}
+                          •{' '}
+                          {new Date(cls.scheduledAt).toLocaleTimeString('en-IN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+
+                      {!cls.courseId ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                          Open Webinar
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/10 text-slate-300 truncate max-w-[120px]">
+                          {cls.course?.title}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="font-bold text-sm text-white line-clamp-2 group-hover:text-indigo-200 transition-colors">
+                      {cls.title}
+                    </h3>
+
+                    <div className="text-[11px] text-slate-300 flex items-center justify-between">
+                      <span>👨‍🏫 {cls.instructor}</span>
+                      {cls.chapter && <span className="text-slate-400 truncate max-w-[130px]">{cls.chapter}</span>}
+                    </div>
+                  </div>
+
+                  <Link
+                    to={`/live/${cls.slug || cls.id}`}
+                    className={`w-full py-2 px-3 rounded-xl font-bold text-xs text-center transition-all flex items-center justify-center gap-1.5 shadow-sm ${
+                      isLive
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white animate-bounce'
+                        : 'bg-[#6C63FF] hover:bg-[#584fd4] text-white'
+                    }`}
+                  >
+                    {isLive ? (
+                      <>
+                        <Radio className="w-3.5 h-3.5" />
+                        <span>Join Live Classroom</span>
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>View Class Details</span>
+                      </>
+                    )}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
