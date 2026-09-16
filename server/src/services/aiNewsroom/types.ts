@@ -1,4 +1,4 @@
-﻿export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export type ArticleStatus =
   | 'DISCOVERED'
@@ -143,5 +143,12 @@ export interface AIProvider {
     ogTitle: string;
     ogDescription: string;
     slug: string;
+  }>;
+  testConnection?(): Promise<{
+    connected: boolean;
+    provider: string;
+    model: string;
+    latencyMs: number;
+    error?: string;
   }>;
 }

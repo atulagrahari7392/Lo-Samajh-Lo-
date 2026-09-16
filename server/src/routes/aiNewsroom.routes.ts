@@ -1,12 +1,14 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { prisma } from '../db';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
-import { getAIProvider, generateNewsroomSlug } from '../services/aiNewsroom/aiProvider';
+import { getAIProvider, generateNewsroomSlug, getAIProviderStatus } from '../services/aiNewsroom/aiProvider';
 import { detectDuplicateArticle } from '../services/aiNewsroom/duplicateDetector';
 import { verifyExtractedFacts } from '../services/aiNewsroom/verificationEngine';
 import { publishArticleWithBridge, broadcastRealtimeNotification } from '../services/aiNewsroom/notificationBridge';
 import { OFFICIAL_MONITORED_ORGS, safeFetchWebSource } from '../services/aiNewsroom/webResearcher';
 import { calculateDeadlineStatus } from '../services/aiNewsroom/deadlineCalculator';
+import { getWebDiscoveryProvider, TargetedQueryGenerator } from '../services/aiNewsroom/webDiscovery';
+import { getSchedulerStatus } from '../services/aiNewsroom/scheduler';
 
 const router = Router();
 
@@ -33,6 +35,8 @@ router.get('/dashboard', async (req, res, next) => {
       recentArticles,
       topOrgs,
       pendingResearchJobs,
+      lastSuccessSetting,
+      lastFailedSetting,
     ] = await Promise.all([
       prisma.educationArticle.count(),
       prisma.educationArticle.count({ where: { status: 'DRAFT' } }),
@@ -56,15 +60,27 @@ router.get('/dashboard', async (req, res, next) => {
         take: 5,
       }),
       prisma.researchJob.count({ where: { status: 'PENDING' } }),
+      prisma.newsroomSetting.findUnique({ where: { key: 'lastSuccessfulResearch' } }),
+      prisma.newsroomSetting.findUnique({ where: { key: 'lastFailedResearch' } }),
     ]);
 
-    // Health indicator
+    // Subsystem Health Indicators (Phases 26, 27)
+    const aiStatus = getAIProviderStatus();
+    const schedulerStatus = getSchedulerStatus();
+    const searchKey = process.env.SEARCH_API_KEY;
+    const webDiscoveryStatus = searchKey && searchKey.trim().length > 5 ? 'ACTIVE' : 'CATALOG ONLY';
+
     const newsroomHealth = {
-      aiProvider: 'ACTIVE',
-      researchEngine: 'OPERATIONAL',
-      scheduler: 'RUNNING',
+      aiProvider: aiStatus.status, // CONNECTED / NOT CONFIGURED / ERROR
+      aiProviderName: aiStatus.provider,
+      aiModel: aiStatus.model,
+      isFallback: aiStatus.isFallback,
+      webDiscovery: webDiscoveryStatus, // ACTIVE / CATALOG ONLY
+      scheduler: schedulerStatus.isRunning ? 'RUNNING' : 'IDLE',
       database: 'CONNECTED',
       pendingJobs: pendingResearchJobs,
+      lastSuccessfulResearch: lastSuccessSetting ? JSON.parse(lastSuccessSetting.value) : null,
+      lastFailedResearch: lastFailedSetting ? JSON.parse(lastFailedSetting.value) : null,
       lastChecked: new Date().toISOString(),
     };
 
@@ -90,11 +106,74 @@ router.get('/dashboard', async (req, res, next) => {
 });
 
 // ============================================================
-// 2. DISCOVER / RUN RESEARCH NOW
+// 1B. DIAGNOSTICS: TEST AI CONNECTION (Phase 28)
+// ============================================================
+router.post('/test-ai', async (req: AuthRequest, res, next) => {
+  try {
+    const provider = getAIProvider();
+    if (typeof provider.testConnection === 'function') {
+      const result = await provider.testConnection();
+      res.json({
+        success: true,
+        ...result,
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      connected: true,
+      provider: provider.name,
+      model: 'deterministic-rules-v2',
+      latencyMs: 1,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, connected: false, error: err.message });
+  }
+});
+
+// ============================================================
+// 1C. DIAGNOSTICS: TEST RESEARCH / DRY-RUN (Phase 29)
+// ============================================================
+router.post('/test-research', async (req: AuthRequest, res, next) => {
+  try {
+    const { organization = 'UPSSSC', category = 'COMPETITIVE_EXAMS' } = req.body;
+    const startTime = Date.now();
+    const discoveryProvider = getWebDiscoveryProvider();
+    const aiProvider = getAIProvider();
+
+    const queries = TargetedQueryGenerator.generateQueries(organization, category);
+    const candidates = await discoveryProvider.discover(queries[0] || organization, {
+      organization,
+      category,
+      limit: 3,
+    });
+
+    const sampleFacts = await aiProvider.research(queries[0] || organization, { organization, category });
+    const latencyMs = Date.now() - startTime;
+
+    res.json({
+      success: true,
+      organization,
+      category,
+      queriesGenerated: queries,
+      candidateSources: candidates,
+      extractedFactsSample: sampleFacts[0] || null,
+      latencyMs,
+      discoveryProvider: discoveryProvider.name,
+      aiProvider: aiProvider.name,
+    });
+  } catch (err: any) {
+    next(err);
+  }
+});
+
+// ============================================================
+// 2. DISCOVER / RUN RESEARCH NOW (Phase 10 & 47)
 // ============================================================
 router.post('/research', async (req: AuthRequest, res, next) => {
   try {
-    const { organization, category, query, customUrl } = req.body;
+    const { organization, category, query, customUrl, autonomous = false } = req.body;
     const startTime = Date.now();
 
     const provider = getAIProvider();
@@ -112,6 +191,33 @@ router.post('/research', async (req: AuthRequest, res, next) => {
         organization: organization || 'Official Board',
       });
       factsList = [singleFacts];
+    } else if (autonomous) {
+      // Autonomous discovery mode (Phase 5, 10, 47)
+      const discoveryProvider = getWebDiscoveryProvider();
+      const org = organization || 'UPSSSC';
+      const cat = category || 'COMPETITIVE_EXAMS';
+      const targetedQueries = TargetedQueryGenerator.generateQueries(org, cat);
+      const candidates = await discoveryProvider.discover(targetedQueries[0] || org, {
+        organization: org,
+        category: cat,
+        limit: 4,
+      });
+
+      for (const candidate of candidates) {
+        const webResult = await safeFetchWebSource(candidate.url);
+        if (webResult.success && webResult.content) {
+          const facts = await provider.extractFacts(webResult.content, {
+            sourceUrl: candidate.url,
+            organization: org,
+          });
+          factsList.push(facts);
+        }
+      }
+
+      if (factsList.length === 0) {
+        // Fallback to catalog research
+        factsList = await provider.research(query || org, { organization: org, category: cat });
+      }
     } else {
       // Catalog & Board search
       factsList = await provider.research(query || '', {

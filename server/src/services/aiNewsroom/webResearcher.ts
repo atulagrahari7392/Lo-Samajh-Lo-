@@ -1,6 +1,46 @@
-﻿import { ExtractedSource } from './types';
+import crypto from 'crypto';
+import { ExtractedSource } from './types';
 
-// Known Official Portals and Boards (Level 1 Authority)
+export interface SourceCacheEntry {
+  url: string;
+  hash: string;
+  lastFetchedAt: Date;
+  status: 'UNCHANGED' | 'CHANGED' | 'NEW';
+}
+
+export const sourceCache = new Map<string, SourceCacheEntry>();
+
+/**
+ * Compute SHA-256 fingerprint of web content for change detection (Phase 33)
+ */
+export function computeContentHash(content: string): string {
+  return crypto.createHash('sha256').update(content.trim()).digest('hex');
+}
+
+/**
+ * Check if source content has changed since last fetch.
+ */
+export function checkSourceChanged(url: string, content: string): { isChanged: boolean; hash: string; previousHash?: string } {
+  const hash = computeContentHash(content);
+  const existing = sourceCache.get(url);
+
+  if (!existing) {
+    sourceCache.set(url, { url, hash, lastFetchedAt: new Date(), status: 'NEW' });
+    return { isChanged: true, hash };
+  }
+
+  const isChanged = existing.hash !== hash;
+  const previousHash = existing.hash;
+
+  sourceCache.set(url, {
+    url,
+    hash,
+    lastFetchedAt: new Date(),
+    status: isChanged ? 'CHANGED' : 'UNCHANGED',
+  });
+
+  return { isChanged, hash, previousHash };
+}
 export const OFFICIAL_MONITORED_ORGS = [
   {
     org: 'UPSSSC',
@@ -209,6 +249,8 @@ export async function safeFetchWebSource(urlStr: string): Promise<{
   content: string;
   title: string;
   source: ExtractedSource;
+  contentHash?: string;
+  isChanged?: boolean;
   error?: string;
 }> {
   const check = validateSafeUrl(urlStr);
@@ -284,10 +326,15 @@ export async function safeFetchWebSource(urlStr: string): Promise<{
       .replace(/```/g, "'''")
       .replace(/<\/?(?:system|instruction|admin)>/gi, '');
 
+    // Phase 33: Source Cache Fingerprint & Change Detection
+    const { isChanged, hash } = checkSourceChanged(urlStr, sanitizedData);
+
     return {
       success: true,
       content: sanitizedData,
       title: pageTitle,
+      contentHash: hash,
+      isChanged,
       source: {
         title: pageTitle,
         url: urlStr,
@@ -295,6 +342,7 @@ export async function safeFetchWebSource(urlStr: string): Promise<{
         sourceType: classification.sourceType,
         authorityLevel: classification.authorityLevel,
         verificationStatus: classification.isOfficial ? 'VERIFIED' : 'UNVERIFIED',
+        hash,
       },
     };
   } catch (err: any) {

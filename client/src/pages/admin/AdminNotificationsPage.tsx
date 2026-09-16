@@ -59,6 +59,7 @@ export const AdminNotificationsPage: React.FC = () => {
   const [researchOrg, setResearchOrg] = useState('UPSSSC');
   const [researchCategory, setResearchCategory] = useState('COMPETITIVE_EXAMS');
   const [researchCustomUrl, setResearchCustomUrl] = useState('');
+  const [autonomousMode, setAutonomousMode] = useState(false);
   const [discoveredResults, setDiscoveredResults] = useState<any[]>([]);
 
   // Modals
@@ -156,6 +157,7 @@ export const AdminNotificationsPage: React.FC = () => {
         category: researchCategory,
         query: researchQuery,
         customUrl: researchCustomUrl || undefined,
+        autonomous: autonomousMode,
       });
       if (res.success) {
         setDiscoveredResults(res.results || []);
@@ -394,6 +396,8 @@ export const AdminNotificationsPage: React.FC = () => {
             onRunResearch={handleRunResearch}
             onGenerateDraft={handleGenerateDraft}
             loading={loading}
+            autonomousMode={autonomousMode}
+            setAutonomousMode={setAutonomousMode}
           />
         )}
 

@@ -378,7 +378,10 @@ export const api = {
   // AI Education Newsroom 2.0 (Admin)
   aiNewsroom: {
     getDashboard: () => request<any>('/admin/ai-newsroom/dashboard'),
-    research: (params: { organization?: string; category?: string; query?: string; customUrl?: string }) =>
+    testAI: () => request<any>('/admin/ai-newsroom/test-ai', { method: 'POST' }),
+    testResearch: (params: { organization?: string; category?: string }) =>
+      request<any>('/admin/ai-newsroom/test-research', { method: 'POST', body: JSON.stringify(params) }),
+    research: (params: { organization?: string; category?: string; query?: string; customUrl?: string; autonomous?: boolean }) =>
       request<any>('/admin/ai-newsroom/research', { method: 'POST', body: JSON.stringify(params) }),
     generate: (payload: { facts: any; autoApprove?: boolean }) =>
       request<any>('/admin/ai-newsroom/generate', { method: 'POST', body: JSON.stringify(payload) }),

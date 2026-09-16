@@ -709,6 +709,15 @@ Last verified on **${new Date().toLocaleDateString('en-IN', { day: '2-digit', mo
       slug,
     };
   }
+
+  async testConnection() {
+    return {
+      connected: true,
+      provider: this.name,
+      model: 'deterministic-rules-v2',
+      latencyMs: 1,
+    };
+  }
 }
 
 /**
@@ -724,6 +733,55 @@ export class OpenAIProvider implements AIProvider {
     this.apiKey = apiKey;
     this.model = model;
     this.fallback = new RuleBasedEducationParser();
+  }
+
+  async testConnection(): Promise<{
+    connected: boolean;
+    provider: string;
+    model: string;
+    latencyMs: number;
+    error?: string;
+  }> {
+    const start = Date.now();
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [{ role: 'user', content: 'Ping' }],
+          max_tokens: 1,
+        }),
+      });
+      const latencyMs = Date.now() - start;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return {
+          connected: false,
+          provider: this.name,
+          model: this.model,
+          latencyMs,
+          error: errData?.error?.message || `HTTP ${res.status}: ${res.statusText}`,
+        };
+      }
+      return {
+        connected: true,
+        provider: this.name,
+        model: this.model,
+        latencyMs,
+      };
+    } catch (err: any) {
+      return {
+        connected: false,
+        provider: this.name,
+        model: this.model,
+        latencyMs: Date.now() - start,
+        error: err.message,
+      };
+    }
   }
 
   async research(query: string, options?: { organization?: string; category?: string }): Promise<ExtractedFacts[]> {
@@ -792,6 +850,54 @@ export class GeminiProvider implements AIProvider {
     this.apiKey = apiKey;
     this.model = model;
     this.fallback = new RuleBasedEducationParser();
+  }
+
+  async testConnection(): Promise<{
+    connected: boolean;
+    provider: string;
+    model: string;
+    latencyMs: number;
+    error?: string;
+  }> {
+    const start = Date.now();
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Ping' }] }],
+            generationConfig: { maxOutputTokens: 1 },
+          }),
+        }
+      );
+      const latencyMs = Date.now() - start;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return {
+          connected: false,
+          provider: this.name,
+          model: this.model,
+          latencyMs,
+          error: errData?.error?.message || `HTTP ${res.status}: ${res.statusText}`,
+        };
+      }
+      return {
+        connected: true,
+        provider: this.name,
+        model: this.model,
+        latencyMs,
+      };
+    } catch (err: any) {
+      return {
+        connected: false,
+        provider: this.name,
+        model: this.model,
+        latencyMs: Date.now() - start,
+        error: err.message,
+      };
+    }
   }
 
   async research(query: string, options?: { organization?: string; category?: string }): Promise<ExtractedFacts[]> {
@@ -864,3 +970,26 @@ export function getAIProvider(): AIProvider {
 
   return new RuleBasedEducationParser();
 }
+
+/**
+ * Returns clean health diagnostic status without exposing any credentials (Phase 26 & 27)
+ */
+export function getAIProviderStatus(): {
+  status: 'CONNECTED' | 'NOT CONFIGURED' | 'ERROR';
+  provider: string;
+  model: string;
+  isFallback: boolean;
+} {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey && geminiKey.trim().length > 10) {
+    return { status: 'CONNECTED', provider: 'GeminiProvider', model: 'gemini-1.5-flash', isFallback: false };
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey && openaiKey.trim().length > 10) {
+    return { status: 'CONNECTED', provider: 'OpenAIProvider', model: 'gpt-4o-mini', isFallback: false };
+  }
+
+  return { status: 'NOT CONFIGURED', provider: 'RuleBasedEducationParser', model: 'deterministic-rules-v2', isFallback: true };
+}
+

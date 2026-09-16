@@ -1,4 +1,6 @@
-﻿import React from 'react';
+import React, { useState } from 'react';
+import { Activity, Sparkles, Database, Globe, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { api } from '../../../services/api';
 
 interface Props {
   dashboardData: any;
@@ -13,9 +15,25 @@ export const NewsroomDashboardTab: React.FC<Props> = ({
   onOpenReview,
   onPublish,
 }) => {
+  const [testingAI, setTestingAI] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<any>(null);
+
   if (!dashboardData) return null;
 
   const stats = dashboardData.stats || {};
+  const health = dashboardData.health || {};
+
+  const handleTestAI = async () => {
+    try {
+      setTestingAI(true);
+      const res = await api.aiNewsroom.testAI();
+      setAiTestResult(res);
+    } catch (err: any) {
+      setAiTestResult({ connected: false, error: err.message, latencyMs: 0 });
+    } finally {
+      setTestingAI(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -47,18 +65,110 @@ export const NewsroomDashboardTab: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Health & Engine Status Banner */}
-      <div className="p-5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
-          <div>
-            <h3 className="font-bold text-sm">Newsroom Subsystems Operational</h3>
-            <p className="text-xs text-slate-400">AI Provider: Rule-Based + OpenAI Fallback • Background Scheduler: Active (60s loop)</p>
+      {/* Subsystem Health & Diagnostics Banner (Phase 26, 27, 28) */}
+      <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
+            <div>
+              <h3 className="font-bold text-sm">Newsroom Subsystems Health</h3>
+              <p className="text-xs text-slate-400">
+                AI Provider: {health.aiProviderName || 'Rule-Based Fallback'} • Model: {health.aiModel || 'deterministic-rules-v2'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleTestAI}
+            disabled={testingAI}
+            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-colors self-start md:self-auto"
+          >
+            {testingAI ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-purple-400" />}
+            <span>Test AI Connection</span>
+          </button>
+        </div>
+
+        {/* Subsystem Status Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          {/* AI Provider Status */}
+          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center gap-2.5">
+            <Activity className="w-4 h-4 text-purple-400 shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">AI Provider</span>
+              <span
+                className={`font-black ${
+                  health.aiProvider === 'CONNECTED'
+                    ? 'text-emerald-400'
+                    : health.aiProvider === 'NOT CONFIGURED'
+                    ? 'text-amber-400'
+                    : 'text-rose-400'
+                }`}
+              >
+                {health.aiProvider || 'ACTIVE'}
+              </span>
+            </div>
+          </div>
+
+          {/* Web Discovery Status */}
+          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center gap-2.5">
+            <Globe className="w-4 h-4 text-blue-400 shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Web Discovery</span>
+              <span
+                className={`font-black ${
+                  health.webDiscovery === 'ACTIVE' ? 'text-emerald-400' : 'text-blue-300'
+                }`}
+              >
+                {health.webDiscovery || 'CATALOG ONLY'}
+              </span>
+            </div>
+          </div>
+
+          {/* Database Status */}
+          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center gap-2.5">
+            <Database className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Database</span>
+              <span className="font-black text-emerald-400">
+                {health.database || 'CONNECTED'}
+              </span>
+            </div>
+          </div>
+
+          {/* Scheduler Status */}
+          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center gap-2.5">
+            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Scheduler</span>
+              <span className="font-black text-emerald-400">
+                {health.scheduler || 'RUNNING'}
+              </span>
+            </div>
           </div>
         </div>
-        <span className="text-xs font-mono bg-white/10 px-3 py-1 rounded-lg text-emerald-300">
-          PostgreSQL Database Connected
-        </span>
+
+        {/* AI Test Result Feedback */}
+        {aiTestResult && (
+          <div className="p-3.5 rounded-xl bg-purple-950/40 border border-purple-800/50 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {aiTestResult.connected ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+              )}
+              <span>
+                <strong>{aiTestResult.provider}</strong> ({aiTestResult.model}):{' '}
+                {aiTestResult.connected ? 'Connection verified' : aiTestResult.error || 'Provider not responding'}{' '}
+                {aiTestResult.latencyMs ? `• Latency: ${aiTestResult.latencyMs}ms` : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setAiTestResult(null)}
+              className="text-slate-400 hover:text-white text-[10px] font-bold"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Recent Articles Table */}
