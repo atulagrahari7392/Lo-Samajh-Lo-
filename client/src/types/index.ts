@@ -782,17 +782,123 @@ export interface RecordedClass {
   };
 }
 
+export interface DeadlineStatusResult {
+  statusText: string;
+  badgeColor: string;
+  isExpired: boolean;
+  daysRemaining: number;
+  isUrgent: boolean;
+  formattedDate: string;
+}
+
+export interface ImportantDate {
+  id: string;
+  articleId?: string;
+  date: string;
+  dateType: string;
+  label: string;
+  source?: string | null;
+  confidence: string;
+  note?: string | null;
+  isVerified?: boolean;
+  deadlineStatus?: DeadlineStatusResult;
+}
+
+export interface ImportantLink {
+  id: string;
+  articleId?: string;
+  label: string;
+  url: string;
+  linkType: string;
+  source?: string | null;
+  isOfficial: boolean;
+  verifiedAt?: string | null;
+}
+
+export interface ArticleSource {
+  id: string;
+  articleId?: string;
+  title: string;
+  url: string;
+  domain: string;
+  sourceType: string;
+  authorityLevel: string;
+  verificationStatus: string;
+}
+
+export interface SyllabusSection {
+  id: string;
+  articleId?: string;
+  topic: string;
+  subtopics: string;
+  order: number;
+}
+
+export interface ArticleVersion {
+  id: string;
+  articleId: string;
+  versionNumber: number;
+  changedFields: string;
+  updateReason: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface EducationArticle {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  subCategory?: string | null;
+  organizationName: string;
+  state?: string | null;
+  examName: string;
+  examCode?: string | null;
+  notificationNumber?: string | null;
+  status: string;
+  publishedAt?: string | null;
+  scheduledAt?: string | null;
+  lastVerifiedAt?: string | null;
+  featured: boolean;
+  priority: string;
+  confidenceScore: string;
+  authorType: string;
+  seoTitle?: string | null;
+  metaDescription?: string | null;
+  focusKeyword?: string | null;
+  secondaryKeywords?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  faqData?: any;
+  structuredInfo?: any;
+  viewsCount: number;
+  createdAt: string;
+  updatedAt: string;
+  dates?: ImportantDate[];
+  links?: ImportantLink[];
+  sources?: ArticleSource[];
+  syllabus?: SyllabusSection[];
+  versions?: ArticleVersion[];
+  nextDate?: any;
+}
+
 export interface Notification {
   id: string;
   title: string;
   message: string;
-  category: 'GENERAL' | 'EXAM' | 'UNIVERSITY' | 'COURSE' | 'ACADEMIC';
-  priority: 'NORMAL' | 'HIGH' | 'URGENT';
+  category: 'GENERAL' | 'EXAM' | 'UNIVERSITY' | 'COURSE' | 'ACADEMIC' | string;
+  priority: 'NORMAL' | 'HIGH' | 'URGENT' | string;
   linkUrl?: string | null;
   publishedAt: string;
   expiresAt?: string | null;
   status: string;
   isRead?: boolean;
+  articleId?: string | null;
+  article?: Partial<EducationArticle> | null;
+  deadlineStatus?: DeadlineStatusResult | null;
+  primaryDate?: any;
 }
 
 export interface SliderBanner {

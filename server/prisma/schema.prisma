@@ -794,9 +794,13 @@ model Notification {
   expiresAt   DateTime?
   status      String             @default("PUBLISHED")
   createdAt   DateTime           @default(now())
+  articleId   String?
+  isNewsroom  Boolean            @default(false)
 
+  article     EducationArticle?  @relation(fields: [articleId], references: [id], onDelete: SetNull)
   reads       NotificationRead[]
 
+  @@index([publishedAt])
   @@map("notifications")
 }
 
@@ -1078,5 +1082,199 @@ model LiveAuditLog {
   @@index([liveClassId])
   @@map("live_audit_logs")
 }
+
+// ============================================================
+// AI EDUCATION NEWSROOM 2.0 & EDUCATION UPDATES
+// ============================================================
+
+model EducationArticle {
+  id                 String             @id @default(uuid())
+  title              String
+  slug               String             @unique
+  excerpt            String
+  content            String             // Markdown / Structured content
+  category           String             @default("COMPETITIVE_EXAMS") // COMPETITIVE_EXAMS, GOVT_JOBS, UNIVERSITY, SCHOLARSHIPS, BOARD_EXAMS, UP_UPDATES, CENTRAL_GOVT, TEACHING, RAILWAY, BANKING, DEFENCE, OTHER
+  subCategory        String?
+  organizationName   String             // e.g. "UPSSSC", "UPPSC", "SSC", "UPSC", "NTA", "UP Police"
+  state              String?            @default("Uttar Pradesh")
+  examName           String
+  examCode           String?
+  notificationNumber String?
+  status             String             @default("DRAFT") // DISCOVERED, RESEARCHING, GENERATING, DRAFT, REVIEW, APPROVED, SCHEDULED, PUBLISHED, ARCHIVED, FAILED
+  publishedAt        DateTime?
+  scheduledAt        DateTime?
+  lastVerifiedAt     DateTime?          @default(now())
+  featured           Boolean            @default(false)
+  priority           String             @default("NORMAL") // NORMAL, HIGH, URGENT
+  confidenceScore    String             @default("HIGH") // HIGH, MEDIUM, LOW
+  authorType         String             @default("AI") // AI, ADMIN
+  seoTitle           String?
+  metaDescription    String?
+  focusKeyword       String?
+  secondaryKeywords  String?
+  canonicalUrl       String?
+  ogTitle            String?
+  ogDescription      String?
+  faqData            String?            // JSON string: Array<{question: string, answer: string}>
+  structuredInfo     String?            // JSON string: { vacancy, eligibility, ageLimit, fee, selectionProcess, examPattern }
+  viewsCount         Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  dates              ImportantDate[]
+  links              ImportantLink[]
+  sources            ArticleSource[]
+  syllabus           SyllabusSection[]
+  versions           ArticleVersion[]
+  notifications      Notification[]
+  auditLogs          NewsroomAuditLog[]
+
+  @@index([status, publishedAt])
+  @@index([organizationName])
+  @@index([examName])
+  @@index([category])
+  @@map("education_articles")
+}
+
+model ImportantDate {
+  id          String           @id @default(uuid())
+  articleId   String
+  article     EducationArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  date        DateTime
+  dateType    String           // NOTIFICATION_DATE, APPLICATION_START, APPLICATION_END, FEE_LAST_DATE, CORRECTION_START, CORRECTION_END, EXAM_DATE, CITY_INTIMATION, ADMIT_CARD, ANSWER_KEY, RESULT, COUNSELLING, DV, JOINING, ADMISSION_START, ADMISSION_END, SCHOLARSHIP_END, OTHER
+  label       String
+  source      String?
+  confidence  String           @default("HIGH")
+  note        String?
+  isVerified  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([articleId, date])
+  @@map("important_dates")
+}
+
+model ImportantLink {
+  id          String           @id @default(uuid())
+  articleId   String
+  article     EducationArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  label       String
+  url         String
+  linkType    String           // OFFICIAL_NOTIFICATION, APPLY_ONLINE, OFFICIAL_WEBSITE, ADMIT_CARD, ANSWER_KEY, RESULT, SYLLABUS, OFFICIAL_PDF, COUNSELLING_PORTAL, OTHER
+  source      String?
+  isOfficial  Boolean          @default(true)
+  verifiedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([articleId])
+  @@map("important_links")
+}
+
+model ArticleSource {
+  id                 String            @id @default(uuid())
+  articleId          String?
+  article            EducationArticle? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  title              String
+  url                String
+  domain             String
+  sourceType         String            @default("OFFICIAL") // OFFICIAL, RELIABLE_SECONDARY, SOCIAL, OTHER
+  authorityLevel     String            @default("PRIMARY")  // PRIMARY, SECONDARY, DISCOVERY
+  publishedAt        DateTime?
+  accessedAt         DateTime          @default(now())
+  verificationStatus String            @default("VERIFIED") // VERIFIED, UNVERIFIED, CONFLICT, FAILED
+  hash               String?
+  createdAt          DateTime          @default(now())
+
+  @@index([url])
+  @@map("article_sources")
+}
+
+model SyllabusSection {
+  id          String           @id @default(uuid())
+  articleId   String
+  article     EducationArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  topic       String
+  subtopics   String           // JSON string: string[]
+  order       Int              @default(0)
+  source      String?
+  createdAt   DateTime         @default(now())
+
+  @@index([articleId])
+  @@map("syllabus_sections")
+}
+
+model ArticleVersion {
+  id            String           @id @default(uuid())
+  articleId     String
+  article       EducationArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  versionNumber Int              @default(1)
+  changedFields String           // JSON string: string[]
+  previousData  String?          // JSON string
+  newData       String?          // JSON string
+  updateReason  String
+  source        String?
+  createdBy     String           @default("SYSTEM")
+  createdAt     DateTime         @default(now())
+
+  @@index([articleId, versionNumber])
+  @@map("article_versions")
+}
+
+model ResearchJob {
+  id           String    @id @default(uuid())
+  jobType      String    @default("MANUAL_RESEARCH") // MANUAL_RESEARCH, AUTO_SCHEDULED, REFRESH_CHECK
+  status       String    @default("PENDING")         // PENDING, RUNNING, COMPLETED, FAILED
+  query        String?
+  category     String?
+  organization String?
+  resultsCount Int       @default(0)
+  error        String?
+  retryCount   Int       @default(0)
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@index([status])
+  @@map("newsroom_research_jobs")
+}
+
+model AIUsageLog {
+  id             String   @id @default(uuid())
+  requestType    String   // RESEARCH, EXTRACTION, VERIFICATION, GENERATION, SEO
+  provider       String   // openai, gemini, rules-parser
+  model          String
+  tokensUsed     Int      @default(0)
+  executionTimeMs Int     @default(0)
+  status         String   @default("SUCCESS") // SUCCESS, FAILED
+  error          String?
+  estimatedCost  Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("ai_usage_logs")
+}
+
+model NewsroomSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   // JSON string
+  updatedAt DateTime @updatedAt
+
+  @@map("newsroom_settings")
+}
+
+model NewsroomAuditLog {
+  id        String            @id @default(uuid())
+  action    String            // DISCOVER, GENERATE, EDIT, VERIFY, APPROVE, SCHEDULE, PUBLISH, ARCHIVE, REJECT
+  articleId String?
+  article   EducationArticle? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  actor     String            @default("SYSTEM") // User id or SYSTEM / AI
+  details   String?           // JSON string
+  createdAt DateTime          @default(now())
+
+  @@index([articleId])
+  @@index([createdAt])
+  @@map("newsroom_audit_logs")
+}
+
 
 

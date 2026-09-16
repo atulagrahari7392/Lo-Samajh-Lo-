@@ -350,14 +350,65 @@ export const api = {
       request<any>(`/recorded-classes/resources/${resourceId}`, { method: 'DELETE' }),
   },
 
-  // Notifications
+  // Notifications & Education Updates
   notifications: {
-    getAll: (category?: string) => request<any>(`/notifications${category ? `?category=${category}` : ''}`),
+    getAll: (params?: string | { category?: string; search?: string; page?: number; limit?: number }) => {
+      let queryStr = '';
+      if (typeof params === 'string') {
+        queryStr = params ? `?category=${encodeURIComponent(params)}` : '';
+      } else if (params) {
+        const cleanParams: Record<string, string> = {};
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+        queryStr = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
+      }
+      return request<any>(`/notifications${queryStr}`);
+    },
+    getDatesDashboard: () => request<any>('/notifications/dates'),
+    getArticle: (slug: string) => request<any>(`/notifications/articles/${slug}`),
+    recordArticleView: (id: string) => request<any>(`/notifications/articles/${id}/view`, { method: 'POST' }),
     markAsRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'POST' }),
     adminGetAll: () => request<any>('/notifications/admin/all'),
     create: (body: any) => request<any>('/notifications', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: any) => request<any>(`/notifications/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id: string) => request<any>(`/notifications/${id}`, { method: 'DELETE' }),
+  },
+
+  // AI Education Newsroom 2.0 (Admin)
+  aiNewsroom: {
+    getDashboard: () => request<any>('/admin/ai-newsroom/dashboard'),
+    research: (params: { organization?: string; category?: string; query?: string; customUrl?: string }) =>
+      request<any>('/admin/ai-newsroom/research', { method: 'POST', body: JSON.stringify(params) }),
+    generate: (payload: { facts: any; autoApprove?: boolean }) =>
+      request<any>('/admin/ai-newsroom/generate', { method: 'POST', body: JSON.stringify(payload) }),
+    regenerate: (id: string, targetSection?: string) =>
+      request<any>(`/admin/ai-newsroom/regenerate/${id}`, { method: 'POST', body: JSON.stringify({ targetSection }) }),
+    publish: (id: string, event?: string) =>
+      request<any>(`/admin/ai-newsroom/publish/${id}`, { method: 'POST', body: JSON.stringify({ event }) }),
+    schedule: (id: string, scheduledAt: string) =>
+      request<any>(`/admin/ai-newsroom/schedule/${id}`, { method: 'POST', body: JSON.stringify({ scheduledAt }) }),
+    getArticles: (params?: Record<string, any>) => {
+      const cleanParams: Record<string, string> = {};
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+      }
+      const q = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
+      return request<any>(`/admin/ai-newsroom/articles${q}`);
+    },
+    getArticle: (id: string) => request<any>(`/admin/ai-newsroom/articles/${id}`),
+    updateArticle: (id: string, data: any) =>
+      request<any>(`/admin/ai-newsroom/articles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteArticle: (id: string) => request<any>(`/admin/ai-newsroom/articles/${id}`, { method: 'DELETE' }),
+    bulkAction: (action: 'APPROVE' | 'PUBLISH' | 'ARCHIVE', ids: string[]) =>
+      request<any>('/admin/ai-newsroom/bulk', { method: 'POST', body: JSON.stringify({ action, ids }) }),
+    getSources: () => request<any>('/admin/ai-newsroom/sources'),
+    getSettings: () => request<any>('/admin/ai-newsroom/settings'),
+    updateSettings: (settings: any) =>
+      request<any>('/admin/ai-newsroom/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+    getLogs: () => request<any>('/admin/ai-newsroom/logs'),
   },
 
   // Admin Dashboard & Users

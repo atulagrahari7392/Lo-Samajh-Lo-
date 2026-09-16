@@ -24,6 +24,7 @@ import TypingTestPage from './pages/user/TypingTestPage';
 import CartPage from './pages/user/CartPage';
 import WishlistPage from './pages/user/WishlistPage';
 import NotificationsPage from './pages/user/NotificationsPage';
+import ArticleDetailPage from './pages/user/ArticleDetailPage';
 import LoginPage from './pages/user/LoginPage';
 import RegisterPage from './pages/user/RegisterPage';
 import DashboardPage from './pages/user/DashboardPage';
@@ -163,6 +164,14 @@ export const App: React.FC = () => {
                   element={
                     <UserLayout>
                       <NotificationsPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/notifications/:slug"
+                  element={
+                    <UserLayout>
+                      <ArticleDetailPage />
                     </UserLayout>
                   }
                 />

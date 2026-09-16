@@ -27,6 +27,8 @@ import sliderRoutes from './routes/slider.routes';
 import settingsRoutes from './routes/settings.routes';
 import currentAffairsRoutes from './routes/current-affairs.routes';
 import googleDriveRoutes from './routes/googleDrive.routes';
+import aiNewsroomRoutes from './routes/aiNewsroom.routes';
+import { initNewsroomScheduler } from './services/aiNewsroom/scheduler';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './db';
 
@@ -95,6 +97,7 @@ app.use('/api/live-classes', liveRoutes);
 app.use('/api/recorded-classes', recordedRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/ai-newsroom', aiNewsroomRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/sliders', sliderRoutes);
 app.use('/api/settings', settingsRoutes);
@@ -139,6 +142,7 @@ import { migrateData } from './scripts/migrate-data';
 
 const httpServer = http.createServer(app);
 initSocket(httpServer);
+initNewsroomScheduler(60000);
 
 // Periodic Live Scheduler (Phase 34)
 // Checks for scheduled classes approaching start time, stale live sessions, and recording status
@@ -183,6 +187,10 @@ httpServer.listen(Number(PORT), '0.0.0.0', async () => {
     } else {
       console.log(`✅ Database ready. Found ${categoryCount} existing categories. Production data preserved.`);
     }
+
+    // Safe seed for AI Education Newsroom if empty
+    const { seedEducationNewsroom } = await import('./scripts/seed-newsroom');
+    await seedEducationNewsroom();
   } catch (err: any) {
     console.warn('⚠️ Database startup notice:', err.message);
   }
