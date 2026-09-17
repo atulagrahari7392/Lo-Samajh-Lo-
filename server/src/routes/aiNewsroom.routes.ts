@@ -37,6 +37,7 @@ router.get('/dashboard', async (req, res, next) => {
       pendingResearchJobs,
       lastSuccessSetting,
       lastFailedSetting,
+      aiHealthSetting,
     ] = await Promise.all([
       prisma.educationArticle.count(),
       prisma.educationArticle.count({ where: { status: 'DRAFT' } }),
@@ -62,18 +63,32 @@ router.get('/dashboard', async (req, res, next) => {
       prisma.researchJob.count({ where: { status: 'PENDING' } }),
       prisma.newsroomSetting.findUnique({ where: { key: 'lastSuccessfulResearch' } }),
       prisma.newsroomSetting.findUnique({ where: { key: 'lastFailedResearch' } }),
+      prisma.newsroomSetting.findUnique({ where: { key: 'aiConnectionHealth' } }),
     ]);
 
     // Subsystem Health Indicators (Phases 26, 27)
     const aiStatus = getAIProviderStatus();
+    let aiHealthRecord: any = null;
+    if (aiHealthSetting) {
+      try {
+        aiHealthRecord = JSON.parse(aiHealthSetting.value);
+      } catch {}
+    }
+
     const schedulerStatus = getSchedulerStatus();
     const searchKey = process.env.SEARCH_API_KEY;
     const webDiscoveryStatus = searchKey && searchKey.trim().length > 5 ? 'ACTIVE' : 'CATALOG ONLY';
 
+    const effectiveAIStatus = aiHealthRecord?.status || aiStatus.status;
+    const effectiveAIProvider = aiHealthRecord?.provider || aiStatus.provider;
+    const effectiveAIModel = aiHealthRecord?.model || aiStatus.model;
+    const effectiveAIError = aiHealthRecord?.error || aiStatus.error || null;
+
     const newsroomHealth = {
-      aiProvider: aiStatus.status, // CONNECTED / NOT CONFIGURED / ERROR
-      aiProviderName: aiStatus.provider,
-      aiModel: aiStatus.model,
+      aiProvider: effectiveAIStatus, // CONNECTED / NOT CONFIGURED / ERROR
+      aiProviderName: effectiveAIProvider,
+      aiModel: effectiveAIModel,
+      aiError: effectiveAIError,
       isFallback: aiStatus.isFallback,
       webDiscovery: webDiscoveryStatus, // ACTIVE / CATALOG ONLY
       scheduler: schedulerStatus.isRunning ? 'RUNNING' : 'IDLE',
@@ -113,6 +128,33 @@ router.post('/test-ai', async (req: AuthRequest, res, next) => {
     const provider = getAIProvider();
     if (typeof provider.testConnection === 'function') {
       const result = await provider.testConnection();
+
+      // Persist health outcome in database (Phase 9 & 27)
+      await prisma.newsroomSetting.upsert({
+        where: { key: 'aiConnectionHealth' },
+        update: {
+          value: JSON.stringify({
+            status: result.connected ? 'CONNECTED' : 'ERROR',
+            provider: result.provider,
+            model: result.model,
+            error: result.error || null,
+            latencyMs: result.latencyMs,
+            testedAt: new Date().toISOString(),
+          }),
+        },
+        create: {
+          key: 'aiConnectionHealth',
+          value: JSON.stringify({
+            status: result.connected ? 'CONNECTED' : 'ERROR',
+            provider: result.provider,
+            model: result.model,
+            error: result.error || null,
+            latencyMs: result.latencyMs,
+            testedAt: new Date().toISOString(),
+          }),
+        },
+      });
+
       res.json({
         success: true,
         ...result,
@@ -128,7 +170,32 @@ router.post('/test-ai', async (req: AuthRequest, res, next) => {
       latencyMs: 1,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, connected: false, error: err.message });
+    const sanitizedError = (err.message || 'Test failed')
+      .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]')
+      .replace(/key=[^&\s]+/gi, 'key=[REDACTED]');
+
+    await prisma.newsroomSetting.upsert({
+      where: { key: 'aiConnectionHealth' },
+      update: {
+        value: JSON.stringify({
+          status: 'ERROR',
+          provider: 'GeminiProvider',
+          error: sanitizedError,
+          testedAt: new Date().toISOString(),
+        }),
+      },
+      create: {
+        key: 'aiConnectionHealth',
+        value: JSON.stringify({
+          status: 'ERROR',
+          provider: 'GeminiProvider',
+          error: sanitizedError,
+          testedAt: new Date().toISOString(),
+        }),
+      },
+    });
+
+    res.status(500).json({ success: false, connected: false, error: sanitizedError });
   }
 });
 

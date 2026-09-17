@@ -194,6 +194,19 @@ httpServer.listen(Number(PORT), '0.0.0.0', async () => {
   } catch (err: any) {
     console.warn('⚠️ Database startup notice:', err.message);
   }
+
+  // AI Newsroom Startup/Configuration Validation (Phase Fix Item 10)
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 10) {
+    const geminiModel = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
+    console.log('Gemini Provider: configured');
+    console.log(`Gemini Model: ${geminiModel}`);
+  } else if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 10) {
+    const openaiModel = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
+    console.log('OpenAI Provider: configured');
+    console.log(`OpenAI Model: ${openaiModel}`);
+  } else {
+    console.log('AI Provider: RuleBasedEducationParser (Fallback configured)');
+  }
 });
 
 export default app;

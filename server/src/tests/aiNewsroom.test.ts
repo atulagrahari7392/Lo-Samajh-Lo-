@@ -38,16 +38,32 @@ async function runTests() {
     if (origGemini) process.env.GEMINI_API_KEY = origGemini;
   });
 
-  // 2. Gemini provider factory (Phase 55 - Item 2)
-  await test('2. Gemini provider factory resolves correctly when configured', () => {
+  // 2. Gemini provider factory (Phase 55 - Item 2 & Gemini Compatibility Fix)
+  await test('2. Gemini provider factory resolves correctly with gemini-3.5-flash and GEMINI_MODEL env', () => {
     const origGemini = process.env.GEMINI_API_KEY;
+    const origModel = process.env.GEMINI_MODEL;
     process.env.GEMINI_API_KEY = 'AIzaSyTestSampleKey2026';
+    delete process.env.GEMINI_MODEL;
 
-    const provider = getAIProvider();
-    assert.strictEqual(provider.name, 'GeminiProvider', 'Should resolve to GeminiProvider');
+    // Default model check
+    const providerDefault = getAIProvider() as any;
+    assert.strictEqual(providerDefault.name, 'GeminiProvider');
+    assert.strictEqual(providerDefault.model, 'gemini-3.5-flash', 'Default model must be gemini-3.5-flash');
+
+    // Environment variable override check (GEMINI_MODEL)
+    process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+    const providerCustom = getAIProvider() as any;
+    assert.strictEqual(providerCustom.model, 'gemini-2.5-flash', 'GEMINI_MODEL must configure model');
+
+    // Health reporting check
+    const status = getAIProviderStatus();
+    assert.strictEqual(status.provider, 'GeminiProvider');
+    assert.strictEqual(status.model, 'gemini-2.5-flash');
 
     if (origGemini) process.env.GEMINI_API_KEY = origGemini;
     else delete process.env.GEMINI_API_KEY;
+    if (origModel) process.env.GEMINI_MODEL = origModel;
+    else delete process.env.GEMINI_MODEL;
   });
 
   // 3. Fallback provider (Phase 55 - Item 3)

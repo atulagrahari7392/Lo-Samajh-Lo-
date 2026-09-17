@@ -28,8 +28,19 @@ export const NewsroomDashboardTab: React.FC<Props> = ({
       setTestingAI(true);
       const res = await api.aiNewsroom.testAI();
       setAiTestResult(res);
+      if (dashboardData?.health) {
+        dashboardData.health.aiProvider = res.connected ? 'CONNECTED' : 'ERROR';
+        if (res.model) dashboardData.health.aiModel = res.model;
+        if (res.provider) dashboardData.health.aiProviderName = res.provider;
+        if (!res.connected && res.error) dashboardData.health.aiError = res.error;
+        else if (res.connected) dashboardData.health.aiError = null;
+      }
     } catch (err: any) {
       setAiTestResult({ connected: false, error: err.message, latencyMs: 0 });
+      if (dashboardData?.health) {
+        dashboardData.health.aiProvider = 'ERROR';
+        dashboardData.health.aiError = err.message;
+      }
     } finally {
       setTestingAI(false);
     }
@@ -145,6 +156,19 @@ export const NewsroomDashboardTab: React.FC<Props> = ({
             </div>
           </div>
         </div>
+
+        {/* Persistent AI Provider Error Banner (Phase 9 & 27) */}
+        {!aiTestResult && health.aiProvider === 'ERROR' && health.aiError && (
+          <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/60 text-xs text-rose-200 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold block text-rose-300">
+                AI Provider Error ({health.aiProviderName || 'GeminiProvider'} • {health.aiModel || 'gemini-3.5-flash'}):
+              </span>
+              <span className="font-mono text-[11px] text-rose-300/90 mt-0.5 block">{health.aiError}</span>
+            </div>
+          </div>
+        )}
 
         {/* AI Test Result Feedback */}
         {aiTestResult && (

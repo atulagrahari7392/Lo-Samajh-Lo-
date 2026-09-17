@@ -838,64 +838,240 @@ ${rawText.slice(0, 6000)}
 }
 
 /**
+ * Helper to sanitize errors and eliminate any API keys, auth headers, or secrets (Phase 28 & 43)
+ */
+export function sanitizeSecret(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_GEMINI_KEY]')
+    .replace(/sk-[a-zA-Z0-9_-]{20,}/g, '[REDACTED_OPENAI_KEY]')
+    .replace(/key=[^&\s]+/gi, 'key=[REDACTED]')
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [REDACTED]');
+}
+
+let lastKnownAIHealth: {
+  status: 'CONNECTED' | 'NOT CONFIGURED' | 'ERROR';
+  provider: string;
+  model: string;
+  isFallback: boolean;
+  error?: string;
+  testedAt?: string;
+} | null = null;
+
+export function recordAIConnectionHealth(info: {
+  status: 'CONNECTED' | 'ERROR';
+  provider: string;
+  model: string;
+  error?: string;
+  latencyMs?: number;
+  testedAt: string;
+}) {
+  lastKnownAIHealth = {
+    status: info.status,
+    provider: info.provider,
+    model: info.model,
+    isFallback: false,
+    error: info.error,
+    testedAt: info.testedAt,
+  };
+}
+
+/**
  * Gemini Provider implementation (used if GEMINI_API_KEY is configured).
+ * Supports modern Gemini Flash models (gemini-3.5-flash, gemini-2.5-flash, gemini-2.0-flash),
+ * configurable via GEMINI_MODEL and GEMINI_API_VERSION (default v1 with v1beta compatibility).
  */
 export class GeminiProvider implements AIProvider {
   name = 'GeminiProvider';
   private apiKey: string;
-  private model: string;
+  public model: string;
+  public apiVersion: string;
   private fallback: RuleBasedEducationParser;
 
-  constructor(apiKey: string, model = 'gemini-1.5-flash') {
+  constructor(apiKey: string, model?: string, apiVersion = 'v1') {
     this.apiKey = apiKey;
-    this.model = model;
+    this.model = (model || process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
+    this.apiVersion = (process.env.GEMINI_API_VERSION || apiVersion || 'v1').trim();
     this.fallback = new RuleBasedEducationParser();
+  }
+
+  /**
+   * Internal executor for Google Generative Language generateContent requests.
+   * Prioritizes stable v1 API with the configured model, and automatically tries
+   * supported Flash alternatives (gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash-latest)
+   * and versions (v1, v1beta) if a 404 Model Not Found is encountered.
+   */
+  private async executeGenerateContent(
+    contents: any[],
+    generationConfig: any = {}
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    data?: any;
+    errorText?: string;
+    activeModel: string;
+    activeVersion: string;
+  }> {
+    const primaryModel = this.model;
+    const candidateModels = [
+      primaryModel,
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash',
+    ].filter((m, idx, arr) => arr.indexOf(m) === idx);
+
+    const versions = this.apiVersion === 'v1' ? ['v1', 'v1beta'] : ['v1beta', 'v1'];
+    let lastStatus = 500;
+    let lastErrorText = 'Failed to connect to Gemini API';
+
+    for (const modelName of candidateModels) {
+      const cleanModel = modelName.replace(/^models\//, '');
+
+      for (const version of versions) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/${version}/models/${cleanModel}:generateContent?key=${this.apiKey}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents,
+              generationConfig,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
+              this.model = cleanModel;
+              this.apiVersion = version;
+              return {
+                ok: true,
+                status: 200,
+                data,
+                activeModel: cleanModel,
+                activeVersion: version,
+              };
+            }
+          }
+
+          lastStatus = res.status;
+          const errData = await res.json().catch(() => ({}));
+          lastErrorText = errData?.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+
+          // If error is not 404 (e.g. 401 Unauthorized, 403 Forbidden, 429 Quota Exceeded),
+          // do not cycle through other models
+          if (res.status !== 404) {
+            return {
+              ok: false,
+              status: res.status,
+              errorText: sanitizeSecret(lastErrorText),
+              activeModel: cleanModel,
+              activeVersion: version,
+            };
+          }
+        } catch (fetchErr: any) {
+          lastErrorText = fetchErr.message;
+        }
+      }
+    }
+
+    return {
+      ok: false,
+      status: lastStatus,
+      errorText: sanitizeSecret(lastErrorText),
+      activeModel: this.model,
+      activeVersion: this.apiVersion,
+    };
   }
 
   async testConnection(): Promise<{
     connected: boolean;
     provider: string;
     model: string;
+    apiVersion?: string;
     latencyMs: number;
     error?: string;
   }> {
     const start = Date.now();
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Ping' }] }],
-            generationConfig: { maxOutputTokens: 1 },
-          }),
-        }
+      const result = await this.executeGenerateContent(
+        [{ parts: [{ text: 'Ping: Reply with OK if connected.' }] }],
+        { maxOutputTokens: 10 }
       );
       const latencyMs = Date.now() - start;
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
+
+      if (!result.ok) {
+        const sanitized = sanitizeSecret(result.errorText || `HTTP ${result.status}`);
+        recordAIConnectionHealth({
+          status: 'ERROR',
+          provider: this.name,
+          model: this.model,
+          error: sanitized,
+          testedAt: new Date().toISOString(),
+        });
         return {
           connected: false,
           provider: this.name,
           model: this.model,
+          apiVersion: this.apiVersion,
           latencyMs,
-          error: errData?.error?.message || `HTTP ${res.status}: ${res.statusText}`,
+          error: sanitized,
         };
       }
+
+      const replyText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!replyText || replyText.trim().length === 0) {
+        const errorMsg = 'Gemini returned response but no content text was found.';
+        recordAIConnectionHealth({
+          status: 'ERROR',
+          provider: this.name,
+          model: this.model,
+          error: errorMsg,
+          testedAt: new Date().toISOString(),
+        });
+        return {
+          connected: false,
+          provider: this.name,
+          model: this.model,
+          apiVersion: this.apiVersion,
+          latencyMs,
+          error: errorMsg,
+        };
+      }
+
+      recordAIConnectionHealth({
+        status: 'CONNECTED',
+        provider: this.name,
+        model: this.model,
+        latencyMs,
+        testedAt: new Date().toISOString(),
+      });
+
       return {
         connected: true,
         provider: this.name,
         model: this.model,
+        apiVersion: this.apiVersion,
         latencyMs,
       };
     } catch (err: any) {
+      const latencyMs = Date.now() - start;
+      const sanitized = sanitizeSecret(err.message || 'Connection failed');
+      recordAIConnectionHealth({
+        status: 'ERROR',
+        provider: this.name,
+        model: this.model,
+        error: sanitized,
+        testedAt: new Date().toISOString(),
+      });
       return {
         connected: false,
         provider: this.name,
         model: this.model,
-        latencyMs: Date.now() - start,
-        error: err.message,
+        apiVersion: this.apiVersion,
+        latencyMs,
+        error: sanitized,
       };
     }
   }
@@ -916,23 +1092,16 @@ Rules:
 ${rawText.slice(0, 6000)}
 </UNTRUSTED_DATA>`;
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json' },
-          }),
-        }
+      const result = await this.executeGenerateContent(
+        [{ parts: [{ text: prompt }] }],
+        { responseMimeType: 'application/json' }
       );
 
-      if (!res.ok) {
+      if (!result.ok || !result.data) {
         return this.fallback.extractFacts(rawText, metadata);
       }
-      const data = await res.json();
-      const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      const rawJson = result.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawJson) return this.fallback.extractFacts(rawText, metadata);
       return JSON.parse(rawJson);
     } catch {
@@ -960,12 +1129,14 @@ ${rawText.slice(0, 6000)}
 export function getAIProvider(): AIProvider {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey && geminiKey.trim().length > 10) {
-    return new GeminiProvider(geminiKey);
+    const model = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
+    return new GeminiProvider(geminiKey, model);
   }
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey && openaiKey.trim().length > 10) {
-    return new OpenAIProvider(openaiKey);
+    const model = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
+    return new OpenAIProvider(openaiKey, model);
   }
 
   return new RuleBasedEducationParser();
@@ -979,17 +1150,40 @@ export function getAIProviderStatus(): {
   provider: string;
   model: string;
   isFallback: boolean;
+  error?: string;
+  testedAt?: string;
 } {
+  if (lastKnownAIHealth) {
+    return lastKnownAIHealth;
+  }
+
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey && geminiKey.trim().length > 10) {
-    return { status: 'CONNECTED', provider: 'GeminiProvider', model: 'gemini-1.5-flash', isFallback: false };
+    const model = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
+    return {
+      status: 'CONNECTED',
+      provider: 'GeminiProvider',
+      model,
+      isFallback: false,
+    };
   }
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey && openaiKey.trim().length > 10) {
-    return { status: 'CONNECTED', provider: 'OpenAIProvider', model: 'gpt-4o-mini', isFallback: false };
+    const model = (process.env.OPENAI_MODEL || 'gpt-4o-mini').trim();
+    return {
+      status: 'CONNECTED',
+      provider: 'OpenAIProvider',
+      model,
+      isFallback: false,
+    };
   }
 
-  return { status: 'NOT CONFIGURED', provider: 'RuleBasedEducationParser', model: 'deterministic-rules-v2', isFallback: true };
+  return {
+    status: 'NOT CONFIGURED',
+    provider: 'RuleBasedEducationParser',
+    model: 'deterministic-rules-v2',
+    isFallback: true,
+  };
 }
 
