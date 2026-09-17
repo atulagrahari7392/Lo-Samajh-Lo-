@@ -214,7 +214,8 @@ async function runTests() {
   );
   const routesRegistered =
     appTsxCode.includes('/study-material/ncert') &&
-    appTsxCode.includes('/study-material/ncert/class-:classNumber') &&
+    (appTsxCode.includes('/study-material/ncert/:classNumber') ||
+      appTsxCode.includes('/study-material/ncert/class-:classNumber')) &&
     appTsxCode.includes('/admin/ncert-books');
   assert(
     routesRegistered,

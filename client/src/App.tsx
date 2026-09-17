@@ -133,7 +133,7 @@ export const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/study-material/ncert/class-:classNumber"
+                  path="/study-material/ncert/:classNumber"
                   element={
                     <UserLayout>
                       <NcertBooksPage />
@@ -141,7 +141,7 @@ export const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/study-material/ncert/class-:classNumber/:subject"
+                  path="/study-material/ncert/:classNumber/:subject"
                   element={
                     <UserLayout>
                       <NcertBooksPage />
@@ -149,7 +149,7 @@ export const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/study-material/ncert/class-:classNumber/:subject/:bookSlug"
+                  path="/study-material/ncert/:classNumber/:subject/:bookSlug"
                   element={
                     <UserLayout>
                       <NcertBookDetailPage />
@@ -174,7 +174,7 @@ export const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/study-materials/ncert/class-:classNumber"
+                  path="/study-materials/ncert/:classNumber"
                   element={
                     <UserLayout>
                       <NcertBooksPage />
@@ -182,7 +182,7 @@ export const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/study-materials/ncert/class-:classNumber/:subject"
+                  path="/study-materials/ncert/:classNumber/:subject"
                   element={
                     <UserLayout>
                       <NcertBooksPage />
@@ -190,7 +190,7 @@ export const App: React.FC = () => {
                   }
                 />
                 <Route
-                  path="/study-materials/ncert/class-:classNumber/:subject/:bookSlug"
+                  path="/study-materials/ncert/:classNumber/:subject/:bookSlug"
                   element={
                     <UserLayout>
                       <NcertBookDetailPage />

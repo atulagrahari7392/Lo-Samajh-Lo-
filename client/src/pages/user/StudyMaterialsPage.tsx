@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Bookmark,
   Eye,
+  ShieldCheck,
   Filter,
   X,
   ChevronDown,
@@ -36,8 +37,9 @@ import {
   FolderTree,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Material, Category, CurrentAffairs } from '../../types';
+import { Material, Category, CurrentAffairs, NcertBook } from '../../types';
 import { PdfReaderModal } from '../../components/materials/PdfReaderModal';
+import { NcertReaderModal } from '../../components/ncert/NcertReaderModal';
 import { useToast } from '../../context/ToastContext';
 
 export const StudyMaterialsPage: React.FC = () => {
@@ -67,9 +69,14 @@ export const StudyMaterialsPage: React.FC = () => {
   const [selectedFreeOnly, setSelectedFreeOnly] = useState(searchParams.get('free') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'latest');
 
-  // NCERT Hierarchical Explorer State
-  const [ncertClass, setNcertClass] = useState('Class 7');
-  const [ncertSubject, setNcertSubject] = useState('Science');
+  // NCERT State
+  const [ncertBooks, setNcertBooks] = useState<NcertBook[]>([]);
+  const [ncertClassNumber, setNcertClassNumber] = useState<number>(7);
+  const [ncertSubject, setNcertSubject] = useState<string>('ALL');
+  const [ncertMedium, setNcertMedium] = useState<string>('ALL');
+  const [availableNcertSubjects, setAvailableNcertSubjects] = useState<string[]>([]);
+  const [ncertReaderBook, setNcertReaderBook] = useState<NcertBook | null>(null);
+  const [isNcertReaderOpen, setIsNcertReaderOpen] = useState(false);
 
   // PYQ Hierarchical Explorer State
   const [pyqExam, setPyqExam] = useState('UPSSSC PET');
@@ -219,9 +226,28 @@ export const StudyMaterialsPage: React.FC = () => {
       if (selectedCategory) params.category = selectedCategory;
 
       if (activeTab === 'ncert') {
-        params.materialType = 'NCERT';
-        if (ncertClass) params.classGrade = ncertClass;
-        if (ncertSubject) params.subject = ncertSubject;
+        const ncertParams: Record<string, any> = {
+          classNumber: ncertClassNumber,
+          limit: 36,
+        };
+        if (ncertSubject && ncertSubject !== 'ALL') {
+          ncertParams.subject = ncertSubject;
+        }
+        if (ncertMedium && ncertMedium !== 'ALL') {
+          ncertParams.medium = ncertMedium;
+        }
+        if (debouncedSearch.trim()) {
+          ncertParams.search = debouncedSearch.trim();
+        }
+        const ncertRes = await api.ncert.getAll(ncertParams);
+        if (ncertRes.success) {
+          setNcertBooks(ncertRes.data || []);
+          if (ncertRes.pagination) {
+            setPagination(ncertRes.pagination);
+          }
+        }
+        setMaterials([]);
+        return;
       } else if (activeTab === 'pyq') {
         params.materialType = 'PYQ';
         if (pyqExam) params.examName = pyqExam;
@@ -257,6 +283,17 @@ export const StudyMaterialsPage: React.FC = () => {
     }).catch(() => {});
   }, []);
 
+  // Fetch NCERT subjects when ncertClassNumber changes
+  useEffect(() => {
+    if (activeTab === 'ncert') {
+      api.ncert.getSubjects(ncertClassNumber).then(res => {
+        if (res.success && res.data) {
+          setAvailableNcertSubjects(res.data);
+        }
+      }).catch(() => {});
+    }
+  }, [ncertClassNumber, activeTab]);
+
   // Fetch when filters or tab change
   useEffect(() => {
     fetchMaterials(1);
@@ -271,8 +308,9 @@ export const StudyMaterialsPage: React.FC = () => {
     selectedLanguage,
     selectedFreeOnly,
     sortBy,
-    ncertClass,
+    ncertClassNumber,
     ncertSubject,
+    ncertMedium,
     pyqExam,
     pyqYear,
     caCategory,
@@ -424,7 +462,8 @@ export const StudyMaterialsPage: React.FC = () => {
                   key={cat.id}
                   onClick={() => {
                     if (cat.id === 'NCERT') {
-                      navigate('/study-material/ncert');
+                      setActiveTab('ncert');
+                      setSelectedType('');
                       return;
                     } else if (cat.id === 'PYQ') {
                       setActiveTab('pyq');
@@ -467,8 +506,7 @@ export const StudyMaterialsPage: React.FC = () => {
           <div className="flex items-center gap-1.5 shrink-0">
             {[
               { id: 'all', label: 'All Materials', count: pagination.total },
-              { id: 'ncert-official', label: 'NCERT Books (Official)', icon: BookOpen, isOfficial: true },
-              { id: 'ncert', label: 'NCERT Notes & Solutions', icon: BookOpen },
+              { id: 'ncert', label: 'NCERT Books (Classes 1–12)', icon: BookOpen },
               { id: 'pyq', label: 'PYQ Papers', icon: Archive },
               { id: 'current-affairs', label: 'Current Affairs', icon: Sparkles },
               { id: 'featured', label: 'Featured', icon: Trophy },
@@ -481,10 +519,6 @@ export const StudyMaterialsPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => {
-                    if ((tab as any).isOfficial) {
-                      navigate('/study-material/ncert');
-                      return;
-                    }
                     setActiveTab(tab.id);
                     if (tab.id !== 'all') {
                       setSelectedType('');
@@ -521,74 +555,120 @@ export const StudyMaterialsPage: React.FC = () => {
         </div>
 
         {/* ---------------------------------------------------- */}
-        {/* TAB 1: NCERT Hierarchical Explorer (Phase 4) */}
+        {/* TAB 1: NCERT Hierarchical Explorer (Classes 1–12) */}
         {/* ---------------------------------------------------- */}
         {activeTab === 'ncert' && (
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-[#6C63FF]" />
-                  <span>NCERT Hierarchical Explorer (कक्षावार एवं अध्यायवार)</span>
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                  <span>NCERT Official Textbooks Library (कक्षा 1 से 12 तक)</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  कक्षा 1 से 12 तक की NCERT पाठ्यपुस्तकों के सभी अध्यायों के संपूर्ण समाधान व नोट्स।
+                  आधिकारिक NCERT पाठ्यपुस्तकों के सभी अध्याय सीधे ऑनलाइन पढ़ें व आधिकारिक पोर्टल से डाउनलोड करें।
                 </p>
-
-                {/* Official NCERT Books Library Link Banner */}
-                <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-black">Official NCERT Textbooks Library (Classes 1–12)</h4>
-                      <p className="text-[11px] text-blue-100">आधिकारिक एनसीईआरटी पाठ्यपुस्तकें और अध्यायवार आधिकारिक पीडीएफ सीधे देखें।</p>
-                    </div>
-                  </div>
-                  <Link
-                    to="/study-material/ncert"
-                    className="px-3.5 py-1.5 rounded-xl bg-white text-blue-700 font-bold text-xs hover:bg-blue-50 transition shrink-0 shadow-sm"
-                  >
-                    Explore Official Books →
-                  </Link>
-                </div>
               </div>
 
-              {/* Class Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10 (Board)', 'Class 11', 'Class 12 (Board)'].map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setNcertClass(c)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                      ncertClass === c
-                        ? 'bg-[#6C63FF] text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
+              <Link
+                to={`/study-material/ncert/class-${ncertClassNumber}`}
+                className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs flex items-center gap-1.5 transition shrink-0 border border-blue-200"
+              >
+                <span>Dedicated NCERT Portal ↗</span>
+              </Link>
+            </div>
+
+            {/* Class Pills (Classes 1 to 12) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-500 uppercase flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  <span>कक्षा चुनें (Select Class):</span>
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  Showing books for <strong>Class {ncertClassNumber}</strong>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((cls) => {
+                  const isSelected = ncertClassNumber === cls;
+                  return (
+                    <button
+                      key={cls}
+                      onClick={() => {
+                        setNcertClassNumber(cls);
+                        setNcertSubject('ALL');
+                      }}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 flex flex-col items-center justify-center min-w-[74px] ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span>Class {cls}</span>
+                      <span className={`text-[10px] font-normal ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                        कक्षा {cls}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Subject Selector for NCERT */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              <span className="text-xs font-extrabold text-slate-500 uppercase shrink-0">विषय चुनें:</span>
-              {['Science', 'Mathematics', 'Social Science', 'Hindi', 'English'].map(s => (
+            {/* Subject Selector & Medium Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2 border-t border-slate-100">
+              {/* Subjects */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1">
+                <span className="text-xs font-extrabold text-slate-500 uppercase shrink-0">विषय:</span>
                 <button
-                  key={s}
-                  onClick={() => setNcertSubject(s)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shrink-0 border ${
-                    ncertSubject === s
-                      ? 'bg-slate-900 text-white border-slate-900'
+                  onClick={() => setNcertSubject('ALL')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0 border ${
+                    ncertSubject === 'ALL'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                       : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  {s}
+                  All Subjects
                 </button>
-              ))}
+                {(availableNcertSubjects.length > 0
+                  ? availableNcertSubjects
+                  : ['Science', 'Mathematics', 'Social Science', 'Hindi', 'English', 'Sanskrit']
+                ).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setNcertSubject(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0 border ${
+                      ncertSubject === s
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Medium */}
+              <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-2 md:pt-0">
+                <span className="text-xs font-extrabold text-slate-500 uppercase flex items-center gap-1">
+                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+                  <span>माध्यम:</span>
+                </span>
+                {['ALL', 'English', 'Hindi', 'Urdu'].map((med) => (
+                  <button
+                    key={med}
+                    onClick={() => setNcertMedium(med)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                      ncertMedium === med
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {med === 'ALL' ? 'सभी' : med}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -978,38 +1058,105 @@ export const StudyMaterialsPage: React.FC = () => {
 
             {/* Right Column: Materials Cards Grid */}
             <div className="lg:col-span-3 space-y-6">
-              {/* Quick Subject Filter Pills Row */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {subjectPills.map(sub => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setSelectedSubject(sub.id)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${
-                      selectedSubject === sub.id
-                        ? 'bg-[#6C63FF] text-white border-[#6C63FF] shadow-sm'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
+              {/* Quick Subject Filter Pills Row (General Materials) */}
+              {activeTab !== 'ncert' && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {subjectPills.map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setSelectedSubject(sub.id)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${
+                        selectedSubject === sub.id
+                          ? 'bg-[#6C63FF] text-white border-[#6C63FF] shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Status info row */}
               <div className="flex items-center justify-between text-xs text-slate-500 px-1">
                 <span>
-                  दिखाए जा रहे हैं: <strong className="text-slate-800">{materials.length}</strong> परिणाम
-                  {pagination.total > 0 && ` (कुल ${pagination.total})`}
+                  {activeTab === 'ncert' ? (
+                    <>
+                      दिखाई जा रही हैं: <strong className="text-slate-800">{ncertBooks.length}</strong> आधिकारिक NCERT पुस्तकें (कक्षा {ncertClassNumber})
+                    </>
+                  ) : (
+                    <>
+                      दिखाए जा रहे हैं: <strong className="text-slate-800">{materials.length}</strong> परिणाम
+                      {pagination.total > 0 && ` (कुल ${pagination.total})`}
+                    </>
+                  )}
                 </span>
-                {selectedSubject && (
-                  <span className="font-semibold text-[#6C63FF]">
-                    विषय: {selectedSubject}
-                  </span>
+                {activeTab === 'ncert' ? (
+                  ncertSubject !== 'ALL' && (
+                    <span className="font-semibold text-blue-600">
+                      विषय: {ncertSubject}
+                    </span>
+                  )
+                ) : (
+                  selectedSubject && (
+                    <span className="font-semibold text-[#6C63FF]">
+                      विषय: {selectedSubject}
+                    </span>
+                  )
                 )}
               </div>
 
               {/* Cards Grid */}
-              {loading ? (
+              {activeTab === 'ncert' ? (
+                loading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                      <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 animate-pulse space-y-4">
+                        <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                        <div className="h-6 bg-slate-200 rounded w-3/4"></div>
+                        <div className="h-20 bg-slate-100 rounded-2xl"></div>
+                        <div className="h-8 bg-slate-200 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : ncertBooks.length === 0 ? (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 space-y-4">
+                    <BookOpen className="w-14 h-14 text-slate-300 mx-auto" />
+                    <h3 className="text-lg font-bold text-slate-800">
+                      Class {ncertClassNumber} के लिए पुस्तकें लोड हो रही हैं या फ़िल्टर रीसेट करें
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      चयनित विषय अथवा माध्यम में कोई पुस्तक नहीं मिली। कृपया "All Subjects" चुनें।
+                    </p>
+                    <button
+                      onClick={() => {
+                        setNcertSubject('ALL');
+                        setNcertMedium('ALL');
+                      }}
+                      className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition"
+                    >
+                      सभी विषय दिखाएं / Reset Filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {ncertBooks.map(book => (
+                      <NcertBookGridCard
+                        key={book.id}
+                        book={book}
+                        onReadOnline={(b) => {
+                          setNcertReaderBook(b);
+                          setIsNcertReaderOpen(true);
+                        }}
+                        onDownload={(b) => {
+                          api.ncert.trackDownload(b.id).catch(() => {});
+                          window.open(b.officialPdfUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                      />
+                    ))}
+                  </div>
+                )
+              ) : loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[1, 2, 3, 4, 5, 6].map(i => (
                     <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 animate-pulse space-y-4">
@@ -1022,41 +1169,17 @@ export const StudyMaterialsPage: React.FC = () => {
                 </div>
               ) : materials.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 space-y-4">
-                  {activeTab === 'ncert' ? (
-                    <>
-                      <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                        <BookOpen className="w-8 h-8" />
-                      </div>
-                      <h3 className="text-lg font-black text-slate-800">
-                        {ncertClass} {ncertSubject} की आधिकारिक NCERT पुस्तकें उपलब्ध हैं!
-                      </h3>
-                      <p className="text-xs text-slate-600 max-w-md mx-auto">
-                        इस क्लास के लिए कस्टम क्लास नोट्स अपलोड नहीं हैं, परंतु आधिकारिक NCERT पाठ्यपुस्तकें और अध्यायवार पीडीएफ NCERT Books Library में उपलब्ध हैं।
-                      </p>
-                      <div className="pt-2 flex items-center justify-center gap-3">
-                        <Link
-                          to={`/study-material/ncert/class-${parseInt(ncertClass.replace(/[^0-9]/g, ''), 10) || 10}`}
-                          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition"
-                        >
-                          {ncertClass} की आधिकारिक NCERT पुस्तकें देखें →
-                        </Link>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-14 h-14 text-slate-300 mx-auto" />
-                      <h3 className="text-lg font-bold text-slate-800">कोई अध्ययन सामग्री नहीं मिली</h3>
-                      <p className="text-xs text-slate-500 max-w-md mx-auto">
-                        आपके द्वारा चुने गए फ़िल्टर या खोज शब्द के अनुसार कोई परिणाम उपलब्ध नहीं है। कृपया फ़िल्टर रीसेट करें।
-                      </p>
-                      <button
-                        onClick={clearAllFilters}
-                        className="px-6 py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs shadow-md hover:opacity-90 transition"
-                      >
-                        सभी फ़िल्टर साफ़ करें / Clear Filters
-                      </button>
-                    </>
-                  )}
+                  <FileText className="w-14 h-14 text-slate-300 mx-auto" />
+                  <h3 className="text-lg font-bold text-slate-800">कोई अध्ययन सामग्री नहीं मिली</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    आपके द्वारा चुने गए फ़िल्टर या खोज शब्द के अनुसार कोई परिणाम उपलब्ध नहीं है। कृपया फ़िल्टर रीसेट करें।
+                  </p>
+                  <button
+                    onClick={clearAllFilters}
+                    className="px-6 py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs shadow-md hover:opacity-90 transition"
+                  >
+                    सभी फ़िल्टर साफ़ करें / Clear Filters
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1212,6 +1335,13 @@ export const StudyMaterialsPage: React.FC = () => {
           );
         }}
       />
+
+      {/* NCERT Official Reader Modal */}
+      <NcertReaderModal
+        book={ncertReaderBook}
+        isOpen={isNcertReaderOpen}
+        onClose={() => setIsNcertReaderOpen(false)}
+      />
     </div>
   );
 };
@@ -1333,6 +1463,118 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
             <span>डाउनलोड</span>
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ----------------------------------------------------
+// Reusable NCERT Book Grid Card Component
+// ----------------------------------------------------
+interface NcertBookGridCardProps {
+  book: NcertBook;
+  onReadOnline: (b: NcertBook) => void;
+  onDownload: (b: NcertBook) => void;
+}
+
+const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
+  book,
+  onReadOnline,
+  onDownload,
+}) => {
+  const detailUrl = `/study-material/ncert/class-${book.classNumber}/${encodeURIComponent(
+    book.subject.toLowerCase()
+  )}/${book.slug}`;
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between group space-y-4">
+      <div>
+        {/* Top Badges */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-1.5">
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-extrabold tracking-wide">
+              Class {book.classNumber}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-extrabold border border-slate-200">
+              {book.medium}
+            </span>
+          </div>
+
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <ShieldCheck className="w-3 h-3 text-emerald-600" />
+            <span>Official NCERT</span>
+          </span>
+        </div>
+
+        {/* Thumbnail + Title Row */}
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-20 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
+            {book.coverImageUrl ? (
+              <img
+                src={book.coverImageUrl}
+                alt={book.bookName}
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <BookOpen className="w-7 h-7 text-blue-600/60" />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <Link
+              to={detailUrl}
+              className="text-sm font-bold text-slate-900 group-hover:text-blue-600 line-clamp-2 transition leading-snug"
+            >
+              {book.bookName}
+            </Link>
+            {book.bookNameHi && (
+              <p className="text-xs text-slate-500 font-medium line-clamp-1 mt-0.5">
+                {book.bookNameHi}
+              </p>
+            )}
+            <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-600">
+              <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                {book.subject}
+              </span>
+              <span>•</span>
+              <span>{book.chapterCount || (book.chapters ? book.chapters.length : 0)} Chapters</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="pt-3 border-t border-slate-100 space-y-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onReadOnline(book)}
+            className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Read Online (पढ़ें)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onDownload(book)}
+            className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition"
+            title="Open official NCERT textbook directly"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600" />
+            <span>Official PDF ↗</span>
+          </button>
+        </div>
+
+        <Link
+          to={detailUrl}
+          className="w-full py-1.5 rounded-lg text-slate-500 hover:text-blue-600 text-[11px] font-bold flex items-center justify-center gap-1 transition"
+        >
+          <span>View All Chapters & Solution Links →</span>
+        </Link>
       </div>
     </div>
   );
