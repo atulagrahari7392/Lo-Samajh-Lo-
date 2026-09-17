@@ -69,18 +69,41 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response, next: Next
     }
 
     if (search && String(search).trim()) {
-      const q = String(search).trim();
-      const numMatch = q.match(/\b([1-9]|1[0-2])\b/);
-      const searchConditions: any[] = [
-        { bookName: { contains: q, mode: 'insensitive' } },
-        { bookNameHi: { contains: q, mode: 'insensitive' } },
-        { subject: { contains: q, mode: 'insensitive' } },
-        { bookCode: { contains: q, mode: 'insensitive' } },
-      ];
-      if (numMatch) {
-        searchConditions.push({ classNumber: parseInt(numMatch[1], 10) });
+      let q = String(search).trim();
+      let extractedClass: number | null = null;
+      const classMatch = q.match(/class\s*[-_]?\s*(\d{1,2})/i) || q.match(/\b(\d{1,2})(?:th|st|nd|rd)?\s*class\b/i) || q.match(/\b([1-9]|1[0-2])\b/);
+      if (classMatch) {
+        const num = parseInt(classMatch[1], 10);
+        if (num >= 1 && num <= 12) {
+          extractedClass = num;
+          q = q.replace(/class\s*[-_]?\s*\d{1,2}/gi, '')
+               .replace(/\b\d{1,2}(?:th|st|nd|rd)?\s*class\b/gi, '')
+               .replace(/\bclass\b/gi, '')
+               .trim();
+        }
       }
-      where.OR = searchConditions;
+
+      if (extractedClass !== null) {
+        where.classNumber = extractedClass;
+      }
+
+      const searchConditions: any[] = [];
+      if (q) {
+        searchConditions.push(
+          { bookName: { contains: q, mode: 'insensitive' } },
+          { bookNameHi: { contains: q, mode: 'insensitive' } },
+          { subject: { contains: q, mode: 'insensitive' } },
+          { bookCode: { contains: q, mode: 'insensitive' } },
+        );
+        if (/^maths?$/i.test(q)) {
+          searchConditions.push({ subject: { contains: 'Math', mode: 'insensitive' } });
+          searchConditions.push({ bookName: { contains: 'Math', mode: 'insensitive' } });
+        }
+      }
+
+      if (searchConditions.length > 0) {
+        where.OR = searchConditions;
+      }
     }
 
     let orderBy: any = [{ classNumber: 'asc' }, { subject: 'asc' }, { bookName: 'asc' }];

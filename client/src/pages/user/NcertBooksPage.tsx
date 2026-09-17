@@ -23,6 +23,7 @@ import { api } from '../../services/api';
 import { NcertBook } from '../../types';
 import { NcertReaderModal } from '../../components/ncert/NcertReaderModal';
 import { useToast } from '../../context/ToastContext';
+import { getNcertCompleteBookZipUrl, triggerInstantDownload } from '../../utils/ncertUtils';
 
 export const NcertBooksPage: React.FC = () => {
   const { classNumber: routeClass, subject: routeSubject } = useParams<{
@@ -172,7 +173,9 @@ export const NcertBooksPage: React.FC = () => {
   const handleOfficialDownload = (e: React.MouseEvent, book: NcertBook) => {
     e.stopPropagation();
     api.ncert.trackDownload(book.id).catch(() => {});
-    window.open(book.officialPdfUrl, '_blank', 'noopener,noreferrer');
+    const zipUrl = getNcertCompleteBookZipUrl(book.officialPdfUrl);
+    const fileName = `NCERT-Class-${book.classNumber}-${book.subject}-${book.bookName}.zip`;
+    triggerInstantDownload(zipUrl, fileName);
   };
 
   const openReader = (e: React.MouseEvent, book: NcertBook) => {

@@ -170,7 +170,7 @@ export const StudyMaterialsPage: React.FC = () => {
   const examsList = ['UPSSSC PET', 'SSC CGL', 'Railway RRB', 'UP Police', 'UPSC / UPPSC', 'Teaching (TET)', 'Banking'];
 
   // Fetch materials
-  const fetchMaterials = async (page = 1) => {
+  const fetchMaterials = async (page = 1, explicitSearch?: string) => {
     try {
       setLoading(true);
 
@@ -207,10 +207,12 @@ export const StudyMaterialsPage: React.FC = () => {
         }
         return;
       }
+      const searchEffective = (explicitSearch !== undefined ? explicitSearch : debouncedSearch).trim();
+
       if (activeTab === 'current-affairs') {
         const caParams: any = {};
         if (caCategory) caParams.category = caCategory;
-        if (debouncedSearch) caParams.search = debouncedSearch;
+        if (searchEffective) caParams.search = searchEffective;
         const res = await api.currentAffairs.getAll(caParams);
         if (res.success) setCurrentAffairs(res.items || []);
         return;
@@ -223,22 +225,23 @@ export const StudyMaterialsPage: React.FC = () => {
         sort: sortBy,
       };
 
-      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (searchEffective) params.search = searchEffective;
       if (selectedCategory) params.category = selectedCategory;
 
       if (activeTab === 'ncert') {
         const ncertParams: Record<string, any> = {
-          classNumber: ncertClassNumber,
           limit: 36,
         };
+        if (searchEffective) {
+          ncertParams.search = searchEffective;
+        } else {
+          ncertParams.classNumber = ncertClassNumber;
+        }
         if (ncertSubject && ncertSubject !== 'ALL') {
           ncertParams.subject = ncertSubject;
         }
         if (ncertMedium && ncertMedium !== 'ALL') {
           ncertParams.medium = ncertMedium;
-        }
-        if (debouncedSearch.trim()) {
-          ncertParams.search = debouncedSearch.trim();
         }
         const ncertRes = await api.ncert.getAll(ncertParams);
         if (ncertRes.success) {
@@ -379,6 +382,30 @@ export const StudyMaterialsPage: React.FC = () => {
       sortBy !== 'latest'
   );
 
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    setDebouncedSearch(q);
+
+    // If search query mentions NCERT or a school class (e.g. "Science Class 7", "Class 10", "NCERT", "Class 6 Maths"),
+    // auto-switch to the NCERT Books tab, set class, and smoothly scroll down to the NCERT books
+    const isNcertQuery = /ncert/i.test(q) || /\bclass\s*[-_]?\s*([1-9]|1[0-2])\b/i.test(q);
+    if (isNcertQuery) {
+      const match = q.match(/\bclass\s*[-_]?\s*([1-9]|1[0-2])\b/i);
+      if (match) {
+        setNcertClassNumber(parseInt(match[1], 10));
+      }
+      setActiveTab('ncert');
+      setTimeout(() => {
+        document.getElementById('ncert-explorer-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+      fetchMaterials(1, q);
+      return;
+    }
+
+    fetchMaterials(1, q);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/50 py-8 space-y-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -403,7 +430,7 @@ export const StudyMaterialsPage: React.FC = () => {
             </p>
 
             {/* Prominent Search Bar (Phase 3A & 3E) */}
-            <div className="pt-2">
+            <form onSubmit={handleSearchSubmit} className="pt-2">
               <div className="flex items-center gap-2 bg-white text-slate-900 rounded-2xl p-2 sm:p-2.5 shadow-2xl border border-slate-200">
                 <Search className="w-5 h-5 text-slate-400 ml-2 shrink-0" />
                 <input
@@ -415,7 +442,12 @@ export const StudyMaterialsPage: React.FC = () => {
                 />
                 {searchQuery && (
                   <button
-                    onClick={() => setSearchQuery('')}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setDebouncedSearch('');
+                      fetchMaterials(1, '');
+                    }}
                     className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
                     title="Clear search"
                   >
@@ -423,14 +455,13 @@ export const StudyMaterialsPage: React.FC = () => {
                   </button>
                 )}
                 <button
-                  type="button"
-                  onClick={() => fetchMaterials(1)}
+                  type="submit"
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-indigo-600 text-white font-bold text-xs sm:text-sm shadow-md hover:opacity-95 transition shrink-0"
                 >
                   खोजें / Search
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
 
@@ -465,6 +496,9 @@ export const StudyMaterialsPage: React.FC = () => {
                     if (cat.id === 'NCERT') {
                       setActiveTab('ncert');
                       setSelectedType('');
+                      setTimeout(() => {
+                        document.getElementById('ncert-explorer-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }, 100);
                       return;
                     } else if (cat.id === 'PYQ') {
                       setActiveTab('pyq');
@@ -476,6 +510,9 @@ export const StudyMaterialsPage: React.FC = () => {
                       setActiveTab('all');
                       setSelectedType(isSelected ? '' : cat.id);
                     }
+                    setTimeout(() => {
+                      document.getElementById('materials-catalog-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
                   }}
                   className={`p-3.5 rounded-2xl border text-left transition-all group relative overflow-hidden flex flex-col justify-between ${
                     isSelected || (activeTab === cat.id.toLowerCase())
@@ -503,7 +540,7 @@ export const StudyMaterialsPage: React.FC = () => {
         </div>
 
         {/* Main Navigation Tabs Bar (Phase 3C & Phase 12) */}
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2 overflow-x-auto">
+        <div id="materials-catalog-section" className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2 overflow-x-auto">
           <div className="flex items-center gap-1.5 shrink-0">
             {[
               { id: 'all', label: 'All Materials', count: pagination.total },
@@ -559,7 +596,7 @@ export const StudyMaterialsPage: React.FC = () => {
         {/* TAB 1: NCERT Hierarchical Explorer (Classes 1–12) */}
         {/* ---------------------------------------------------- */}
         {activeTab === 'ncert' && (
-          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
+          <div id="ncert-explorer-section" className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
