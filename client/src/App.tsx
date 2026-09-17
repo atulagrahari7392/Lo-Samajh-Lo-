@@ -17,6 +17,8 @@ import CourseDetailPage from './pages/user/CourseDetailPage';
 import CoursePlayerPage from './pages/user/CoursePlayerPage';
 import StudyMaterialsPage from './pages/user/StudyMaterialsPage';
 import MaterialDetailPage from './pages/user/MaterialDetailPage';
+import NcertBooksPage from './pages/user/NcertBooksPage';
+import NcertBookDetailPage from './pages/user/NcertBookDetailPage';
 import TestSeriesPage from './pages/user/TestSeriesPage';
 import TestAttemptPage from './pages/user/TestAttemptPage';
 import TestResultPage from './pages/user/TestResultPage';
@@ -40,6 +42,7 @@ import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminMaterialsPage from './pages/admin/AdminMaterialsPage';
+import AdminNcertBooksPage from './pages/admin/AdminNcertBooksPage';
 import AdminTestsPage from './pages/admin/AdminTestsPage';
 import AdminTestQuestionsPage from './pages/admin/AdminTestQuestionsPage';
 import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
@@ -116,6 +119,89 @@ export const App: React.FC = () => {
                   element={
                     <UserLayout>
                       <MaterialDetailPage />
+                    </UserLayout>
+                  }
+                />
+
+                {/* NCERT Official Books Library Routes (SEO-friendly & isolated) */}
+                <Route
+                  path="/study-material/ncert"
+                  element={
+                    <UserLayout>
+                      <NcertBooksPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-material/ncert/class-:classNumber"
+                  element={
+                    <UserLayout>
+                      <NcertBooksPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-material/ncert/class-:classNumber/:subject"
+                  element={
+                    <UserLayout>
+                      <NcertBooksPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-material/ncert/class-:classNumber/:subject/:bookSlug"
+                  element={
+                    <UserLayout>
+                      <NcertBookDetailPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-material/ncert/book/:slug"
+                  element={
+                    <UserLayout>
+                      <NcertBookDetailPage />
+                    </UserLayout>
+                  }
+                />
+                {/* Plural Aliases */}
+                <Route
+                  path="/study-materials/ncert"
+                  element={
+                    <UserLayout>
+                      <NcertBooksPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-materials/ncert/class-:classNumber"
+                  element={
+                    <UserLayout>
+                      <NcertBooksPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-materials/ncert/class-:classNumber/:subject"
+                  element={
+                    <UserLayout>
+                      <NcertBooksPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-materials/ncert/class-:classNumber/:subject/:bookSlug"
+                  element={
+                    <UserLayout>
+                      <NcertBookDetailPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/study-materials/ncert/book/:slug"
+                  element={
+                    <UserLayout>
+                      <NcertBookDetailPage />
                     </UserLayout>
                   }
                 />
@@ -215,6 +301,7 @@ export const App: React.FC = () => {
                 <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="/admin/orders" element={<AdminOrdersPage />} />
                 <Route path="/admin/materials" element={<AdminMaterialsPage />} />
+                <Route path="/admin/ncert-books" element={<AdminNcertBooksPage />} />
                 <Route path="/admin/tests" element={<AdminTestsPage />} />
                 <Route path="/admin/tests/:testId/questions" element={<AdminTestQuestionsPage />} />
                 <Route path="/admin/typing" element={<AdminTypingPage />} />

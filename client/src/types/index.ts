@@ -140,6 +140,42 @@ export interface Material {
   downloadedAt?: string;
 }
 
+export interface NcertChapter {
+  chapterNumber: number;
+  title: string;
+  titleHi?: string;
+  pdfUrl: string;
+  pageCount?: number;
+}
+
+export interface NcertBook {
+  id: string;
+  classNumber: number;
+  subject: string;
+  bookName: string;
+  bookNameHi?: string | null;
+  slug: string;
+  language: string;
+  medium: string;
+  edition?: string | null;
+  academicYear?: string | null;
+  bookCode?: string | null;
+  coverImageUrl?: string | null;
+  officialPageUrl: string;
+  officialPdfUrl: string;
+  chapterCount: number;
+  chaptersJson?: string | null;
+  chapters?: NcertChapter[];
+  sourceName: string;
+  sourceType: string;
+  sourceVerifiedAt?: string | null;
+  isActive: boolean;
+  viewsCount: number;
+  downloadsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CurrentAffairs {
   id: string;
   title: string;

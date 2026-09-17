@@ -109,6 +109,45 @@ export const api = {
     getFileLibrary: () => request<any>('/materials/files'),
   },
 
+  // NCERT Official Books Library
+  ncert: {
+    getAll: (params?: Record<string, any>) => {
+      const cleanParams: Record<string, string> = {};
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+      }
+      const q = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
+      return request<any>(`/ncert-books${q}`);
+    },
+    getClasses: () => request<any>('/ncert-books/classes'),
+    getSubjects: (classNumber?: number | string) => {
+      const q = classNumber && classNumber !== 'ALL' ? `?classNumber=${classNumber}` : '';
+      return request<any>(`/ncert-books/subjects${q}`);
+    },
+    getByIdOrSlug: (idOrSlug: string) => request<any>(`/ncert-books/${idOrSlug}`),
+    trackView: (id: string) => request<any>(`/ncert-books/${id}/track-view`, { method: 'POST' }),
+    trackDownload: (id: string) => request<any>(`/ncert-books/${id}/track-download`, { method: 'POST' }),
+    adminGetAll: (params?: Record<string, any>) => {
+      const cleanParams: Record<string, string> = {};
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') cleanParams[k] = String(v);
+        });
+      }
+      const q = Object.keys(cleanParams).length > 0 ? '?' + new URLSearchParams(cleanParams).toString() : '';
+      return request<any>(`/ncert-books/admin/all${q}`);
+    },
+    create: (body: any) => request<any>('/ncert-books/admin', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: string, body: any) => request<any>(`/ncert-books/admin/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    toggleStatus: (id: string, isActive: boolean) =>
+      request<any>(`/ncert-books/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({ isActive }) }),
+    verifySource: (id: string) => request<any>(`/ncert-books/admin/${id}/verify-source`, { method: 'POST' }),
+    delete: (id: string) => request<any>(`/ncert-books/admin/${id}`, { method: 'DELETE' }),
+    seedOfficial: () => request<any>('/ncert-books/admin/seed-official', { method: 'POST' }),
+  },
+
   // Current Affairs
   currentAffairs: {
     getAll: (params?: Record<string, any>) => {

@@ -528,6 +528,25 @@ export const StudyMaterialsPage: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-0.5">
                   कक्षा 1 से 12 तक की NCERT पाठ्यपुस्तकों के सभी अध्यायों के संपूर्ण समाधान व नोट्स।
                 </p>
+
+                {/* Official NCERT Books Library Link Banner */}
+                <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-black">Official NCERT Textbooks Library (Classes 1–12)</h4>
+                      <p className="text-[11px] text-blue-100">आधिकारिक एनसीईआरटी पाठ्यपुस्तकें और अध्यायवार आधिकारिक पीडीएफ सीधे देखें।</p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/study-material/ncert"
+                    className="px-3.5 py-1.5 rounded-xl bg-white text-blue-700 font-bold text-xs hover:bg-blue-50 transition shrink-0 shadow-sm"
+                  >
+                    Explore Official Books →
+                  </Link>
+                </div>
               </div>
 
               {/* Class Pills */}

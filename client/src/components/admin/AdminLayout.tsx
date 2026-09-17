@@ -74,6 +74,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { name: 'Users', path: '/admin/users', icon: Users },
     { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
     { name: 'Study Materials', path: '/admin/materials', icon: FileText },
+    { name: 'NCERT Books', path: '/admin/ncert-books', icon: BookOpen },
     { name: 'Test Series', path: '/admin/tests', icon: BookOpen },
     { name: 'Typing Hub', path: '/admin/typing', icon: Keyboard },
     { name: 'Questions Bank', path: '/admin/questions', icon: HelpCircle },

@@ -28,6 +28,7 @@ import settingsRoutes from './routes/settings.routes';
 import currentAffairsRoutes from './routes/current-affairs.routes';
 import googleDriveRoutes from './routes/googleDrive.routes';
 import aiNewsroomRoutes from './routes/aiNewsroom.routes';
+import ncertRoutes from './routes/ncert.routes';
 import { initNewsroomScheduler } from './services/aiNewsroom/scheduler';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './db';
@@ -103,6 +104,7 @@ app.use('/api/sliders', sliderRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/current-affairs', currentAffairsRoutes);
 app.use('/api/google-drive', googleDriveRoutes);
+app.use('/api/ncert-books', ncertRoutes);
 
 // Serve frontend client build in production if available
 const possibleClientPaths = [
@@ -191,6 +193,18 @@ httpServer.listen(Number(PORT), '0.0.0.0', async () => {
     // Safe seed for AI Education Newsroom if empty
     const { seedEducationNewsroom } = await import('./scripts/seed-newsroom');
     await seedEducationNewsroom();
+
+    // Safe seed for Official NCERT Books Catalogue if empty
+    try {
+      const ncertCount = await (prisma as any).ncertBook.count().catch(() => 0);
+      if (ncertCount === 0) {
+        console.log('📚 NCERT Catalogue is empty. Populating initial official textbooks...');
+        const { seedNcertCatalog } = await import('./scripts/seed-ncert-catalog');
+        await seedNcertCatalog();
+      }
+    } catch (ncertErr: any) {
+      console.warn('⚠️ NCERT catalogue seed notice:', ncertErr.message);
+    }
   } catch (err: any) {
     console.warn('⚠️ Database startup notice:', err.message);
   }

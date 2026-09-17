@@ -1276,5 +1276,37 @@ model NewsroomAuditLog {
   @@map("newsroom_audit_logs")
 }
 
+model NcertBook {
+  id               String    @id @default(uuid())
+  classNumber      Int       // 1 to 12
+  subject          String    // e.g. "Mathematics", "Science", "Social Science", "Hindi", "English", "Sanskrit", "Physics", etc.
+  bookName         String    // Official book name, e.g. "Science", "Mathematics", "Beehive", "Kshitij"
+  bookNameHi       String?   // Hindi title if applicable
+  slug             String    @unique
+  language         String    @default("English")
+  medium           String    @default("English") // "Hindi", "English", "Urdu", etc.
+  edition          String?   @default("Rationalised Edition 2025-26")
+  academicYear     String?   @default("2025-26")
+  bookCode         String?   // Official NCERT code e.g. "jesc1", "jemh1", "leph1"
+  coverImageUrl    String?
+  officialPageUrl  String    @default("https://ncert.nic.in/textbook.php")
+  officialPdfUrl   String    // Canonical link to official NCERT portal
+  chapterCount     Int       @default(0)
+  chaptersJson     String?   // JSON array of chapters [{ chapterNumber, title, titleHi, pdfUrl, pageCount }]
+  sourceName       String    @default("NCERT")
+  sourceType       String    @default("OFFICIAL")
+  sourceVerifiedAt DateTime? @default(now())
+  isActive         Boolean   @default(true)
+  viewsCount       Int       @default(0)
+  downloadsCount   Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([classNumber, subject])
+  @@index([medium])
+  @@index([isActive])
+  @@map("ncert_books")
+}
+
 
 
