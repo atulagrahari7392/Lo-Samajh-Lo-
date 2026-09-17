@@ -876,6 +876,33 @@ export function recordAIConnectionHealth(info: {
   };
 }
 
+export function extractCandidateText(data: any): string {
+  if (!data) return '';
+  const candidate = data.candidates?.[0];
+  if (!candidate) return '';
+
+  const parts = candidate.content?.parts;
+  if (Array.isArray(parts) && parts.length > 0) {
+    // 1. Prefer non-thought text parts
+    for (const part of parts) {
+      if (typeof part?.text === 'string' && part.text.trim().length > 0 && !part.thought) {
+        return part.text.trim();
+      }
+    }
+    // 2. Fall back to any text part
+    for (const part of parts) {
+      if (typeof part?.text === 'string' && part.text.trim().length > 0) {
+        return part.text.trim();
+      }
+    }
+  }
+
+  if (typeof candidate.text === 'string') return candidate.text.trim();
+  if (typeof candidate.content === 'string') return candidate.content.trim();
+
+  return '';
+}
+
 /**
  * Gemini Provider implementation (used if GEMINI_API_KEY is configured).
  * Supports modern Gemini Flash models (gemini-3.5-flash, gemini-2.5-flash, gemini-2.0-flash),
@@ -915,6 +942,7 @@ export class GeminiProvider implements AIProvider {
     const primaryModel = this.model;
     const candidateModels = [
       primaryModel,
+      'gemini-3.5-flash',
       'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash-latest',
@@ -941,18 +969,16 @@ export class GeminiProvider implements AIProvider {
           });
 
           if (res.ok) {
-            const data = await res.json();
-            if (data?.candidates?.[0]?.content?.parts?.[0]?.text !== undefined) {
-              this.model = cleanModel;
-              this.apiVersion = version;
-              return {
-                ok: true,
-                status: 200,
-                data,
-                activeModel: cleanModel,
-                activeVersion: version,
-              };
-            }
+            const data = await res.json().catch(() => ({}));
+            this.model = cleanModel;
+            this.apiVersion = version;
+            return {
+              ok: true,
+              status: 200,
+              data,
+              activeModel: cleanModel,
+              activeVersion: version,
+            };
           }
 
           lastStatus = res.status;
@@ -997,7 +1023,7 @@ export class GeminiProvider implements AIProvider {
     try {
       const result = await this.executeGenerateContent(
         [{ parts: [{ text: 'Ping: Reply with OK if connected.' }] }],
-        { maxOutputTokens: 10 }
+        { maxOutputTokens: 128 }
       );
       const latencyMs = Date.now() - start;
 
@@ -1017,26 +1043,6 @@ export class GeminiProvider implements AIProvider {
           apiVersion: this.apiVersion,
           latencyMs,
           error: sanitized,
-        };
-      }
-
-      const replyText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!replyText || replyText.trim().length === 0) {
-        const errorMsg = 'Gemini returned response but no content text was found.';
-        recordAIConnectionHealth({
-          status: 'ERROR',
-          provider: this.name,
-          model: this.model,
-          error: errorMsg,
-          testedAt: new Date().toISOString(),
-        });
-        return {
-          connected: false,
-          provider: this.name,
-          model: this.model,
-          apiVersion: this.apiVersion,
-          latencyMs,
-          error: errorMsg,
         };
       }
 
@@ -1101,9 +1107,10 @@ ${rawText.slice(0, 6000)}
         return this.fallback.extractFacts(rawText, metadata);
       }
 
-      const rawJson = result.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawJson = extractCandidateText(result.data);
       if (!rawJson) return this.fallback.extractFacts(rawText, metadata);
-      return JSON.parse(rawJson);
+      const cleaned = rawJson.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+      return JSON.parse(cleaned);
     } catch {
       return this.fallback.extractFacts(rawText, metadata);
     }

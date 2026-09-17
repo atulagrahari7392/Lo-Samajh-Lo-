@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { calculateDeadlineStatus, getTimelineBucket } from '../services/aiNewsroom/deadlineCalculator';
 import { validateSafeUrl, classifySourceAuthority, computeContentHash, checkSourceChanged, sourceCache } from '../services/aiNewsroom/webResearcher';
-import { generateNewsroomSlug, RuleBasedEducationParser, OpenAIProvider, GeminiProvider, getAIProvider, getAIProviderStatus } from '../services/aiNewsroom/aiProvider';
+import { generateNewsroomSlug, RuleBasedEducationParser, OpenAIProvider, GeminiProvider, getAIProvider, getAIProviderStatus, extractCandidateText } from '../services/aiNewsroom/aiProvider';
 import { verifyExtractedFacts } from '../services/aiNewsroom/verificationEngine';
 import { ExtractedFacts } from '../services/aiNewsroom/types';
 import { requireAdmin } from '../middleware/auth';
@@ -59,6 +59,28 @@ async function runTests() {
     const status = getAIProviderStatus();
     assert.strictEqual(status.provider, 'GeminiProvider');
     assert.strictEqual(status.model, 'gemini-2.5-flash');
+
+    // Thinking model & standard response text extraction check
+    const mockThinkingResponse = {
+      candidates: [{
+        content: {
+          parts: [
+            { thought: true, text: 'Internal reasoning step...' },
+            { text: 'Final answer text' }
+          ]
+        }
+      }]
+    };
+    assert.strictEqual(extractCandidateText(mockThinkingResponse), 'Final answer text');
+
+    const mockStandardResponse = {
+      candidates: [{
+        content: {
+          parts: [{ text: 'OK' }]
+        }
+      }]
+    };
+    assert.strictEqual(extractCandidateText(mockStandardResponse), 'OK');
 
     if (origGemini) process.env.GEMINI_API_KEY = origGemini;
     else delete process.env.GEMINI_API_KEY;
