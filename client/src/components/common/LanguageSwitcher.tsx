@@ -15,7 +15,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
 
   return (
     <div
-      className={`inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 text-xs font-bold transition-all select-none ${className}`}
+      className={`inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 text-xs font-bold transition-all select-none whitespace-nowrap flex-shrink-0 ${className}`}
       role="group"
       aria-label="Language selector"
     >

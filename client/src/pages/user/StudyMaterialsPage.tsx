@@ -561,7 +561,7 @@ export const StudyMaterialsPage: React.FC = () => {
                       setSelectedType('');
                     }
                   }}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shrink-0 ${
+                  className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shrink-0 ${
                     isActive
                       ? 'bg-slate-900 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'

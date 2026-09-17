@@ -65,23 +65,23 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-20 gap-2 xl:gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center group py-1">
+          <Link to="/" className="flex items-center flex-shrink-0 group py-1">
             <img
               src="/logo.png"
               alt="Lo Samajh Lo — India's Trusted Learning Platform"
-              className="h-12 sm:h-14 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
+              className="h-10 sm:h-12 md:h-13 xl:h-14 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
             />
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1.5 flex-shrink-0">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                className={`whitespace-nowrap px-2.5 xl:px-3.5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${
                   isActive(link.path)
                     ? 'bg-[#6C63FF]/10 text-[#6C63FF]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -93,11 +93,11 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Right Action Icons & Auth */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 xl:gap-2.5 flex-shrink-0">
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="relative p-2.5 rounded-xl text-slate-600 hover:text-[#FF6584] hover:bg-pink-50 transition-colors"
+              className="relative p-2 rounded-xl text-slate-600 hover:text-[#FF6584] hover:bg-pink-50 transition-colors flex-shrink-0"
               title="Wishlist"
             >
               <Heart className="w-5 h-5" />
@@ -111,7 +111,7 @@ export const Navbar: React.FC = () => {
             {/* Cart */}
             <Link
               to="/cart"
-              className="relative p-2.5 rounded-xl text-slate-600 hover:text-[#6C63FF] hover:bg-indigo-50 transition-colors"
+              className="relative p-2 rounded-xl text-slate-600 hover:text-[#6C63FF] hover:bg-indigo-50 transition-colors flex-shrink-0"
               title="Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5" />
@@ -125,7 +125,7 @@ export const Navbar: React.FC = () => {
             {/* Notifications */}
             <Link
               to="/notifications"
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 hover:text-[#6C63FF] hover:bg-indigo-50 transition-colors group"
+              className="relative flex items-center gap-1.5 p-2 xl:px-2.5 xl:py-2 rounded-xl text-slate-600 hover:text-[#6C63FF] hover:bg-indigo-50 transition-colors group flex-shrink-0"
               title="Notifications & Updates"
             >
               <div className="relative">
@@ -137,31 +137,31 @@ export const Navbar: React.FC = () => {
                   </span>
                 )}
               </div>
-              <span className="hidden md:inline text-xs font-bold uppercase tracking-wider text-slate-700 group-hover:text-[#6C63FF] transition-colors">
+              <span className="hidden xl:inline text-xs font-bold uppercase tracking-wider text-slate-700 group-hover:text-[#6C63FF] transition-colors">
                 Update
               </span>
               {unreadNotifications > 0 && (
-                <span className="hidden md:inline-flex px-1.5 py-0.2 rounded-full text-[10px] font-black bg-[#FF6584] text-white">
+                <span className="hidden xl:inline-flex px-1.5 py-0.2 rounded-full text-[10px] font-black bg-[#FF6584] text-white">
                   {unreadNotifications}
                 </span>
               )}
             </Link>
 
             {/* Language Switcher */}
-            <LanguageSwitcher className="hidden sm:inline-flex" />
+            <LanguageSwitcher className="hidden sm:inline-flex flex-shrink-0" />
 
             {/* User Account / Login */}
             {user ? (
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-sm font-semibold text-slate-700 shadow-sm"
+                  className="flex items-center gap-1.5 sm:gap-2 pl-2 pr-2.5 sm:pr-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-sm font-semibold text-slate-700 shadow-sm flex-shrink-0"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-bold flex items-center justify-center text-xs">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
                     {user.name.charAt(0)}
                   </div>
-                  <span className="max-w-[100px] truncate">{user.name}</span>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                  <span className="max-w-[75px] xl:max-w-[120px] truncate whitespace-nowrap">{user.name}</span>
+                  <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 </button>
 
                 {profileDropdownOpen && (
@@ -206,10 +206,10 @@ export const Navbar: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] hover:opacity-95 shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.02] flex items-center gap-1.5"
+                  className="whitespace-nowrap px-3.5 xl:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] hover:opacity-95 shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.02] flex items-center gap-1.5 flex-shrink-0"
                 >
                   <UserIcon className="w-4 h-4" />
                   <span>{t('nav.login', 'Login')}</span>
