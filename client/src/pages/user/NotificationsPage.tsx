@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   Search,
@@ -14,8 +14,10 @@ import { Notification } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { ImportantDatesDashboard } from '../../components/notifications/ImportantDatesDashboard';
 import { NotificationCard } from '../../components/notifications/NotificationCard';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const NotificationsPage: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const { user } = useAuth();
 
   // State
@@ -104,26 +106,26 @@ export const NotificationsPage: React.FC = () => {
   };
 
   const categories = [
-    { label: 'All Updates / सभी सूचनाएं', value: '' },
-    { label: 'Competitive Exams (प्रतियोगी परीक्षाएं)', value: 'COMPETITIVE_EXAMS' },
-    { label: 'Government Jobs (सरकारी नौकरी)', value: 'GOVT_JOBS' },
-    { label: 'Uttar Pradesh (उत्तर प्रदेश विशेष)', value: 'UP_UPDATES' },
-    { label: 'Police & Defence (पुलिस एवं रक्षा)', value: 'POLICE' },
-    { label: 'Teaching Exams (शिक्षक पात्रता)', value: 'TEACHING' },
-    { label: 'University & Admissions (विश्वविद्यालय प्रवेश)', value: 'UNIVERSITY' },
-    { label: 'Railway (रेलवे भर्ती)', value: 'RAILWAY' },
-    { label: 'Banking (बैंकिंग)', value: 'BANKING' },
-    { label: 'Scholarships (छात्रवृत्ति)', value: 'SCHOLARSHIPS' },
-    { label: 'Academic & Board (बोर्ड परीक्षाएं)', value: 'ACADEMIC' },
+    { label: isHindi ? 'सभी सूचनाएं' : 'All Updates', value: '' },
+    { label: isHindi ? 'प्रतियोगी परीक्षाएं' : 'Competitive Exams', value: 'COMPETITIVE_EXAMS' },
+    { label: isHindi ? 'सरकारी नौकरी' : 'Government Jobs', value: 'GOVT_JOBS' },
+    { label: isHindi ? 'उत्तर प्रदेश विशेष' : 'Uttar Pradesh Special', value: 'UP_UPDATES' },
+    { label: isHindi ? 'पुलिस एवं रक्षा' : 'Police & Defence', value: 'POLICE' },
+    { label: isHindi ? 'शिक्षक पात्रता' : 'Teaching Exams', value: 'TEACHING' },
+    { label: isHindi ? 'विश्वविद्यालय प्रवेश' : 'University & Admissions', value: 'UNIVERSITY' },
+    { label: isHindi ? 'रेलवे भर्ती' : 'Railway Recruitment', value: 'RAILWAY' },
+    { label: isHindi ? 'बैंकिंग' : 'Banking', value: 'BANKING' },
+    { label: isHindi ? 'छात्रवृत्ति' : 'Scholarships', value: 'SCHOLARSHIPS' },
+    { label: isHindi ? 'बोर्ड परीक्षाएं' : 'Academic & Board', value: 'ACADEMIC' },
   ];
 
   const quickFilters = [
-    { label: 'All', value: 'ALL' },
-    { label: 'Closing Soon (अंतिम तिथि)', value: 'CLOSING_SOON' },
-    { label: 'Exam Dates (परीक्षा तिथि)', value: 'EXAM_DATE' },
-    { label: 'Admit Cards (प्रवेश पत्र)', value: 'ADMIT_CARD' },
-    { label: 'Results (परिणाम)', value: 'RESULT' },
-    { label: 'High Priority (महत्वपूर्ण)', value: 'HIGH' },
+    { label: isHindi ? 'सभी' : 'All', value: 'ALL' },
+    { label: isHindi ? 'अंतिम तिथि निकट' : 'Closing Soon', value: 'CLOSING_SOON' },
+    { label: isHindi ? 'परीक्षा तिथियां' : 'Exam Dates', value: 'EXAM_DATE' },
+    { label: isHindi ? 'प्रवेश पत्र' : 'Admit Cards', value: 'ADMIT_CARD' },
+    { label: isHindi ? 'परिणाम' : 'Results', value: 'RESULT' },
+    { label: isHindi ? 'उच्च प्राथमिकता' : 'High Priority', value: 'HIGH' },
   ];
 
   // Client-side quick filter refinement
@@ -166,7 +168,7 @@ export const NotificationsPage: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by exam name (PET, SI, CGL, CTET), board (UPSSSC, SSC, NTA), or keyword..."
+            placeholder={isHindi ? 'परीक्षा नाम (PET, SI, CGL, CTET), बोर्ड या कीवर्ड से खोजें...' : 'Search by exam name (PET, SI, CGL, CTET), board (UPSSSC, SSC, NTA), or keyword...'}
             className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#6C63FF]/30 focus:border-[#6C63FF] transition-all"
           />
           {searchQuery && (
@@ -174,7 +176,7 @@ export const NotificationsPage: React.FC = () => {
               onClick={() => setSearchQuery('')}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600"
             >
-              Clear
+              {isHindi ? 'साफ़ करें' : 'Clear'}
             </button>
           )}
         </div>
@@ -202,7 +204,7 @@ export const NotificationsPage: React.FC = () => {
         {/* Quick Filter Chips */}
         <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
           <span className="text-slate-400 font-bold text-[11px] mr-1 flex items-center gap-1">
-            <Filter className="w-3 h-3" /> Quick Filter:
+            <Filter className="w-3 h-3" /> {isHindi ? 'त्वरित फ़िल्टर:' : 'Quick Filter:'}
           </span>
           {quickFilters.map((qf) => (
             <button
@@ -224,11 +226,13 @@ export const NotificationsPage: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs font-bold text-slate-500 px-1">
           <span>
-            Showing {filteredNotifications.length} of {totalCount} verified announcements
+            {isHindi
+              ? `प्रदर्शित: ${filteredNotifications.length} / ${totalCount} सत्यापित सूचनाएं`
+              : `Showing ${filteredNotifications.length} of ${totalCount} verified announcements`}
           </span>
           {loading && (
             <span className="flex items-center gap-1 text-[#6C63FF]">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Fetching live updates...
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" /> {isHindi ? 'ताज़ा अपडेट लोड हो रहे हैं...' : 'Fetching live updates...'}
             </span>
           )}
         </div>

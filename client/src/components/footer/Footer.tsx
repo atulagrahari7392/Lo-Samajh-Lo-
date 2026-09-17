@@ -18,6 +18,7 @@ import {
 } from '../common/SocialBrandIcons';
 import { api } from '../../services/api';
 import { FooterSettings } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 const DEFAULT_SETTINGS: FooterSettings = {
   aboutText: "India's premier digital learning platform dedicated to competitive exams (UPSSSC, Railway, SSC, UP Police) and graduation studies. Concept-based learning with comprehensive study materials, live mock tests, and bilingual notes.",
@@ -31,12 +32,13 @@ const DEFAULT_SETTINGS: FooterSettings = {
   facebookUrl: "https://facebook.com/losamajhlo",
   twitterUrl: "https://twitter.com/losamajhlo",
   linkedinUrl: "https://linkedin.com/company/losamajhlo",
-  copyrightText: "Lo Samajh Lo (लो समझ लो). All rights reserved.",
+  copyrightText: "Lo Samajh Lo. All rights reserved.",
   newsletterHeadline: "Stay Connected with Lo Samajh Lo",
   newsletterText: "Subscribe to get immediate alerts for new government job vacancies, PDF circulars, and test updates.",
 };
 
 export const Footer: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const [settings, setSettings] = useState<FooterSettings>(DEFAULT_SETTINGS);
   const [subscribed, setSubscribed] = useState(false);
   const [emailInput, setEmailInput] = useState('');
@@ -158,7 +160,7 @@ export const Footer: React.FC = () => {
             {/* All Social Media Links with Vibrant Icons */}
             <div className="pt-3">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
-                सोशल मीडिया से जुड़ें (Official Social Handles):
+                {isHindi ? 'सोशल मीडिया से जुड़ें:' : 'Official Social Handles:'}
               </span>
               <div className="flex flex-wrap items-center gap-2">
                 {socialLinks.map((item) => {
@@ -184,29 +186,33 @@ export const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-white text-sm font-bold uppercase tracking-wider mb-4">Quick Navigation</h4>
+            <h4 className="text-white text-sm font-bold uppercase tracking-wider mb-4">
+              {t('footer.quickLinks', isHindi ? 'महत्वपूर्ण लिंक्स' : 'Quick Navigation')}
+            </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
-                <Link to="/courses" className="hover:text-white transition-colors">Courses Catalog</Link>
+                <Link to="/courses" className="hover:text-white transition-colors">{t('nav.courses', 'Courses Catalog')}</Link>
               </li>
               <li>
-                <Link to="/study-materials" className="hover:text-white transition-colors">Free Study Materials</Link>
+                <Link to="/study-materials" className="hover:text-white transition-colors">{t('nav.studyMaterials', 'Free Study Materials')}</Link>
               </li>
               <li>
-                <Link to="/test-series" className="hover:text-white transition-colors">Online Test Series</Link>
+                <Link to="/test-series" className="hover:text-white transition-colors">{t('nav.testSeries', 'Online Test Series')}</Link>
               </li>
               <li>
-                <Link to="/typing-test" className="hover:text-white transition-colors">Typing Speed Test</Link>
+                <Link to="/typing-test" className="hover:text-white transition-colors">{t('nav.typingTest', 'Typing Speed Test')}</Link>
               </li>
               <li>
-                <Link to="/notifications" className="hover:text-white transition-colors">Exam Notifications</Link>
+                <Link to="/notifications" className="hover:text-white transition-colors">{t('nav.notifications', 'Exam Notifications')}</Link>
               </li>
             </ul>
           </div>
 
           {/* Target Exams */}
           <div>
-            <h4 className="text-white text-sm font-bold uppercase tracking-wider mb-4">Target Exams</h4>
+            <h4 className="text-white text-sm font-bold uppercase tracking-wider mb-4">
+              {isHindi ? 'लक्षित परीक्षाएं' : 'Target Exams'}
+            </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
                 <Link to="/courses?category=upsssc" className="hover:text-white transition-colors">UPSSSC PET 2026</Link>
@@ -236,7 +242,7 @@ export const Footer: React.FC = () => {
             </p>
             {subscribed ? (
               <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold text-center">
-                ✓ धन्यवाद! आप सफलतापूर्वक सब्सक्राइब हो चुके हैं।
+                {isHindi ? '✓ धन्यवाद! आप सफलतापूर्वक सब्सक्राइब हो चुके हैं।' : '✓ Thank you! You have subscribed successfully.'}
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="space-y-2">
@@ -244,7 +250,7 @@ export const Footer: React.FC = () => {
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="अपना ईमेल दर्ज करें"
+                  placeholder={isHindi ? 'अपना ईमेल दर्ज करें' : 'Enter your email address'}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-[#6C63FF]"
                   required
                 />
@@ -252,7 +258,7 @@ export const Footer: React.FC = () => {
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white font-bold text-xs shadow-sm transition-all"
                 >
-                  <span>Subscribe Alerts / अलर्ट पाएं</span>
+                  <span>{t('footer.subscribeAlerts', isHindi ? 'अलर्ट पाएं' : 'Subscribe Alerts')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </form>
@@ -264,9 +270,9 @@ export const Footer: React.FC = () => {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <p>© {new Date().getFullYear()} {settings.copyrightText}</p>
           <div className="flex items-center gap-6">
-            <span>Made with <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500" /> for Indian Aspirants</span>
-            <Link to="/login" className="hover:text-slate-400">Student Portal</Link>
-            <Link to="/Admin.login" className="hover:text-purple-400 font-semibold transition-colors">Admin Portal</Link>
+            <span>{isHindi ? 'भारतीय अभ्यर्थियों के लिए समर्पित' : 'Made with'} <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500" /> {isHindi ? '' : 'for Indian Aspirants'}</span>
+            <Link to="/login" className="hover:text-slate-400">{isHindi ? 'छात्र पोर्टल' : 'Student Portal'}</Link>
+            <Link to="/Admin.login" className="hover:text-purple-400 font-semibold transition-colors">{isHindi ? 'एडमिन पोर्टल' : 'Admin Portal'}</Link>
           </div>
         </div>
       </div>

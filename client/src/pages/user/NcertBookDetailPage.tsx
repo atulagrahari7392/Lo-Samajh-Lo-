@@ -19,6 +19,7 @@ import { api } from '../../services/api';
 import { NcertBook, NcertChapter } from '../../types';
 import { NcertReaderModal } from '../../components/ncert/NcertReaderModal';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   getNcertStaticPdfUrl,
   getNcertCompleteBookZipUrl,
@@ -26,6 +27,7 @@ import {
 } from '../../utils/ncertUtils';
 
 export const NcertBookDetailPage: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const { classNumber, subject, bookSlug, slug } = useParams<{
     classNumber?: string;
     subject?: string;
@@ -318,14 +320,14 @@ export const NcertBookDetailPage: React.FC = () => {
             <div>
               <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
                 <List className="w-5 h-5 text-blue-600" />
-                <span>Chapter-wise Official Textbooks (अध्यायवार सूची)</span>
+                <span>{t('ncert.chapterCatalogTitle')}</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Click any chapter to read online or open official PDF from NCERT.
+                {isHindi ? 'ऑनलाइन पढ़ने या आधिकारिक एनसीईआरटी पीडीएफ खोलने के लिए किसी भी अध्याय पर क्लिक करें।' : 'Click any chapter to read online or open official PDF from NCERT.'}
               </p>
             </div>
             <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-              {chapters.length} Chapters Available
+              {chapters.length} {isHindi ? 'अध्याय उपलब्ध' : 'Chapters Available'}
             </span>
           </div>
 

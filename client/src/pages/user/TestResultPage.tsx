@@ -29,8 +29,10 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const TestResultPage: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const { id, attemptId } = useParams<{ id: string; attemptId: string }>();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -476,7 +478,7 @@ export const TestResultPage: React.FC = () => {
               className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs shadow-md shadow-cyan-600/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Solutions / समाधान देखें</span>
+              <span>{isHindi ? 'विस्तृत हल देखें' : 'View Solutions'}</span>
             </button>
           </div>
         </header>
@@ -707,14 +709,14 @@ export const TestResultPage: React.FC = () => {
             className="px-8 py-3.5 rounded-2xl bg-cyan-600 hover:bg-cyan-700 text-white font-black text-sm shadow-xl shadow-cyan-600/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
           >
             <BookOpen className="w-4 h-4" />
-            <span>View Detailed Solutions (हल देखें)</span>
+            <span>{isHindi ? 'विस्तृत हल देखें' : 'View Detailed Solutions'}</span>
           </button>
 
           <button
             onClick={() => navigate(`/test-series/${id}/attempt`)}
             className="px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm shadow-sm transition-all"
           >
-            Re-attempt Test
+            {isHindi ? 'पुनः परीक्षा दें' : 'Re-attempt Test'}
           </button>
         </div>
       </div>

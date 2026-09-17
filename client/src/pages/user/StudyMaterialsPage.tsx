@@ -41,12 +41,14 @@ import { Material, Category, CurrentAffairs, NcertBook } from '../../types';
 import { PdfReaderModal } from '../../components/materials/PdfReaderModal';
 import { NcertReaderModal } from '../../components/ncert/NcertReaderModal';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { getNcertCompleteBookZipUrl, triggerInstantDownload } from '../../utils/ncertUtils';
 
 export const StudyMaterialsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { language, isHindi, t } = useLanguage();
 
   // State
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -150,17 +152,17 @@ export const StudyMaterialsPage: React.FC = () => {
 
   // Subject quick pills
   const subjectPills = [
-    { id: '', label: 'All Subjects (सभी)' },
-    { id: 'Science', label: 'Science (विज्ञान)' },
-    { id: 'Mathematics', label: 'Maths (गणित)' },
-    { id: 'History', label: 'History (इतिहास)' },
-    { id: 'Geography', label: 'Geography (भूगोल)' },
-    { id: 'Polity', label: 'Polity (राजव्यवस्था)' },
-    { id: 'Economics', label: 'Economics (अर्थशास्त्र)' },
-    { id: 'General Hindi', label: 'Hindi (हिन्दी)' },
-    { id: 'English', label: 'English' },
-    { id: 'Reasoning', label: 'Reasoning (तर्कशक्ति)' },
-    { id: 'General Awareness', label: 'Static GK & CA' },
+    { id: '', label: isHindi ? 'सभी विषय' : 'All Subjects' },
+    { id: 'Science', label: isHindi ? 'विज्ञान' : 'Science' },
+    { id: 'Mathematics', label: isHindi ? 'गणित' : 'Mathematics' },
+    { id: 'History', label: isHindi ? 'इतिहास' : 'History' },
+    { id: 'Geography', label: isHindi ? 'भूगोल' : 'Geography' },
+    { id: 'Polity', label: isHindi ? 'राजव्यवस्था' : 'Polity' },
+    { id: 'Economics', label: isHindi ? 'अर्थशास्त्र' : 'Economics' },
+    { id: 'General Hindi', label: isHindi ? 'सामान्य हिन्दी' : 'General Hindi' },
+    { id: 'English', label: isHindi ? 'अंग्रेजी' : 'English' },
+    { id: 'Reasoning', label: isHindi ? 'तर्कशक्ति' : 'Reasoning' },
+    { id: 'General Awareness', label: isHindi ? 'सामान्य ज्ञान' : 'General Awareness' },
   ];
 
   // Classes list
@@ -418,15 +420,15 @@ export const StudyMaterialsPage: React.FC = () => {
           <div className="relative z-10 max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#6C63FF]/25 border border-[#6C63FF]/40 text-[#a59eff] text-xs font-bold">
               <BookOpen className="w-3.5 h-3.5 text-[#6C63FF]" />
-              <span>डिजिटल अध्ययन पुस्तकालय • All India Free Study Library</span>
+              <span>{t('study.heroBadge')}</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
-              Study Materials & E-Library
+              {t('study.heroTitle')}
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-              NCERT पाठ्यपुस्तकें व समाधान, टॉपर्स के हस्तलिखित नोट्स, मानक ई-बुक्स, करेंट अफेयर्स, और विगत वर्षों के हल प्रश्न पत्र (PYQ) — एक ही क्लिक में ऑनलाइन पढ़ें या पीडीएफ डाउनलोड करें।
+              {t('study.heroSubtitle')}
             </p>
 
             {/* Prominent Search Bar (Phase 3A & 3E) */}
@@ -437,7 +439,7 @@ export const StudyMaterialsPage: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="खोजें: विषय, कक्षा, परीक्षा, टॉपिक (e.g. Science Class 7, PET 2025, Polity)..."
+                  placeholder={t('study.searchPlaceholder')}
                   className="w-full bg-transparent text-sm sm:text-base placeholder-slate-400 outline-none px-2 font-medium"
                 />
                 {searchQuery && (
@@ -449,7 +451,7 @@ export const StudyMaterialsPage: React.FC = () => {
                       fetchMaterials(1, '');
                     }}
                     className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
-                    title="Clear search"
+                    title={t('common.clearSearch')}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -458,7 +460,7 @@ export const StudyMaterialsPage: React.FC = () => {
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6C63FF] to-indigo-600 text-white font-bold text-xs sm:text-sm shadow-md hover:opacity-95 transition shrink-0"
                 >
-                  खोजें / Search
+                  {t('common.search')}
                 </button>
               </div>
             </form>
@@ -471,7 +473,7 @@ export const StudyMaterialsPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Layers className="w-5 h-5 text-[#6C63FF]" />
               <h2 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-wide">
-                अध्ययन श्रेणियाँ / Explore Categories
+                {t('study.exploreCategories')}
               </h2>
             </div>
             {hasActiveFilters && (
@@ -480,7 +482,7 @@ export const StudyMaterialsPage: React.FC = () => {
                 className="text-xs font-bold text-rose-600 hover:underline inline-flex items-center gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>फ़िल्टर रीसेट करें / Clear All</span>
+                <span>{t('common.clearFilters')}</span>
               </button>
             )}
           </div>
@@ -526,12 +528,9 @@ export const StudyMaterialsPage: React.FC = () => {
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-extrabold line-clamp-1 leading-tight">{cat.name}</h3>
-                    <p className={`text-[10px] mt-0.5 line-clamp-1 ${
-                      isSelected || (activeTab === cat.id.toLowerCase()) ? 'text-white/80' : 'text-slate-500'
-                    }`}>
-                      {cat.nameHi}
-                    </p>
+                    <h3 className="text-xs font-extrabold line-clamp-1 leading-tight">
+                      {isHindi ? cat.nameHi : cat.name}
+                    </h3>
                   </div>
                 </button>
               );
@@ -543,13 +542,13 @@ export const StudyMaterialsPage: React.FC = () => {
         <div id="materials-catalog-section" className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2 overflow-x-auto">
           <div className="flex items-center gap-1.5 shrink-0">
             {[
-              { id: 'all', label: 'All Materials', count: pagination.total },
-              { id: 'ncert', label: 'NCERT Books (Classes 1–12)', icon: BookOpen },
-              { id: 'pyq', label: 'PYQ Papers', icon: Archive },
-              { id: 'current-affairs', label: 'Current Affairs', icon: Sparkles },
-              { id: 'featured', label: 'Featured', icon: Trophy },
-              { id: 'most-downloaded', label: 'Top Downloaded', icon: Download },
-              { id: 'my-library', label: 'My Library (Saved)', icon: Bookmark },
+              { id: 'all', label: t('study.allMaterials'), count: pagination.total },
+              { id: 'ncert', label: t('study.ncertBooks'), icon: BookOpen },
+              { id: 'pyq', label: t('study.pyqPapers'), icon: Archive },
+              { id: 'current-affairs', label: t('study.currentAffairs'), icon: Sparkles },
+              { id: 'featured', label: t('study.featured'), icon: Trophy },
+              { id: 'most-downloaded', label: t('study.topDownloaded'), icon: Download },
+              { id: 'my-library', label: t('study.myLibrarySaved'), icon: Bookmark },
             ].map(tab => {
               const TabIcon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -588,7 +587,7 @@ export const StudyMaterialsPage: React.FC = () => {
             className="md:hidden px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 shrink-0 shadow-sm"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-[#6C63FF]" />
-            <span>फ़िल्टर / Filters</span>
+            <span>{t('common.filters')}</span>
           </button>
         </div>
 
@@ -601,10 +600,10 @@ export const StudyMaterialsPage: React.FC = () => {
               <div>
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-blue-600" />
-                  <span>NCERT Official Textbooks Library (कक्षा 1 से 12 तक)</span>
+                  <span>{t('study.ncertSectionTitle')}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  आधिकारिक NCERT पाठ्यपुस्तकों के सभी अध्याय सीधे ऑनलाइन पढ़ें व आधिकारिक पोर्टल से डाउनलोड करें।
+                  {t('study.ncertSectionSubtitle')}
                 </p>
               </div>
 
@@ -612,7 +611,7 @@ export const StudyMaterialsPage: React.FC = () => {
                 to={`/study-material/ncert/class-${ncertClassNumber}`}
                 className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs flex items-center gap-1.5 transition shrink-0 border border-blue-200"
               >
-                <span>Dedicated NCERT Portal ↗</span>
+                <span>{t('study.dedicatedNcertPortal')} ↗</span>
               </Link>
             </div>
 
@@ -621,10 +620,10 @@ export const StudyMaterialsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-slate-500 uppercase flex items-center gap-1">
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  <span>कक्षा चुनें (Select Class):</span>
+                  <span>{t('study.selectClass')}:</span>
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  Showing books for <strong>Class {ncertClassNumber}</strong>
+                  {t('study.showingBooksFor')} <strong>{isHindi ? `कक्षा ${ncertClassNumber}` : `Class ${ncertClassNumber}`}</strong>
                 </span>
               </div>
 
@@ -638,16 +637,13 @@ export const StudyMaterialsPage: React.FC = () => {
                         setNcertClassNumber(cls);
                         setNcertSubject('ALL');
                       }}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 flex flex-col items-center justify-center min-w-[74px] ${
+                      className={`px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 flex items-center justify-center min-w-[70px] ${
                         isSelected
                           ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      <span>Class {cls}</span>
-                      <span className={`text-[10px] font-normal ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
-                        कक्षा {cls}
-                      </span>
+                      <span>{isHindi ? `कक्षा ${cls}` : `Class ${cls}`}</span>
                     </button>
                   );
                 })}
@@ -658,7 +654,7 @@ export const StudyMaterialsPage: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2 border-t border-slate-100">
               {/* Subjects */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1">
-                <span className="text-xs font-extrabold text-slate-500 uppercase shrink-0">विषय:</span>
+                <span className="text-xs font-extrabold text-slate-500 uppercase shrink-0">{t('study.subject')}:</span>
                 <button
                   onClick={() => setNcertSubject('ALL')}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0 border ${
@@ -667,7 +663,7 @@ export const StudyMaterialsPage: React.FC = () => {
                       : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  All Subjects
+                  {t('study.allSubjects')}
                 </button>
                 {(availableNcertSubjects.length > 0
                   ? availableNcertSubjects
@@ -691,7 +687,7 @@ export const StudyMaterialsPage: React.FC = () => {
               <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-2 md:pt-0">
                 <span className="text-xs font-extrabold text-slate-500 uppercase flex items-center gap-1">
                   <Globe className="w-3.5 h-3.5 text-blue-600" />
-                  <span>माध्यम:</span>
+                  <span>{t('study.medium')}:</span>
                 </span>
                 {['ALL', 'English', 'Hindi', 'Urdu'].map((med) => (
                   <button
@@ -703,7 +699,7 @@ export const StudyMaterialsPage: React.FC = () => {
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {med === 'ALL' ? 'सभी' : med}
+                    {med === 'ALL' ? t('common.all') : med}
                   </button>
                 ))}
               </div>
@@ -720,10 +716,10 @@ export const StudyMaterialsPage: React.FC = () => {
               <div>
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
                   <Archive className="w-5 h-5 text-rose-600" />
-                  <span>Previous Year Papers (PYQ) Explorer</span>
+                  <span>{isHindi ? 'विगत वर्ष प्रश्न पत्र (PYQ) एक्सप्लोरर' : 'Previous Year Papers (PYQ) Explorer'}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  आयोग द्वारा आयोजित वास्तविक परीक्षाओं के हल किए गए प्रश्न पत्र (Exam → Year → Paper → Shift).
+                  {isHindi ? 'आयोग द्वारा आयोजित वास्तविक परीक्षाओं के हल किए गए प्रश्न पत्र (परीक्षा → वर्ष → पेपर → शिफ्ट)।' : 'Official previous years solved question papers (Exam → Year → Paper → Shift).'}
                 </p>
               </div>
 
@@ -747,7 +743,7 @@ export const StudyMaterialsPage: React.FC = () => {
 
             {/* Year Selector */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-xs font-extrabold text-slate-500 uppercase shrink-0">वर्ष (Year):</span>
+              <span className="text-xs font-extrabold text-slate-500 uppercase shrink-0">{t('study.year')}:</span>
               {['2026', '2025', '2024', '2023', '2022', '2021'].map(y => (
                 <button
                   key={y}
@@ -773,14 +769,14 @@ export const StudyMaterialsPage: React.FC = () => {
             {/* Category Pills */}
             <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center gap-2 overflow-x-auto">
               {[
-                { id: '', label: 'All Current Affairs (समस्त)' },
-                { id: 'NATIONAL', label: 'National (राष्ट्रीय)' },
-                { id: 'INTERNATIONAL', label: 'International (अंतर्राष्ट्रीय)' },
-                { id: 'ECONOMY', label: 'Economy & Banking (अर्थव्यवस्था)' },
-                { id: 'SCIENCE_TECH', label: 'Science & Tech (विज्ञान)' },
-                { id: 'SPORTS', label: 'Sports (खेलकूद)' },
-                { id: 'AWARDS', label: 'Awards (पुरस्कार)' },
-                { id: 'SCHEMES', label: 'Govt Schemes (योजनाएं)' },
+                { id: '', label: isHindi ? 'समस्त करेंट अफेयर्स' : 'All Current Affairs' },
+                { id: 'NATIONAL', label: isHindi ? 'राष्ट्रीय' : 'National' },
+                { id: 'INTERNATIONAL', label: isHindi ? 'अंतर्राष्ट्रीय' : 'International' },
+                { id: 'ECONOMY', label: isHindi ? 'अर्थव्यवस्था' : 'Economy & Banking' },
+                { id: 'SCIENCE_TECH', label: isHindi ? 'विज्ञान व तकनीक' : 'Science & Tech' },
+                { id: 'SPORTS', label: isHindi ? 'खेलकूद' : 'Sports' },
+                { id: 'AWARDS', label: isHindi ? 'पुरस्कार' : 'Awards' },
+                { id: 'SCHEMES', label: isHindi ? 'सरकारी योजनाएं' : 'Govt Schemes' },
               ].map(cat => (
                 <button
                   key={cat.id}
@@ -800,8 +796,12 @@ export const StudyMaterialsPage: React.FC = () => {
             {currentAffairs.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
                 <Sparkles className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-base font-bold text-slate-800">कोई समसामयिकी लेख नहीं मिला</h3>
-                <p className="text-xs text-slate-500 mt-1">No current affairs articles match your selected filter.</p>
+                <h3 className="text-base font-bold text-slate-800">
+                  {isHindi ? 'कोई समसामयिकी लेख नहीं मिला' : 'No current affairs articles found'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {isHindi ? 'आपके चुने गए फ़िल्टर के अनुसार कोई समसामयिकी लेख उपलब्ध नहीं है।' : 'No current affairs articles match your selected filter.'}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -816,7 +816,7 @@ export const StudyMaterialsPage: React.FC = () => {
                           {item.category}
                         </span>
                         <span className="text-slate-400 font-medium">
-                          {new Date(item.date).toLocaleDateString('hi-IN', {
+                          {new Date(item.date).toLocaleDateString(isHindi ? 'hi-IN' : 'en-US', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',
@@ -835,7 +835,7 @@ export const StudyMaterialsPage: React.FC = () => {
 
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
                       <span className="text-slate-500 font-semibold italic">
-                        स्रोत: {item.source || 'PIB / आधिकारिक बुलेटिन'}
+                        {isHindi ? 'स्रोत' : 'Source'}: {item.source || (isHindi ? 'आधिकारिक बुलेटिन' : 'Official Bulletin')}
                       </span>
                       {item.pdfUrl ? (
                         <a
@@ -845,7 +845,7 @@ export const StudyMaterialsPage: React.FC = () => {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition"
                         >
                           <Download className="w-3.5 h-3.5" />
-                          <span>मासिक PDF</span>
+                          <span>{isHindi ? 'मासिक PDF' : 'Monthly PDF'}</span>
                         </a>
                       ) : (
                         <span className="text-[11px] text-slate-400">
@@ -869,10 +869,10 @@ export const StudyMaterialsPage: React.FC = () => {
               <div>
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
                   <Bookmark className="w-5 h-5 text-rose-500" />
-                  <span>मेरी लाइब्रेरी (My Study Library)</span>
+                  <span>{t('study.myLibrary')}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  आपके द्वारा सहेजी गई पुस्तकें (Bookmarks) एवं डाउनलोड किया गया अध्ययन इतिहास।
+                  {t('study.myLibrarySubtitle')}
                 </p>
               </div>
 
@@ -883,15 +883,15 @@ export const StudyMaterialsPage: React.FC = () => {
                     librarySubTab === 'saved' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
                   }`}
                 >
-                  सहेजे गए ({savedMaterials.length})
+                  {t('study.saved')} ({savedMaterials.length})
                 </button>
                 <button
                   onClick={() => setLibrarySubTab('history')}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
                     librarySubTab === 'history' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
                   }`}
                 >
-                  डाउनलोड इतिहास ({downloadHistory.length})
+                  {t('study.downloadHistory')} ({downloadHistory.length})
                 </button>
               </div>
             </div>
@@ -900,15 +900,15 @@ export const StudyMaterialsPage: React.FC = () => {
               savedMaterials.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
                   <Bookmark className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <h3 className="text-base font-bold text-slate-800">अभी तक कोई सामग्री सेव नहीं की गई है</h3>
+                  <h3 className="text-base font-bold text-slate-800">{t('study.noSavedMaterials')}</h3>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                    किसी भी नोट्स या ई-बुक कार्ड पर "Save" बटन दबाकर उसे अपनी लाइब्रेरी में जोड़ें।
+                    {t('study.noSavedMaterialsDesc')}
                   </p>
                   <button
                     onClick={() => setActiveTab('all')}
                     className="mt-4 px-5 py-2 rounded-xl bg-[#6C63FF] text-white font-bold text-xs"
                   >
-                    अध्ययन सामग्री खोजें
+                    {t('study.exploreStudyMaterials')}
                   </button>
                 </div>
               ) : (
@@ -927,8 +927,8 @@ export const StudyMaterialsPage: React.FC = () => {
             ) : downloadHistory.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
                 <Download className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-base font-bold text-slate-800">कोई डाउनलोड इतिहास नहीं मिला</h3>
-                <p className="text-xs text-slate-500 mt-1">जब आप कोई पीडीएफ डाउनलोड करेंगे, तो वह यहाँ दिखाई देगी।</p>
+                <h3 className="text-base font-bold text-slate-800">{t('study.noHistory')}</h3>
+                <p className="text-xs text-slate-500 mt-1">{t('study.noHistoryDesc')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -957,14 +957,14 @@ export const StudyMaterialsPage: React.FC = () => {
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2 text-sm font-black text-slate-900">
                     <Filter className="w-4 h-4 text-[#6C63FF]" />
-                    <span>फ़िल्टर / Smart Filters</span>
+                    <span>{t('study.smartFilters')}</span>
                   </div>
                   {hasActiveFilters && (
                     <button
                       onClick={clearAllFilters}
                       className="text-[11px] font-bold text-rose-600 hover:underline"
                     >
-                      रीसेट / Reset
+                      {t('study.reset')}
                     </button>
                   )}
                 </div>
@@ -972,14 +972,14 @@ export const StudyMaterialsPage: React.FC = () => {
                 {/* Filter 1: Subject */}
                 <div className="space-y-2">
                   <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                    विषय / Subject
+                    {t('study.subject')}
                   </label>
                   <select
                     value={selectedSubject}
                     onChange={(e) => setSelectedSubject(e.target.value)}
                     className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-[#6C63FF]"
                   >
-                    <option value="">सभी विषय / All Subjects</option>
+                    <option value="">{t('study.allSubjects')}</option>
                     {subjectPills.filter(s => s.id).map(s => (
                       <option key={s.id} value={s.id}>{s.label}</option>
                     ))}
@@ -989,14 +989,14 @@ export const StudyMaterialsPage: React.FC = () => {
                 {/* Filter 2: Class */}
                 <div className="space-y-2">
                   <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                    कक्षा / Class Grade
+                    {t('study.classGrade')}
                   </label>
                   <select
                     value={selectedClass}
                     onChange={(e) => setSelectedClass(e.target.value)}
                     className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-[#6C63FF]"
                   >
-                    <option value="">सभी कक्षाएं / All Classes</option>
+                    <option value="">{t('study.allClasses')}</option>
                     {classesList.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -1006,14 +1006,14 @@ export const StudyMaterialsPage: React.FC = () => {
                 {/* Filter 3: Exam */}
                 <div className="space-y-2">
                   <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                    लक्षित परीक्षा / Target Exam
+                    {t('study.targetExam')}
                   </label>
                   <select
                     value={selectedExam}
                     onChange={(e) => setSelectedExam(e.target.value)}
                     className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-[#6C63FF]"
                   >
-                    <option value="">सभी परीक्षाएं / All Exams</option>
+                    <option value="">{t('study.allExams')}</option>
                     {examsList.map(e => (
                       <option key={e} value={e}>{e}</option>
                     ))}
@@ -1023,7 +1023,7 @@ export const StudyMaterialsPage: React.FC = () => {
                 {/* Filter 4: Language */}
                 <div className="space-y-2">
                   <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                    भाषा / Language
+                    {t('study.language')}
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {['', 'HINDI', 'ENGLISH'].map(lang => (
@@ -1037,7 +1037,7 @@ export const StudyMaterialsPage: React.FC = () => {
                             : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
-                        {lang === '' ? 'All' : lang === 'HINDI' ? 'हिन्दी' : 'English'}
+                        {lang === '' ? t('common.all') : lang === 'HINDI' ? (isHindi ? 'हिन्दी' : 'Hindi') : 'English'}
                       </button>
                     ))}
                   </div>
@@ -1046,7 +1046,7 @@ export const StudyMaterialsPage: React.FC = () => {
                 {/* Filter 5: Free vs Premium */}
                 <div className="space-y-2">
                   <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                    लाइसेंस / Access
+                    {t('study.access')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -1058,7 +1058,7 @@ export const StudyMaterialsPage: React.FC = () => {
                           : 'bg-slate-50 text-slate-700 border-slate-200'
                       }`}
                     >
-                      100% Free Only
+                      {isHindi ? 'केवल मुफ़्त' : '100% Free Only'}
                     </button>
                     <button
                       type="button"
@@ -1069,7 +1069,7 @@ export const StudyMaterialsPage: React.FC = () => {
                           : 'bg-slate-50 text-slate-700 border-slate-200'
                       }`}
                     >
-                      Premium Only
+                      {isHindi ? 'केवल प्रीमियम' : 'Premium Only'}
                     </button>
                   </div>
                 </div>
@@ -1078,17 +1078,17 @@ export const StudyMaterialsPage: React.FC = () => {
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                     <ArrowUpDown className="w-3.5 h-3.5" />
-                    <span>क्रमबद्ध करें / Sort By</span>
+                    <span>{t('study.sortBy')}</span>
                   </label>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none"
                   >
-                    <option value="latest">नवीनतम पहले / Newest First</option>
-                    <option value="popular">सर्वाधिक डाउनलोड / Most Downloaded</option>
-                    <option value="views">सर्वाधिक देखे गए / Most Viewed</option>
-                    <option value="oldest">पुराने पहले / Oldest First</option>
+                    <option value="latest">{t('study.sortNewest')}</option>
+                    <option value="popular">{t('study.sortDownloaded')}</option>
+                    <option value="views">{t('study.sortViewed')}</option>
+                    <option value="oldest">{t('study.sortOldest')}</option>
                   </select>
                 </div>
               </div>
@@ -1120,25 +1120,25 @@ export const StudyMaterialsPage: React.FC = () => {
                 <span>
                   {activeTab === 'ncert' ? (
                     <>
-                      दिखाई जा रही हैं: <strong className="text-slate-800">{ncertBooks.length}</strong> आधिकारिक NCERT पुस्तकें (कक्षा {ncertClassNumber})
+                      {isHindi ? 'दिखाई जा रही हैं:' : 'Showing:'} <strong className="text-slate-800">{ncertBooks.length}</strong> {isHindi ? `आधिकारिक NCERT पुस्तकें (कक्षा ${ncertClassNumber})` : `official NCERT books (Class ${ncertClassNumber})`}
                     </>
                   ) : (
                     <>
-                      दिखाए जा रहे हैं: <strong className="text-slate-800">{materials.length}</strong> परिणाम
-                      {pagination.total > 0 && ` (कुल ${pagination.total})`}
+                      {isHindi ? 'दिखाए जा रहे हैं:' : 'Showing:'} <strong className="text-slate-800">{materials.length}</strong> {isHindi ? 'परिणाम' : 'results'}
+                      {pagination.total > 0 && ` (${isHindi ? 'कुल' : 'Total'} ${pagination.total})`}
                     </>
                   )}
                 </span>
                 {activeTab === 'ncert' ? (
                   ncertSubject !== 'ALL' && (
                     <span className="font-semibold text-blue-600">
-                      विषय: {ncertSubject}
+                      {t('study.subject')}: {ncertSubject}
                     </span>
                   )
                 ) : (
                   selectedSubject && (
                     <span className="font-semibold text-[#6C63FF]">
-                      विषय: {selectedSubject}
+                      {t('study.subject')}: {selectedSubject}
                     </span>
                   )
                 )}
@@ -1161,10 +1161,10 @@ export const StudyMaterialsPage: React.FC = () => {
                   <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 space-y-4">
                     <BookOpen className="w-14 h-14 text-slate-300 mx-auto" />
                     <h3 className="text-lg font-bold text-slate-800">
-                      Class {ncertClassNumber} के लिए पुस्तकें लोड हो रही हैं या फ़िल्टर रीसेट करें
+                      {isHindi ? `कक्षा ${ncertClassNumber} के लिए कोई पुस्तक नहीं मिली` : `No textbooks found for Class ${ncertClassNumber}`}
                     </h3>
                     <p className="text-xs text-slate-500 max-w-md mx-auto">
-                      चयनित विषय अथवा माध्यम में कोई पुस्तक नहीं मिली। कृपया "All Subjects" चुनें।
+                      {isHindi ? 'चयनित विषय अथवा माध्यम में कोई पुस्तक नहीं मिली। कृपया फ़िल्टर रीसेट करें।' : 'No textbooks found matching your selected subject or medium. Try resetting filters.'}
                     </p>
                     <button
                       onClick={() => {
@@ -1173,7 +1173,7 @@ export const StudyMaterialsPage: React.FC = () => {
                       }}
                       className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition"
                     >
-                      सभी विषय दिखाएं / Reset Filters
+                      {t('common.clearFilters')}
                     </button>
                   </div>
                 ) : (
@@ -1210,15 +1210,15 @@ export const StudyMaterialsPage: React.FC = () => {
               ) : materials.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 space-y-4">
                   <FileText className="w-14 h-14 text-slate-300 mx-auto" />
-                  <h3 className="text-lg font-bold text-slate-800">कोई अध्ययन सामग्री नहीं मिली</h3>
+                  <h3 className="text-lg font-bold text-slate-800">{t('study.noMaterialsFound')}</h3>
                   <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    आपके द्वारा चुने गए फ़िल्टर या खोज शब्द के अनुसार कोई परिणाम उपलब्ध नहीं है। कृपया फ़िल्टर रीसेट करें।
+                    {t('study.tryResettingFilters')}
                   </p>
                   <button
                     onClick={clearAllFilters}
                     className="px-6 py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs shadow-md hover:opacity-90 transition"
                   >
-                    सभी फ़िल्टर साफ़ करें / Clear Filters
+                    {t('common.clearFilters')}
                   </button>
                 </div>
               ) : (
@@ -1243,11 +1243,11 @@ export const StudyMaterialsPage: React.FC = () => {
                     onClick={() => fetchMaterials(pagination.page - 1)}
                     className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-50 transition"
                   >
-                    ← पिछला / Prev
+                    ← {t('common.previous')}
                   </button>
 
                   <span className="text-xs font-bold text-slate-600 px-3">
-                    Page {pagination.page} of {pagination.totalPages}
+                    {t('common.page')} {pagination.page} {t('common.of')} {pagination.totalPages}
                   </span>
 
                   <button
@@ -1255,7 +1255,7 @@ export const StudyMaterialsPage: React.FC = () => {
                     onClick={() => fetchMaterials(pagination.page + 1)}
                     className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-50 transition"
                   >
-                    अगला / Next →
+                    {t('common.next')} →
                   </button>
                 </div>
               )}
@@ -1272,7 +1272,7 @@ export const StudyMaterialsPage: React.FC = () => {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                   <Filter className="w-4 h-4 text-[#6C63FF]" />
-                  <span>फ़िल्टर सेटिंग्स</span>
+                  <span>{t('study.filterSettings')}</span>
                 </h3>
                 <button
                   onClick={() => setIsFilterDrawerOpen(false)}
@@ -1284,13 +1284,13 @@ export const StudyMaterialsPage: React.FC = () => {
 
               {/* Subject */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">विषय / Subject</label>
+                <label className="text-xs font-bold text-slate-700">{t('study.subject')}</label>
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
                   className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5"
                 >
-                  <option value="">सभी विषय</option>
+                  <option value="">{t('study.allSubjects')}</option>
                   {subjectPills.filter(s => s.id).map(s => (
                     <option key={s.id} value={s.id}>{s.label}</option>
                   ))}
@@ -1299,13 +1299,13 @@ export const StudyMaterialsPage: React.FC = () => {
 
               {/* Class */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">कक्षा / Class</label>
+                <label className="text-xs font-bold text-slate-700">{t('study.classGrade')}</label>
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
                   className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5"
                 >
-                  <option value="">सभी कक्षाएं</option>
+                  <option value="">{t('study.allClasses')}</option>
                   {classesList.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -1314,13 +1314,13 @@ export const StudyMaterialsPage: React.FC = () => {
 
               {/* Exam */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">परीक्षा / Exam</label>
+                <label className="text-xs font-bold text-slate-700">{t('study.targetExam')}</label>
                 <select
                   value={selectedExam}
                   onChange={(e) => setSelectedExam(e.target.value)}
                   className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5"
                 >
-                  <option value="">सभी परीक्षाएं</option>
+                  <option value="">{t('study.allExams')}</option>
                   {examsList.map(e => (
                     <option key={e} value={e}>{e}</option>
                   ))}
@@ -1329,7 +1329,7 @@ export const StudyMaterialsPage: React.FC = () => {
 
               {/* Language */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">माध्यम / Language</label>
+                <label className="text-xs font-bold text-slate-700">{t('study.language')}</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {['', 'HINDI', 'ENGLISH'].map(lang => (
                     <button
@@ -1339,7 +1339,7 @@ export const StudyMaterialsPage: React.FC = () => {
                         selectedLanguage === lang ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 border-slate-200'
                       }`}
                     >
-                      {lang === '' ? 'All' : lang === 'HINDI' ? 'हिन्दी' : 'Eng'}
+                      {lang === '' ? t('common.all') : lang === 'HINDI' ? (isHindi ? 'हिन्दी' : 'Hindi') : 'Eng'}
                     </button>
                   ))}
                 </div>
@@ -1351,13 +1351,13 @@ export const StudyMaterialsPage: React.FC = () => {
                 onClick={clearAllFilters}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs"
               >
-                रीसेट
+                {t('study.reset')}
               </button>
               <button
                 onClick={() => setIsFilterDrawerOpen(false)}
                 className="flex-1 py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs shadow-md"
               >
-                लागू करें
+                {t('study.applyFilters')}
               </button>
             </div>
           </div>
@@ -1402,6 +1402,8 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
   onDownload,
   onBookmark,
 }) => {
+  const { isHindi, t } = useLanguage();
+
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group space-y-4 relative">
       {/* Top Badges */}
@@ -1414,11 +1416,11 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
           <div className="flex items-center gap-1.5">
             {material.isFree ? (
               <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200">
-                मुफ़्त (Free)
+                {t('common.free')}
               </span>
             ) : (
               <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-extrabold border border-purple-200">
-                प्रीमियम
+                {t('common.paid')}
               </span>
             )}
 
@@ -1451,7 +1453,7 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
 
         {/* Description / Topic Snippet */}
         <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">
-          {material.description || 'अत्यंत महत्वपूर्ण परीक्षा उपयोगी अध्ययन सामग्री एवं संक्षिप्त नोट्स।'}
+          {material.description || t('study.defaultDesc')}
         </p>
 
         {/* Metadata Specs Pills */}
@@ -1475,10 +1477,10 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
       {/* Card Footer: Metrics & Action Buttons */}
       <div className="pt-3 border-t border-slate-100 space-y-3">
         <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
-          <span>{material.fileSize} • {material.pageCount || 1} पृ.</span>
+          <span>{material.fileSize} • {material.pageCount || 1} {isHindi ? 'पृष्ठ' : 'pp.'}</span>
           <span className="flex items-center gap-1 text-emerald-600 font-bold">
             <Download className="w-3 h-3" />
-            {(material.downloadsCount || 0).toLocaleString()} Downloads
+            {(material.downloadsCount || 0).toLocaleString()} {isHindi ? 'डाउनलोड' : 'Downloads'}
           </span>
         </div>
 
@@ -1490,7 +1492,7 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
             className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition"
           >
             <BookOpen className="w-3.5 h-3.5 text-[#6C63FF]" />
-            <span>पढ़ें / Read</span>
+            <span>{t('study.readOnline')}</span>
           </button>
 
           {/* Download Button */}
@@ -1500,7 +1502,7 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
             className="flex-1 py-2 rounded-xl bg-[#6C63FF] hover:bg-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>डाउनलोड</span>
+            <span>{t('common.download')}</span>
           </button>
         </div>
       </div>
@@ -1522,6 +1524,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
   onReadOnline,
   onDownload,
 }) => {
+  const { isHindi, t } = useLanguage();
   const detailUrl = `/study-material/ncert/class-${book.classNumber}/${encodeURIComponent(
     book.subject.toLowerCase()
   )}/${book.slug}`;
@@ -1533,7 +1536,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5">
             <span className="px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-extrabold tracking-wide">
-              Class {book.classNumber}
+              {isHindi ? `कक्षा ${book.classNumber}` : `Class ${book.classNumber}`}
             </span>
             <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-extrabold border border-slate-200">
               {book.medium}
@@ -1542,7 +1545,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
 
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            <span>Official NCERT</span>
+            <span>{isHindi ? 'आधिकारिक NCERT' : 'Official NCERT'}</span>
           </span>
         </div>
 
@@ -1580,7 +1583,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
                 {book.subject}
               </span>
               <span>•</span>
-              <span>{book.chapterCount || (book.chapters ? book.chapters.length : 0)} Chapters</span>
+              <span>{book.chapterCount || (book.chapters ? book.chapters.length : 0)} {isHindi ? 'अध्याय' : 'Chapters'}</span>
             </div>
           </div>
         </div>
@@ -1595,7 +1598,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
             className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Read Online (पढ़ें)</span>
+            <span>{t('study.readOnline')}</span>
           </button>
 
           <button
@@ -1605,7 +1608,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
             title="Download complete NCERT book ZIP"
           >
             <Download className="w-3.5 h-3.5 text-blue-600" />
-            <span>Download Book ⬇</span>
+            <span>{t('study.downloadBook')} ⬇</span>
           </button>
         </div>
 
@@ -1613,7 +1616,7 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
           to={detailUrl}
           className="w-full py-1.5 rounded-lg text-slate-500 hover:text-blue-600 text-[11px] font-bold flex items-center justify-center gap-1 transition"
         >
-          <span>View All Chapters & Solution Links →</span>
+          <span>{t('study.viewAllChapters')} →</span>
         </Link>
       </div>
     </div>

@@ -4,6 +4,8 @@ import { X, Heart, ShoppingBag, Bell, LayoutDashboard, ShieldCheck, LogOut, LogI
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { LanguageSwitcher } from '../common/LanguageSwitcher';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   const { user, isAdmin, logout } = useAuth();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const { t } = useLanguage();
   const location = useLocation();
 
   if (!isOpen) return null;
@@ -34,7 +37,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       <div className="fixed inset-y-0 right-0 max-w-xs w-full bg-white shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
         <div>
           {/* Header */}
-          <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <Link to="/" onClick={onClose} className="flex items-center">
               <img
                 src="/logo.png"
@@ -48,6 +51,11 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+
+          {/* Language Switcher */}
+          <div className="py-3 border-b border-slate-100 flex justify-center">
+            <LanguageSwitcher variant="full" className="w-full justify-center" />
           </div>
 
           {/* User info if logged in */}
@@ -95,7 +103,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <div className="flex items-center gap-3">
                 <Heart className="w-4 h-4 text-[#FF6584]" />
-                <span>Wishlist</span>
+                <span>{t('nav.wishlist')}</span>
               </div>
               {wishlistCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-pink-100 text-[#FF6584] text-xs font-bold">
@@ -111,7 +119,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <div className="flex items-center gap-3">
                 <ShoppingBag className="w-4 h-4 text-[#6C63FF]" />
-                <span>Cart</span>
+                <span>{t('nav.cart')}</span>
               </div>
               {cartCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 text-[#6C63FF] text-xs font-bold">
@@ -127,11 +135,11 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <div className="flex items-center gap-3">
                 <Bell className="w-4 h-4 text-amber-500" />
-                <span>Notifications</span>
+                <span>{t('nav.notifications')}</span>
               </div>
               {unreadNotifications > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
-                  {unreadNotifications} new
+                  {unreadNotifications}
                 </span>
               )}
             </Link>
@@ -149,7 +157,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#1a1a2e] hover:bg-slate-800"
                 >
                   <ShieldCheck className="w-4 h-4 text-[#FF6584]" />
-                  Admin Panel
+                  {t('nav.adminPanel')}
                 </Link>
               )}
               <Link
@@ -158,7 +166,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100"
               >
                 <LayoutDashboard className="w-4 h-4 text-slate-400" />
-                Dashboard
+                {t('nav.dashboard')}
               </Link>
               <button
                 onClick={() => {
@@ -168,7 +176,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50"
               >
                 <LogOut className="w-4 h-4" />
-                Sign Out
+                {t('nav.logout')}
               </button>
             </div>
           ) : (
@@ -179,7 +187,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] text-white text-sm font-bold text-center shadow-md shadow-[#6C63FF]/30 hover:opacity-95 transition-all"
               >
                 <LogIn className="w-4 h-4" />
-                <span>Login / Register (लॉग इन / नया खाता)</span>
+                <span>{t('nav.loginRegister')}</span>
               </Link>
             </div>
           )}

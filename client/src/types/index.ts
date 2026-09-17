@@ -19,6 +19,7 @@ export interface User {
 export interface Category {
   id: string;
   name: string;
+  nameHi?: string | null;
   slug: string;
   description?: string | null;
   icon?: string | null;

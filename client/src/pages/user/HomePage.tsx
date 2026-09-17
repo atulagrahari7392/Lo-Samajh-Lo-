@@ -21,8 +21,10 @@ import { api } from '../../services/api';
 import { Course, Category, Material, Test, Review, Notification } from '../../types';
 import CourseCard from '../../components/course/CourseCard';
 import { HeroSlider } from '../../components/home/HeroSlider';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const HomePage: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -108,20 +110,27 @@ export const HomePage: React.FC = () => {
             <div className="lg:col-span-7 space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-[#6C63FF] text-xs font-bold">
                 <Sparkles className="w-4 h-4 text-[#FF6584]" />
-                <span>India's #1 Learning Engine • भारत का अग्रणी शिक्षा मंच</span>
+                <span>{isHindi ? 'भारत का अग्रणी शिक्षा मंच' : "India's #1 Learning Engine"}</span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.12]">
-                Learn <span className="text-[#6C63FF]">Smarter</span>,
-                <br />
-                Score <span className="text-[#FF6584]">Higher.</span>
-                <span className="block text-xl sm:text-2xl font-bold text-slate-500 mt-2">
-                  स्मार्ट पढ़ें, निश्चित सफलता पाएं
-                </span>
-              </h1>
+              {isHindi ? (
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
+                  स्मार्ट <span className="text-[#6C63FF]">पढ़ें</span>,
+                  <br />
+                  निश्चित <span className="text-[#FF6584]">सफलता पाएं।</span>
+                </h1>
+              ) : (
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.12]">
+                  Learn <span className="text-[#6C63FF]">Smarter</span>,
+                  <br />
+                  Score <span className="text-[#FF6584]">Higher.</span>
+                </h1>
+              )}
 
               <p className="text-slate-600 text-base sm:text-lg max-w-xl leading-relaxed">
-                Dedicated preparation for <span className="font-semibold text-slate-800">UPSSSC PET, Railway NTPC & Group D, SSC GD, UP Police</span> and University Graduation studies. Interactive video courses, live mock tests, and bilingual notes.
+                {isHindi
+                  ? 'UPSSSC PET, Railway NTPC & Group D, SSC GD, UP Police एवं विश्वविद्यालय परीक्षाओं के लिए समर्पित तैयारी। उच्च गुणवत्ता वीडियो लेक्चर्स, लाइव टेस्ट सीरीज़ और प्रमाणिक अध्ययन सामग्री।'
+                  : 'Dedicated preparation for UPSSSC PET, Railway NTPC & Group D, SSC GD, UP Police and University Graduation studies. Interactive video courses, live mock tests, and bilingual notes.'}
               </p>
 
               {/* Search Bar */}
@@ -134,20 +143,22 @@ export const HomePage: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search courses, exams, tests (e.g. UPSSSC PET 2026)..."
+                  placeholder={isHindi ? 'कोर्स, परीक्षा या टेस्ट खोजें (जैसे UPSSSC PET 2026)...' : 'Search courses, exams, tests (e.g. UPSSSC PET 2026)...'}
                   className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
                 />
                 <button
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white font-bold text-xs shadow-md shadow-[#6C63FF]/30 transition-transform active:scale-95"
                 >
-                  Search
+                  {t('common.search', isHindi ? 'खोजें' : 'Search')}
                 </button>
               </form>
 
               {/* Quick Exam Pills */}
               <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                <span className="font-bold text-slate-400 uppercase tracking-wider">Popular:</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider">
+                  {isHindi ? 'लोकप्रिय:' : 'Popular:'}
+                </span>
                 {['UPSSSC PET', 'RRB NTPC', 'SSC GD', 'UP Police', 'Science PYQ'].map((tag) => (
                   <Link
                     key={tag}

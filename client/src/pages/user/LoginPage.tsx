@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Eye, EyeOff, User, Phone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const LoginPage: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('mode') === 'register' ? 'register' : 'login';
@@ -104,7 +106,7 @@ export const LoginPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Login / साइन इन
+            {t('nav.login', isHindi ? 'लॉग इन' : 'Sign In')}
           </button>
           <button
             type="button"
@@ -118,7 +120,7 @@ export const LoginPage: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Register / नया खाता
+            {t('nav.register', isHindi ? 'नया खाता' : 'Register')}
           </button>
         </div>
 
@@ -203,7 +205,7 @@ export const LoginPage: React.FC = () => {
               disabled={loading}
               className="w-full py-2.5 rounded-xl bg-[#6C63FF] hover:bg-[#584fd4] text-white font-extrabold text-xs shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              <span>{loading ? 'Signing in...' : 'Sign In / लॉगिन करें'}</span>
+              <span>{loading ? (isHindi ? 'लॉगिन हो रहा है...' : 'Signing in...') : (isHindi ? 'लॉगिन करें' : 'Sign In')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>
@@ -295,7 +297,7 @@ export const LoginPage: React.FC = () => {
               disabled={loading}
               className="w-full py-2.5 rounded-xl bg-[#6C63FF] hover:bg-[#584fd4] text-white font-extrabold text-xs shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 disabled:opacity-50 mt-1"
             >
-              <span>{loading ? 'Creating account...' : 'Create Account / खाता बनाएं'}</span>
+              <span>{loading ? (isHindi ? 'खाता बनाया जा रहा है...' : 'Creating account...') : (isHindi ? 'खाता बनाएं' : 'Create Account')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>

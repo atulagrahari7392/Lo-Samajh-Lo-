@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -21,8 +21,10 @@ import {
 import { api } from '../../services/api';
 import { EducationArticle, Course, TestSeries, Material } from '../../types';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const ArticleDetailPage: React.FC = () => {
+  const { isHindi } = useLanguage();
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { success } = useToast();
@@ -173,7 +175,7 @@ export const ArticleDetailPage: React.FC = () => {
           <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50/50 to-pink-50/30 border border-purple-200/80 shadow-xs space-y-2">
             <h2 className="text-xs font-black uppercase tracking-wider text-[#6C63FF] flex items-center gap-1.5">
               <Sparkles className="w-4 h-4" />
-              <span>Quick Summary / संक्षिप्त विवरण</span>
+              <span>{isHindi ? 'संक्षिप्त विवरण' : 'Quick Summary'}</span>
             </h2>
             <p className="text-sm text-slate-700 leading-relaxed font-medium">
               {article.excerpt}

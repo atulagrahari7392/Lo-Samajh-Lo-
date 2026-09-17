@@ -17,6 +17,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import { api } from '../../services/api';
 import MobileDrawer from './MobileDrawer';
 
@@ -24,6 +26,7 @@ export const Navbar: React.FC = () => {
   const { user, isAdmin, logout } = useAuth();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -47,11 +50,11 @@ export const Navbar: React.FC = () => {
   }, [location.pathname, user]);
 
   const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Courses', path: '/courses' },
-    { name: 'Study Materials', path: '/study-materials' },
-    { name: 'Test Series', path: '/test-series' },
-    { name: 'Typing Test', path: '/typing-test' },
+    { name: t('nav.home', 'Home'), path: '/' },
+    { name: t('nav.courses', 'Courses'), path: '/courses' },
+    { name: t('nav.studyMaterials', 'Study Materials'), path: '/study-materials' },
+    { name: t('nav.testSeries', 'Test Series'), path: '/test-series' },
+    { name: t('nav.typingTest', 'Typing Test'), path: '/typing-test' },
   ];
 
   const isActive = (path: string) => {
@@ -144,6 +147,9 @@ export const Navbar: React.FC = () => {
               )}
             </Link>
 
+            {/* Language Switcher */}
+            <LanguageSwitcher className="hidden sm:inline-flex" />
+
             {/* User Account / Login */}
             {user ? (
               <div className="relative">
@@ -164,7 +170,7 @@ export const Navbar: React.FC = () => {
                     onClick={() => setProfileDropdownOpen(false)}
                   >
                     <div className="px-4 py-2.5 border-b border-slate-100">
-                      <p className="text-xs text-slate-500 font-medium">Signed in as</p>
+                      <p className="text-xs text-slate-500 font-medium">{t('auth.loginTitle', 'Signed in as')}</p>
                       <p className="text-sm font-bold text-slate-800 truncate">{user.email}</p>
                       <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-[#6C63FF]">
                         {user.role}
@@ -177,7 +183,7 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#6C63FF] hover:bg-purple-50"
                       >
                         <ShieldCheck className="w-4 h-4" />
-                        Admin Control Panel
+                        {t('nav.adminPanel', 'Admin Control Panel')}
                       </Link>
                     )}
 
@@ -186,7 +192,7 @@ export const Navbar: React.FC = () => {
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
                     >
                       <LayoutDashboard className="w-4 h-4 text-slate-400" />
-                      Student Dashboard
+                      {t('nav.dashboard', 'Student Dashboard')}
                     </Link>
 
                     <button
@@ -194,7 +200,7 @@ export const Navbar: React.FC = () => {
                       className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out
+                      {t('nav.logout', 'Sign Out')}
                     </button>
                   </div>
                 )}
@@ -206,7 +212,7 @@ export const Navbar: React.FC = () => {
                   className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] hover:opacity-95 shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.02] flex items-center gap-1.5"
                 >
                   <UserIcon className="w-4 h-4" />
-                  <span>Login / Register</span>
+                  <span>{t('nav.login', 'Login')}</span>
                 </Link>
               </div>
             )}

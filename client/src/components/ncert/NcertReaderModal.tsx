@@ -28,6 +28,7 @@ import {
   getNcertEmbedViewerUrl,
   triggerInstantDownload,
 } from '../../utils/ncertUtils';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface NcertReaderModalProps {
   book: NcertBook | null;
@@ -42,6 +43,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
   onClose,
   initialChapter,
 }) => {
+  const { isHindi, t } = useLanguage();
   const [selectedChapter, setSelectedChapter] = useState<number>(initialChapter || 1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -240,7 +242,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Chapter Desk (अध्याय केंद्र)</span>
+              <span>{t('ncert.chapterDesk')}</span>
             </button>
 
             <button
@@ -252,7 +254,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Direct PDF (पीडीएफ दर्शक)</span>
+              <span>{t('ncert.directPdf')}</span>
             </button>
 
             <button
@@ -264,7 +266,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
               }`}
             >
               <List className="w-3.5 h-3.5" />
-              <span>All Chapters ({chapters.length})</span>
+              <span>{t('ncert.allChapters')} ({chapters.length})</span>
             </button>
           </div>
 
@@ -274,23 +276,23 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
               onClick={() => prevChapter && handleReadChapter(prevChapter.chapterNumber)}
               disabled={!prevChapter}
               className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition flex items-center gap-1"
-              title="Previous Chapter"
+              title={t('ncert.previousChapter')}
             >
               <ChevronLeft className="w-4 h-4" />
-              <span className="hidden md:inline">Prev</span>
+              <span className="hidden md:inline">{t('common.previous')}</span>
             </button>
 
             <span className="text-[11px] font-bold text-blue-400 px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
-              Ch {selectedChapter} / {chapters.length || 1}
+              {t('ncert.chapter')} {selectedChapter} / {chapters.length || 1}
             </span>
 
             <button
               onClick={() => nextChapter && handleReadChapter(nextChapter.chapterNumber)}
               disabled={!nextChapter}
               className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition flex items-center gap-1"
-              title="Next Chapter"
+              title={t('ncert.nextChapter')}
             >
-              <span className="hidden md:inline">Next</span>
+              <span className="hidden md:inline">{t('common.next')}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -301,7 +303,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
           <div className="flex items-center gap-1.5 truncate">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="truncate">
-              <strong>Source:</strong> National Council of Educational Research and Training (NCERT), New Delhi.
+              <strong>{t('common.source')}:</strong> {t('ncert.officialSource')}
             </span>
           </div>
           <a
@@ -323,12 +325,12 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
             {chapters.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-                  <span>Quick Jump to Chapter (अध्याय चुनें):</span>
+                  <span>{t('ncert.quickJump')}</span>
                   <button
                     onClick={() => setViewMode('chapters')}
                     className="text-blue-400 hover:text-blue-300 underline text-xs"
                   >
-                    View All Details
+                    {t('ncert.viewAllDetails')}
                   </button>
                 </div>
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
@@ -379,7 +381,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
                     {book.medium} Medium
                   </span>
                   <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20">
-                    Verified Syllabus
+                    {t('ncert.verifiedSyllabus')}
                   </span>
                 </div>
               </div>
@@ -393,7 +395,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
                   className="p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-blue-600/20 transition group"
                 >
                   <Download className={`w-5 h-5 ${downloading ? 'animate-bounce' : 'group-hover:translate-y-0.5 transition-transform'}`} />
-                  <span>{downloading ? 'Downloading...' : 'Instant Download PDF'}</span>
+                  <span>{downloading ? t('common.loading') : t('ncert.instantDownloadPdf')}</span>
                   <span className="text-[10px] text-blue-200 font-normal">Direct Static PDF • Fast</span>
                 </button>
 
@@ -403,7 +405,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
                   className="p-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1.5 border border-slate-700 transition group"
                 >
                   <FileText className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                  <span>Direct PDF Viewer</span>
+                  <span>{t('ncert.directPdfViewer')}</span>
                   <span className="text-[10px] text-slate-400 font-normal">Read In-Page with Controls</span>
                 </button>
 
@@ -413,7 +415,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
                   className="p-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1.5 border border-slate-700 transition group"
                 >
                   <ExternalLink className="w-5 h-5 text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  <span>Open in Full Screen</span>
+                  <span>{t('ncert.openInFullScreen')}</span>
                   <span className="text-[10px] text-slate-400 font-normal">Dedicated Browser Tab</span>
                 </button>
               </div>
@@ -423,10 +425,10 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
                 <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-semibold text-white">
-                    तेज़ और निर्बाध अध्ययन (Fast & Error-Free Study Access)
+                    {t('ncert.studentAdvisoryTitle')}
                   </p>
                   <p>
-                    सरकारी सर्वर (NCERT NIC) पर कभी-कभी भारी ट्रैफिक के कारण बाहरी कनेक्शन में देरी हो सकती है। यदि इन-पेज प्रिव्यू धीमा हो, तो <strong>"Instant Download PDF"</strong> बटन दबाकर अध्याय को तुरंत अपने फोन या कंप्यूटर में डाउनलोड करके बिना रुके पढ़ें।
+                    {t('ncert.studentAdvisoryText')}
                   </p>
                 </div>
               </div>
@@ -544,10 +546,10 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
               <div className="space-y-1">
                 <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-blue-400" />
-                  <span>Official Chapter-wise Textbooks (कक्षावार एवं अध्यायवार)</span>
+                  <span>{t('ncert.chapterCatalogTitle')}</span>
                 </h3>
                 <p className="text-xs text-slate-300">
-                  Select any chapter below to read online or download directly in seconds with zero timeouts.
+                  {t('ncert.chapterCatalogSubtitle')}
                 </p>
               </div>
               <button
@@ -555,7 +557,7 @@ export const NcertReaderModal: React.FC<NcertReaderModalProps> = ({
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 transition shadow-md"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Complete Book ZIP</span>
+                <span>{t('ncert.completeBookZip')}</span>
               </button>
             </div>
 

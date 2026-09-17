@@ -27,8 +27,10 @@ import { useToast } from '../../context/ToastContext';
 import SyllabusAccordion from '../../components/course/SyllabusAccordion';
 import { CustomVideoPlayer } from '../../components/video/CustomVideoPlayer';
 import { formatImageUrl, handleImageError, DEFAULT_COURSE_THUMBNAIL } from '../../utils/image';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const CourseDetailPage: React.FC = () => {
+  const { isHindi, t } = useLanguage();
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -516,7 +518,9 @@ export const CourseDetailPage: React.FC = () => {
                 </div>
 
                 <div className="pt-4 border-t border-slate-100">
-                  <h4 className="font-bold text-base text-slate-900 mb-3">Meet Your Faculty / Instructors (शिक्षक दल)</h4>
+                  <h4 className="font-bold text-base text-slate-900 mb-3">
+                    {isHindi ? 'अपने शिक्षकों से मिलें' : 'Meet Your Instructors'}
+                  </h4>
                   <div className="grid sm:grid-cols-2 gap-4">
                     {course.instructorName.split(',').map((name, i) => (
                       <div key={i} className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">

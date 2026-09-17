@@ -6,6 +6,7 @@ import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 // Layout
 import UserLayout from './components/layout/UserLayout';
@@ -65,7 +66,8 @@ export const App: React.FC = () => {
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
-            <Router>
+            <LanguageProvider>
+              <Router>
               <Routes>
                 {/* Immersive Focus Mode Routes (No User Header/Footer) */}
                 <Route path="/courses/:slug/learn" element={<CoursePlayerPage />} />
@@ -327,7 +329,8 @@ export const App: React.FC = () => {
                 />
               </Routes>
             </Router>
-          </WishlistProvider>
+          </LanguageProvider>
+        </WishlistProvider>
         </CartProvider>
       </AuthProvider>
     </ToastProvider>
