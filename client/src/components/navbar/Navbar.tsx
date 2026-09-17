@@ -50,6 +50,7 @@ export const Navbar: React.FC = () => {
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
     { name: 'Study Materials', path: '/study-materials' },
+    { name: 'NCERT Books', path: '/study-material/ncert' },
     { name: 'Test Series', path: '/test-series' },
     { name: 'Typing Test', path: '/typing-test' },
   ];

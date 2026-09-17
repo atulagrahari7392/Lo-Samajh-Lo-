@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Download,
@@ -42,6 +42,7 @@ import { useToast } from '../../context/ToastContext';
 
 export const StudyMaterialsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { success: toastSuccess, error: toastError } = useToast();
 
   // State
@@ -423,8 +424,8 @@ export const StudyMaterialsPage: React.FC = () => {
                   key={cat.id}
                   onClick={() => {
                     if (cat.id === 'NCERT') {
-                      setActiveTab('ncert');
-                      setSelectedType('');
+                      navigate('/study-material/ncert');
+                      return;
                     } else if (cat.id === 'PYQ') {
                       setActiveTab('pyq');
                       setSelectedType('');
@@ -466,7 +467,8 @@ export const StudyMaterialsPage: React.FC = () => {
           <div className="flex items-center gap-1.5 shrink-0">
             {[
               { id: 'all', label: 'All Materials', count: pagination.total },
-              { id: 'ncert', label: 'NCERT System', icon: BookOpen },
+              { id: 'ncert-official', label: 'NCERT Books (Official)', icon: BookOpen, isOfficial: true },
+              { id: 'ncert', label: 'NCERT Notes & Solutions', icon: BookOpen },
               { id: 'pyq', label: 'PYQ Papers', icon: Archive },
               { id: 'current-affairs', label: 'Current Affairs', icon: Sparkles },
               { id: 'featured', label: 'Featured', icon: Trophy },
@@ -479,6 +481,10 @@ export const StudyMaterialsPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => {
+                    if ((tab as any).isOfficial) {
+                      navigate('/study-material/ncert');
+                      return;
+                    }
                     setActiveTab(tab.id);
                     if (tab.id !== 'all') {
                       setSelectedType('');
@@ -1016,17 +1022,41 @@ export const StudyMaterialsPage: React.FC = () => {
                 </div>
               ) : materials.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 space-y-4">
-                  <FileText className="w-14 h-14 text-slate-300 mx-auto" />
-                  <h3 className="text-lg font-bold text-slate-800">कोई अध्ययन सामग्री नहीं मिली</h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    आपके द्वारा चुने गए फ़िल्टर या खोज शब्द के अनुसार कोई परिणाम उपलब्ध नहीं है। कृपया फ़िल्टर रीसेट करें।
-                  </p>
-                  <button
-                    onClick={clearAllFilters}
-                    className="px-6 py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs shadow-md hover:opacity-90 transition"
-                  >
-                    सभी फ़िल्टर साफ़ करें / Clear Filters
-                  </button>
+                  {activeTab === 'ncert' ? (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                        <BookOpen className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-800">
+                        {ncertClass} {ncertSubject} की आधिकारिक NCERT पुस्तकें उपलब्ध हैं!
+                      </h3>
+                      <p className="text-xs text-slate-600 max-w-md mx-auto">
+                        इस क्लास के लिए कस्टम क्लास नोट्स अपलोड नहीं हैं, परंतु आधिकारिक NCERT पाठ्यपुस्तकें और अध्यायवार पीडीएफ NCERT Books Library में उपलब्ध हैं।
+                      </p>
+                      <div className="pt-2 flex items-center justify-center gap-3">
+                        <Link
+                          to={`/study-material/ncert/class-${parseInt(ncertClass.replace(/[^0-9]/g, ''), 10) || 10}`}
+                          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition"
+                        >
+                          {ncertClass} की आधिकारिक NCERT पुस्तकें देखें →
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-14 h-14 text-slate-300 mx-auto" />
+                      <h3 className="text-lg font-bold text-slate-800">कोई अध्ययन सामग्री नहीं मिली</h3>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto">
+                        आपके द्वारा चुने गए फ़िल्टर या खोज शब्द के अनुसार कोई परिणाम उपलब्ध नहीं है। कृपया फ़िल्टर रीसेट करें।
+                      </p>
+                      <button
+                        onClick={clearAllFilters}
+                        className="px-6 py-2.5 rounded-xl bg-[#6C63FF] text-white font-bold text-xs shadow-md hover:opacity-90 transition"
+                      >
+                        सभी फ़िल्टर साफ़ करें / Clear Filters
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
