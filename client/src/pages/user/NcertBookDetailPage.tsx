@@ -19,6 +19,11 @@ import { api } from '../../services/api';
 import { NcertBook, NcertChapter } from '../../types';
 import { NcertReaderModal } from '../../components/ncert/NcertReaderModal';
 import { useToast } from '../../context/ToastContext';
+import {
+  getNcertStaticPdfUrl,
+  getNcertCompleteBookZipUrl,
+  triggerInstantDownload,
+} from '../../utils/ncertUtils';
 
 export const NcertBookDetailPage: React.FC = () => {
   const { classNumber, subject, bookSlug, slug } = useParams<{
@@ -82,11 +87,22 @@ export const NcertBookDetailPage: React.FC = () => {
     }
   };
 
-  const handleOfficialDownload = (url?: string) => {
+  const handleOfficialDownload = (url?: string, chapterNum?: number) => {
     if (book) {
       api.ncert.trackDownload(book.id).catch(() => {});
     }
-    window.open(url || book?.officialPdfUrl, '_blank', 'noopener,noreferrer');
+    const targetUrl = url || book?.officialPdfUrl || '';
+    if (!url || chapterNum === 0 || chapterNum === undefined) {
+      // Complete book download
+      const zipUrl = getNcertCompleteBookZipUrl(targetUrl);
+      const fileName = `NCERT-Class-${book?.classNumber}-${book?.subject}-${book?.bookName}.zip`;
+      triggerInstantDownload(zipUrl, fileName);
+    } else {
+      // Individual chapter download
+      const staticPdf = getNcertStaticPdfUrl(targetUrl, chapterNum);
+      const fileName = `NCERT-Class-${book?.classNumber}-${book?.subject}-Ch-${chapterNum}.pdf`;
+      triggerInstantDownload(staticPdf, fileName);
+    }
   };
 
   const openReader = (chapterNum: number = 0) => {
@@ -345,12 +361,12 @@ export const NcertBookDetailPage: React.FC = () => {
                       <span>Read Online</span>
                     </button>
                     <button
-                      onClick={() => handleOfficialDownload(ch.pdfUrl)}
+                      onClick={() => handleOfficialDownload(ch.pdfUrl, ch.chapterNumber)}
                       className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white font-bold text-xs flex items-center gap-1.5 transition"
-                      title="Download official PDF chapter from NCERT"
+                      title="Download official PDF chapter"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      <span>Official PDF</span>
+                      <span>Download PDF</span>
                     </button>
                   </div>
                 </div>

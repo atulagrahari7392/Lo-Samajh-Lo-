@@ -41,6 +41,7 @@ import { Material, Category, CurrentAffairs, NcertBook } from '../../types';
 import { PdfReaderModal } from '../../components/materials/PdfReaderModal';
 import { NcertReaderModal } from '../../components/ncert/NcertReaderModal';
 import { useToast } from '../../context/ToastContext';
+import { getNcertCompleteBookZipUrl, triggerInstantDownload } from '../../utils/ncertUtils';
 
 export const StudyMaterialsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1150,7 +1151,9 @@ export const StudyMaterialsPage: React.FC = () => {
                         }}
                         onDownload={(b) => {
                           api.ncert.trackDownload(b.id).catch(() => {});
-                          window.open(b.officialPdfUrl, '_blank', 'noopener,noreferrer');
+                          const zipUrl = getNcertCompleteBookZipUrl(b.officialPdfUrl);
+                          const fileName = `NCERT-Class-${b.classNumber}-${b.subject}-${b.bookName}.zip`;
+                          triggerInstantDownload(zipUrl, fileName);
                         }}
                       />
                     ))}
@@ -1562,10 +1565,10 @@ const NcertBookGridCard: React.FC<NcertBookGridCardProps> = ({
             type="button"
             onClick={() => onDownload(book)}
             className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition"
-            title="Open official NCERT textbook directly"
+            title="Download complete NCERT book ZIP"
           >
             <Download className="w-3.5 h-3.5 text-blue-600" />
-            <span>Official PDF ↗</span>
+            <span>Download Book ⬇</span>
           </button>
         </div>
 
