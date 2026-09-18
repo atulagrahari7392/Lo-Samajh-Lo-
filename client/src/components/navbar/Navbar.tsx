@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
@@ -33,6 +33,14 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Scroll shadow effect
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Fetch unread notifications count
   useEffect(() => {
@@ -63,15 +71,25 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all">
+    <header
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/98 shadow-[0_4px_30px_rgba(11,42,99,0.14)] backdrop-blur-xl'
+          : 'bg-white/96 backdrop-blur-md'
+      }`}
+      style={{
+        borderBottom: '2px solid',
+        borderImage: 'linear-gradient(90deg, #0B2A63 0%, #DC2626 50%, #D97706 100%) 1',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-2 xl:gap-4">
           {/* Logo */}
           <Link to="/" className="flex items-center flex-shrink-0 group py-1">
             <img
               src="/logo.png"
-              alt="Lo Samajh Lo — India's Trusted Learning Platform"
-              className="h-10 sm:h-12 md:h-13 xl:h-14 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
+              alt="Lo Samajh Lo â€” India's Trusted Learning Platform"
+              className="h-10 sm:h-12 md:h-13 xl:h-14 w-auto object-contain group-hover:scale-[1.06] transition-all duration-300 drop-shadow-sm"
             />
           </Link>
 
@@ -81,13 +99,21 @@ export const Navbar: React.FC = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`whitespace-nowrap px-2.5 xl:px-3.5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                className={`relative whitespace-nowrap px-2.5 xl:px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-250 flex items-center gap-1.5 flex-shrink-0 group/nav ${
                   isActive(link.path)
-                    ? 'bg-[#6C63FF]/10 text-[#6C63FF]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-gradient-to-br from-[#0B2A63]/10 to-[#1D4ED8]/07 text-[#0B2A63]'
+                    : 'text-slate-600 hover:text-[#0B2A63] hover:bg-[#0B2A63]/05'
                 }`}
               >
                 {link.name}
+                {/* Active underline bar */}
+                <span
+                  className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 rounded-full transition-all duration-300 ${
+                    isActive(link.path)
+                      ? 'w-5 bg-gradient-to-r from-[#DC2626] to-[#0B2A63]'
+                      : 'w-0 bg-gradient-to-r from-[#DC2626] to-[#0B2A63] group-hover/nav:w-5'
+                  }`}
+                />
               </Link>
             ))}
           </nav>
@@ -97,12 +123,12 @@ export const Navbar: React.FC = () => {
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="relative p-2 rounded-xl text-slate-600 hover:text-[#FF6584] hover:bg-pink-50 transition-colors flex-shrink-0"
+              className="relative p-2 rounded-xl text-slate-600 hover:text-[#DC2626] hover:bg-red-50 transition-all duration-250 flex-shrink-0 group/icon"
               title="Wishlist"
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="w-5 h-5 transition-transform duration-250 group-hover/icon:scale-110" />
               {wishlistCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#FF6584] text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-[#DC2626] to-[#ef4444] text-white text-[11px] font-bold flex items-center justify-center shadow-sm animate-bounce-slow">
                   {wishlistCount}
                 </span>
               )}
@@ -111,12 +137,12 @@ export const Navbar: React.FC = () => {
             {/* Cart */}
             <Link
               to="/cart"
-              className="relative p-2 rounded-xl text-slate-600 hover:text-[#6C63FF] hover:bg-indigo-50 transition-colors flex-shrink-0"
+              className="relative p-2 rounded-xl text-slate-600 hover:text-[#0B2A63] hover:bg-[#0B2A63]/08 transition-all duration-250 flex-shrink-0 group/icon"
               title="Shopping Cart"
             >
-              <ShoppingBag className="w-5 h-5" />
+              <ShoppingBag className="w-5 h-5 transition-transform duration-250 group-hover/icon:scale-110" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#6C63FF] text-white text-[11px] font-bold flex items-center justify-center shadow-sm animate-pulse">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-[#0B2A63] to-[#1D4ED8] text-white text-[11px] font-bold flex items-center justify-center shadow-sm animate-pulse">
                   {cartCount}
                 </span>
               )}
@@ -125,23 +151,23 @@ export const Navbar: React.FC = () => {
             {/* Notifications */}
             <Link
               to="/notifications"
-              className="relative flex items-center gap-1.5 p-2 xl:px-2.5 xl:py-2 rounded-xl text-slate-600 hover:text-[#6C63FF] hover:bg-indigo-50 transition-colors group flex-shrink-0"
+              className="relative flex items-center gap-1.5 p-2 xl:px-2.5 xl:py-2 rounded-xl text-slate-600 hover:text-[#0B2A63] hover:bg-[#0B2A63]/08 transition-all duration-250 group flex-shrink-0"
               title="Notifications & Updates"
             >
               <div className="relative">
-                <Bell className="w-5 h-5 group-hover:text-[#6C63FF] transition-colors" />
+                <Bell className="w-5 h-5 group-hover:text-[#0B2A63] transition-all duration-250 group-hover:scale-110" />
                 {unreadNotifications > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF6584] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF6584]"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#DC2626] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#DC2626]"></span>
                   </span>
                 )}
               </div>
-              <span className="hidden xl:inline text-xs font-bold uppercase tracking-wider text-slate-700 group-hover:text-[#6C63FF] transition-colors">
+              <span className="hidden xl:inline text-xs font-bold uppercase tracking-wider text-slate-700 group-hover:text-[#0B2A63] transition-colors">
                 Update
               </span>
               {unreadNotifications > 0 && (
-                <span className="hidden xl:inline-flex px-1.5 py-0.2 rounded-full text-[10px] font-black bg-[#FF6584] text-white">
+                <span className="hidden xl:inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-[#DC2626] to-[#ef4444] text-white">
                   {unreadNotifications}
                 </span>
               )}
@@ -155,24 +181,24 @@ export const Navbar: React.FC = () => {
               <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 pl-2 pr-2.5 sm:pr-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-sm font-semibold text-slate-700 shadow-sm flex-shrink-0"
+                  className="flex items-center gap-1.5 sm:gap-2 pl-2 pr-2.5 sm:pr-3 py-1.5 rounded-xl border border-[#0B2A63]/20 hover:border-[#0B2A63]/40 bg-white text-sm font-semibold text-slate-700 shadow-sm flex-shrink-0 transition-all duration-250 hover:shadow-[0_4px_12px_rgba(11,42,99,0.15)]"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0B2A63] to-[#DC2626] text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
                     {user.name.charAt(0)}
                   </div>
                   <span className="max-w-[75px] xl:max-w-[120px] truncate whitespace-nowrap">{user.name}</span>
-                  <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-250 ${profileDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {profileDropdownOpen && (
                   <div
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95"
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-[0_20px_50px_rgba(11,42,99,0.18)] border border-[#0B2A63]/10 py-2 z-50 animate-scale-in"
                     onClick={() => setProfileDropdownOpen(false)}
                   >
                     <div className="px-4 py-2.5 border-b border-slate-100">
                       <p className="text-xs text-slate-500 font-medium">{t('auth.loginTitle', 'Signed in as')}</p>
                       <p className="text-sm font-bold text-slate-800 truncate">{user.email}</p>
-                      <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-[#6C63FF]">
+                      <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#0B2A63]/10 text-[#0B2A63]">
                         {user.role}
                       </span>
                     </div>
@@ -180,7 +206,7 @@ export const Navbar: React.FC = () => {
                     {isAdmin && (
                       <Link
                         to="/admin"
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#6C63FF] hover:bg-purple-50"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#0B2A63] hover:bg-[#0B2A63]/06 transition-colors"
                       >
                         <ShieldCheck className="w-4 h-4" />
                         {t('nav.adminPanel', 'Admin Control Panel')}
@@ -189,7 +215,7 @@ export const Navbar: React.FC = () => {
 
                     <Link
                       to="/dashboard"
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       <LayoutDashboard className="w-4 h-4 text-slate-400" />
                       {t('nav.dashboard', 'Student Dashboard')}
@@ -197,7 +223,7 @@ export const Navbar: React.FC = () => {
 
                     <button
                       onClick={logout}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
                       {t('nav.logout', 'Sign Out')}
@@ -209,7 +235,7 @@ export const Navbar: React.FC = () => {
               <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
                 <Link
                   to="/login"
-                  className="whitespace-nowrap px-3.5 xl:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] hover:opacity-95 shadow-md shadow-[#6C63FF]/30 transition-all hover:scale-[1.02] flex items-center gap-1.5 flex-shrink-0"
+                  className="whitespace-nowrap px-3.5 xl:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#0B2A63] to-[#1D4ED8] hover:from-[#0a2458] hover:to-[#1a43c7] shadow-[0_4px_14px_rgba(11,42,99,0.4)] transition-all hover:scale-[1.03] hover:shadow-[0_6px_20px_rgba(11,42,99,0.5)] active:scale-[0.98] flex items-center gap-1.5 flex-shrink-0"
                 >
                   <UserIcon className="w-4 h-4" />
                   <span>{t('nav.login', 'Login')}</span>
@@ -220,7 +246,7 @@ export const Navbar: React.FC = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100"
+              className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-[#0B2A63]/08 hover:text-[#0B2A63] transition-all"
             >
               <Menu className="w-6 h-6" />
             </button>

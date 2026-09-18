@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { X, Heart, ShoppingBag, Bell, LayoutDashboard, ShieldCheck, LogOut, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -31,11 +31,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-[#061530]/70 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 max-w-xs w-full bg-white shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
-        <div>
+      <div className="fixed inset-y-0 right-0 max-w-xs w-full bg-white shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-in-right">
+        {/* Top gradient accent bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-[#0B2A63] via-[#DC2626] to-[#D97706]" />
+
+        <div className="p-6 flex-1">
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <Link to="/" onClick={onClose} className="flex items-center">
@@ -47,7 +53,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </Link>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              className="p-2 rounded-xl text-slate-400 hover:text-[#DC2626] hover:bg-red-50 transition-all"
             >
               <X className="w-5 h-5" />
             </button>
@@ -60,9 +66,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           {/* User info if logged in */}
           {user && (
-            <div className="my-4 p-3.5 rounded-xl bg-purple-50/60 border border-purple-100">
+            <div className="my-4 p-3.5 rounded-xl bg-gradient-to-br from-[#0B2A63]/08 to-[#1D4ED8]/05 border border-[#0B2A63]/12">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#6C63FF] text-white font-bold flex items-center justify-center text-sm">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0B2A63] to-[#DC2626] text-white font-bold flex items-center justify-center text-sm">
                   {user.name.charAt(0)}
                 </div>
                 <div className="overflow-hidden">
@@ -76,16 +82,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           {/* Navigation Links */}
           <div className="space-y-1 my-4">
             {navLinks.map((link) => {
-              const active = location.pathname === link.path;
+              const active = location.pathname === link.path ||
+                (link.path !== '/' && location.pathname.startsWith(link.path));
               return (
                 <Link
                   key={link.path}
                   to={link.path}
                   onClick={onClose}
-                  className={`block px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                  className={`block px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                     active
-                      ? 'bg-[#6C63FF] text-white shadow-sm'
-                      : 'text-slate-700 hover:bg-slate-100'
+                      ? 'bg-gradient-to-r from-[#0B2A63] to-[#1D4ED8] text-white shadow-[0_4px_12px_rgba(11,42,99,0.3)]'
+                      : 'text-slate-700 hover:bg-[#0B2A63]/06 hover:text-[#0B2A63]'
                   }`}
                 >
                   {link.name}
@@ -99,14 +106,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             <Link
               to="/wishlist"
               onClick={onClose}
-              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-[#DC2626] transition-all"
             >
               <div className="flex items-center gap-3">
-                <Heart className="w-4 h-4 text-[#FF6584]" />
+                <Heart className="w-4 h-4 text-[#DC2626]" />
                 <span>{t('nav.wishlist')}</span>
               </div>
               {wishlistCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-pink-100 text-[#FF6584] text-xs font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-red-100 text-[#DC2626] text-xs font-bold">
                   {wishlistCount}
                 </span>
               )}
@@ -115,14 +122,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             <Link
               to="/cart"
               onClick={onClose}
-              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-[#0B2A63]/06 hover:text-[#0B2A63] transition-all"
             >
               <div className="flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4 text-[#6C63FF]" />
+                <ShoppingBag className="w-4 h-4 text-[#0B2A63]" />
                 <span>{t('nav.cart')}</span>
               </div>
               {cartCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-[#6C63FF] text-xs font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-[#0B2A63]/10 text-[#0B2A63] text-xs font-bold">
                   {cartCount}
                 </span>
               )}
@@ -131,10 +138,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             <Link
               to="/notifications"
               onClick={onClose}
-              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-all"
             >
               <div className="flex items-center gap-3">
-                <Bell className="w-4 h-4 text-amber-500" />
+                <Bell className="w-4 h-4 text-[#D97706]" />
                 <span>{t('nav.notifications')}</span>
               </div>
               {unreadNotifications > 0 && (
@@ -147,23 +154,23 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </div>
 
         {/* Bottom Auth Section */}
-        <div className="border-t border-slate-100 pt-4">
+        <div className="border-t border-slate-100 p-6 pt-4">
           {user ? (
             <div className="space-y-2">
               {isAdmin && (
                 <Link
                   to="/admin"
                   onClick={onClose}
-                  className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#1a1a2e] hover:bg-slate-800"
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#0B2A63] to-[#1D4ED8] hover:from-[#061530] hover:to-[#0B2A63] shadow-[0_4px_12px_rgba(11,42,99,0.3)] transition-all"
                 >
-                  <ShieldCheck className="w-4 h-4 text-[#FF6584]" />
+                  <ShieldCheck className="w-4 h-4 text-[#D97706]" />
                   {t('nav.adminPanel')}
                 </Link>
               )}
               <Link
                 to="/dashboard"
                 onClick={onClose}
-                className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-all"
               >
                 <LayoutDashboard className="w-4 h-4 text-slate-400" />
                 {t('nav.dashboard')}
@@ -173,7 +180,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   logout();
                   onClose();
                 }}
-                className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                className="flex items-center gap-2.5 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-all"
               >
                 <LogOut className="w-4 h-4" />
                 {t('nav.logout')}
@@ -184,7 +191,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               <Link
                 to="/login"
                 onClick={onClose}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#6C63FF] to-[#8f88ff] text-white text-sm font-bold text-center shadow-md shadow-[#6C63FF]/30 hover:opacity-95 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#0B2A63] to-[#1D4ED8] text-white text-sm font-bold text-center shadow-[0_4px_14px_rgba(11,42,99,0.4)] hover:from-[#DC2626] hover:to-[#ef4444] transition-all duration-300"
               >
                 <LogIn className="w-4 h-4" />
                 <span>{t('nav.loginRegister')}</span>

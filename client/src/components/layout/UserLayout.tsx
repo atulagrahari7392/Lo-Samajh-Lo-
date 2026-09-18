@@ -19,17 +19,19 @@ export const ScrollToTop: React.FC = () => {
 };
 
 export const UserLayout: React.FC<UserLayoutProps> = ({ children }) => {
+  const { pathname } = useLocation();
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+    <div className="min-h-screen flex flex-col bg-[#F0F4FF]">
       <ScrollToTop />
       <Navbar />
       <FloatingSocialSidebar />
-      <main className="flex-1 min-h-[calc(100vh-140px)]">
+      <main key={pathname} className="flex-1 min-h-[calc(100vh-140px)] page-enter">
         {children}
       </main>
       <Footer />
     </div>
   );
 };
+
 
 export default UserLayout;
