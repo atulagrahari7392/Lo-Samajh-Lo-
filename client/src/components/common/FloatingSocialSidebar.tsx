@@ -67,8 +67,8 @@ export const FloatingSocialSidebar: React.FC = () => {
   const channels: SocialChannel[] = [
     {
       name: 'WhatsApp',
-      hindiTitle: 'à¤µà¥à¤¹à¤¾à¤Ÿà¥à¤¸à¤à¤ª à¤šà¥ˆà¤Ÿ à¤¸à¤¹à¤¾à¤¯à¤¤à¤¾',
-      subtitle: 'à¤•à¥‹à¤°à¥à¤¸ à¤µ à¤à¤¡à¤®à¤¿à¤¶à¤¨ à¤®à¤¾à¤°à¥à¤—à¤¦à¤°à¥à¤¶à¤¨',
+      hindiTitle: 'WhatsApp Chat Support',
+      subtitle: 'Course guidance & admission help — 24x7',
       icon: WhatsAppLogo,
       href: settings.whatsappUrl || DEFAULT_SETTINGS.whatsappUrl!,
       bgGradient: 'from-[#25D366] to-[#128C7E]',
@@ -79,8 +79,8 @@ export const FloatingSocialSidebar: React.FC = () => {
     },
     {
       name: 'YouTube',
-      hindiTitle: 'à¤¯à¥‚à¤Ÿà¥à¤¯à¥‚à¤¬ à¤µà¥€à¤¡à¤¿à¤¯à¥‹ à¤•à¤•à¥à¤·à¤¾à¤à¤‚',
-      subtitle: 'à¤®à¥à¤«à¥à¤¤ à¤²à¤¾à¤‡à¤µ à¤•à¥à¤²à¤¾à¤¸ à¤µ à¤®à¥ˆà¤°à¤¾à¤¥à¤¨',
+      hindiTitle: 'YouTube Free Video Classes',
+      subtitle: 'Live classes, marathons & recorded lectures',
       icon: YouTubeLogo,
       href: settings.youtubeUrl || DEFAULT_SETTINGS.youtubeUrl!,
       bgGradient: 'from-[#FF0000] to-[#CC0000]',
@@ -91,8 +91,8 @@ export const FloatingSocialSidebar: React.FC = () => {
     },
     {
       name: 'Telegram',
-      hindiTitle: 'à¤Ÿà¥‡à¤²à¥€à¤—à¥à¤°à¤¾à¤® à¤šà¥ˆà¤¨à¤²',
-      subtitle: 'à¤®à¥à¤«à¥à¤¤ à¤ªà¥€à¤¡à¥€à¤à¤« à¤¨à¥‹à¤Ÿà¥à¤¸ à¤µ PYQs',
+      hindiTitle: 'Telegram Channel',
+      subtitle: 'Free PDF notes, PYQs & daily updates',
       icon: TelegramLogo,
       href: settings.telegramUrl || DEFAULT_SETTINGS.telegramUrl!,
       bgGradient: 'from-[#0088cc] to-[#006699]',
@@ -103,8 +103,8 @@ export const FloatingSocialSidebar: React.FC = () => {
     },
     {
       name: 'Instagram',
-      hindiTitle: 'à¤‡à¤‚à¤¸à¥à¤Ÿà¤¾à¤—à¥à¤°à¤¾à¤® à¤°à¥€à¤²à¥à¤¸ à¤µ à¤…à¤ªà¤¡à¥‡à¤Ÿ',
-      subtitle: 'à¤¦à¥ˆà¤¨à¤¿à¤• à¤•à¤°à¤‚à¤Ÿ à¤…à¤«à¥‡à¤¯à¤°à¥à¤¸ à¤µ à¤Ÿà¤¿à¤ªà¥à¤¸',
+      hindiTitle: 'Instagram Reels & Updates',
+      subtitle: 'Daily current affairs, quiz & study tips',
       icon: InstagramLogo,
       href: settings.instagramUrl || DEFAULT_SETTINGS.instagramUrl!,
       bgGradient: 'from-[#f09433] via-[#dc2743] to-[#bc1888]',
@@ -115,8 +115,8 @@ export const FloatingSocialSidebar: React.FC = () => {
     },
     {
       name: 'Facebook',
-      hindiTitle: 'à¤«à¥‡à¤¸à¤¬à¥à¤• à¤ªà¥‡à¤œ',
-      subtitle: 'à¤¶à¤¿à¤•à¥à¤·à¤¾ à¤¸à¤®à¤¾à¤šà¤¾à¤° à¤µ à¤˜à¥‹à¤·à¤£à¤¾à¤à¤‚',
+      hindiTitle: 'Facebook Community Page',
+      subtitle: 'Education news, results & announcements',
       icon: FacebookLogo,
       href: settings.facebookUrl || DEFAULT_SETTINGS.facebookUrl!,
       bgGradient: 'from-[#1877F2] to-[#0d59c2]',
@@ -126,9 +126,9 @@ export const FloatingSocialSidebar: React.FC = () => {
       badgeBg: 'bg-blue-600 text-white',
     },
     {
-      name: 'Twitter (X)',
-      hindiTitle: 'à¤à¤•à¥à¤¸ / à¤Ÿà¥à¤µà¤¿à¤Ÿà¤°',
-      subtitle: 'à¤¸à¤°à¤•à¤¾à¤°à¥€ à¤­à¤°à¥à¤¤à¥€ à¤µ à¤µà¤¿à¤œà¥à¤žà¤ªà¥à¤¤à¤¿ à¤…à¤²à¤°à¥à¤Ÿ',
+      name: 'Twitter / X',
+      hindiTitle: 'Twitter (X) Job Alerts',
+      subtitle: 'Sarkari bharti, results & vacancy alerts',
       icon: XLogo,
       href: settings.twitterUrl || DEFAULT_SETTINGS.twitterUrl!,
       bgGradient: 'from-slate-950 to-slate-800',
@@ -139,8 +139,8 @@ export const FloatingSocialSidebar: React.FC = () => {
     },
     {
       name: 'LinkedIn',
-      hindiTitle: 'à¤²à¤¿à¤‚à¤•à¥à¤¡à¤‡à¤¨ à¤¨à¥‡à¤Ÿà¤µà¤°à¥à¤•',
-      subtitle: 'à¤•à¤°à¤¿à¤¯à¤° à¤®à¤¾à¤°à¥à¤—à¤¦à¤°à¥à¤¶à¤¨ à¤µ à¤¸à¥‡à¤®à¤¿à¤¨à¤¾à¤°',
+      hindiTitle: 'LinkedIn Network',
+      subtitle: 'Career guidance, seminars & opportunities',
       icon: LinkedInLogo,
       href: settings.linkedinUrl || DEFAULT_SETTINGS.linkedinUrl!,
       bgGradient: 'from-[#0077B5] to-[#005582]',
