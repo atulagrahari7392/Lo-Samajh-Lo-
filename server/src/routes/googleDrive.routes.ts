@@ -31,9 +31,10 @@ router.get('/auth', authenticate, requireAdmin, (req: Request, res: Response) =>
       return;
     }
 
-    // Request drive scopes and user email scope
+    // Request drive scopes, gmail send scope, and user email scope
     const scopes = [
       'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
     ];

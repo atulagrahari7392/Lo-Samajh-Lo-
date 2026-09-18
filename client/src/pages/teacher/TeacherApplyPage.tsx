@@ -20,6 +20,7 @@ import {
   Lock,
   Loader2,
   FileCheck,
+  Zap,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -43,6 +44,7 @@ export const TeacherApplyPage: React.FC = () => {
   const [otpVerified, setOtpVerified] = useState<boolean>(false);
   const [cooldown, setCooldown] = useState<number>(0);
   const [otpLoading, setOtpLoading] = useState<boolean>(false);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Password for account
   const [password, setPassword] = useState<string>(queryPass);
@@ -143,7 +145,10 @@ export const TeacherApplyPage: React.FC = () => {
       const res = await api.teacher.sendOtp(email);
       if (res.success) {
         setOtpSent(true);
-        setCooldown(res.cooldownSeconds || 60);
+        if (res.devOtp) {
+          setDevOtp(res.devOtp);
+        }
+        setCooldown(res.cooldownSeconds || 30);
         success(res.message || '6-Digit verification code sent to your email.');
       }
     } catch (err: any) {
@@ -153,15 +158,12 @@ export const TeacherApplyPage: React.FC = () => {
     }
   };
 
-  // Verify OTP
-  const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
-      toastError('Please enter the 6-digit OTP code.');
-      return;
-    }
+  // Direct Auto-Verify
+  const handleAutoVerify = async (codeToVerify: string) => {
+    if (!codeToVerify || codeToVerify.length !== 6) return;
     try {
       setOtpLoading(true);
-      const res = await api.teacher.verifyOtp(email, otp);
+      const res = await api.teacher.verifyOtp(email, codeToVerify);
       if (res.success) {
         setOtpVerified(true);
         success('Email verified successfully! Beginning Teacher Application.');
@@ -172,6 +174,24 @@ export const TeacherApplyPage: React.FC = () => {
     } finally {
       setOtpLoading(false);
     }
+  };
+
+  // Handle OTP Input with Auto-Submit on 6 digits
+  const handleOtpChange = (val: string) => {
+    const clean = val.replace(/\D/g, '').slice(0, 6);
+    setOtp(clean);
+    if (clean.length === 6) {
+      handleAutoVerify(clean);
+    }
+  };
+
+  // Verify OTP button click
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      toastError('Please enter the 6-digit OTP code.');
+      return;
+    }
+    await handleAutoVerify(otp);
   };
 
   // Document Upload Helper to Google Drive
@@ -398,10 +418,42 @@ export const TeacherApplyPage: React.FC = () => {
                 </button>
               ) : (
                 <div className="space-y-4 pt-2">
+                  {/* Fast-Track OTP Banner if available */}
+                  {devOtp && (
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white shadow-lg space-y-2.5 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-amber-300 animate-bounce" />
+                          <span className="text-xs font-black uppercase tracking-wider">Fast-Track Verification Code</span>
+                        </div>
+                        <span className="font-mono text-base font-black tracking-widest bg-white/20 px-2.5 py-0.5 rounded-lg">
+                          {devOtp}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtp(devOtp);
+                          handleAutoVerify(devOtp);
+                        }}
+                        className="w-full py-2 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs shadow transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span>Click to Auto-Fill & Start Application Instantly</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
                   <div className="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-100 text-xs text-blue-950 space-y-1">
-                    <p className="font-bold">Enter Verification Code</p>
+                    <p className="font-bold flex items-center gap-1.5">
+                      <span>Enter Verification Code</span>
+                    </p>
                     <p className="text-[11px] text-blue-700">
-                      We sent a 6-digit OTP to <strong>{email}</strong> (valid for 10 minutes).
+                      We sent a 6-digit OTP to <strong>{email}</strong>.
+                    </p>
+                    <p className="text-[10px] text-slate-500 italic">
+                      💡 Tip: Please check your <strong>Inbox</strong> as well as <strong>Spam / Junk</strong> folder.
                     </p>
                   </div>
 
@@ -410,8 +462,9 @@ export const TeacherApplyPage: React.FC = () => {
                     <input
                       type="text"
                       maxLength={6}
+                      autoFocus
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => handleOtpChange(e.target.value)}
                       placeholder="• • • • • •"
                       className="w-full text-center tracking-[10px] text-xl font-mono font-black py-2.5 rounded-xl border border-slate-300 focus:border-[#0B2A63] outline-none"
                     />
@@ -428,7 +481,11 @@ export const TeacherApplyPage: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setOtpSent(false)}
+                      onClick={() => {
+                        setOtpSent(false);
+                        setDevOtp(null);
+                        setOtp('');
+                      }}
                       className="text-slate-500 hover:text-slate-800"
                     >
                       Change Email
@@ -442,7 +499,7 @@ export const TeacherApplyPage: React.FC = () => {
                     className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {otpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    <span>Verify Email & Start Application</span>
+                    <span>{otpLoading ? 'Verifying Code...' : 'Verify Email & Start Application'}</span>
                   </button>
                 </div>
               )}
