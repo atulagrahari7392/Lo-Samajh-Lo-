@@ -465,6 +465,10 @@ export const api = {
     },
     updateUserStatus: (id: string, isActive: boolean) => request<any>(`/admin/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ isActive }) }),
     updateUserRole: (id: string, role: string) => request<any>(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+    testEmail: (recipientEmail?: string) => request<any>('/admin/email/test', { method: 'POST', body: JSON.stringify({ recipientEmail }) }),
+    getEmailSettings: () => request<any>('/admin/email/settings'),
+    updateEmailSettings: (settings: any) => request<any>('/admin/email/settings', { method: 'POST', body: JSON.stringify(settings) }),
+    cleanupDemoData: () => request<any>('/admin/system/cleanup-demo-data', { method: 'POST' }),
   },
 
   // File Upload (Direct from computer to Google Drive / Server)

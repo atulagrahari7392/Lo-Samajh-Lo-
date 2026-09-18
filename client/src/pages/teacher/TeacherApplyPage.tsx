@@ -32,10 +32,9 @@ export const TeacherApplyPage: React.FC = () => {
   const { success, error: toastError } = useToast();
 
   const queryEmail = searchParams.get('email') || '';
-  const queryPass = searchParams.get('pass') || '';
 
   // Steps: 0 = Gmail OTP Verification, 1 to 7 = Application Wizard
-  const [currentStep, setCurrentStep] = useState<number>(queryEmail ? 0 : 0);
+  const [currentStep, setCurrentStep] = useState<number>(0);
 
   // OTP Verification State
   const [email, setEmail] = useState<string>(queryEmail);
@@ -44,11 +43,10 @@ export const TeacherApplyPage: React.FC = () => {
   const [otpVerified, setOtpVerified] = useState<boolean>(false);
   const [cooldown, setCooldown] = useState<number>(0);
   const [otpLoading, setOtpLoading] = useState<boolean>(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Password for account
-  const [password, setPassword] = useState<string>(queryPass);
-  const [confirmPassword, setConfirmPassword] = useState<string>(queryPass);
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
 
   // Step 1: Personal Details
   const [fullName, setFullName] = useState<string>('');
@@ -145,9 +143,6 @@ export const TeacherApplyPage: React.FC = () => {
       const res = await api.teacher.sendOtp(email);
       if (res.success) {
         setOtpSent(true);
-        if (res.devOtp) {
-          setDevOtp(res.devOtp);
-        }
         setCooldown(res.cooldownSeconds || 30);
         success(res.message || '6-Digit verification code sent to your email.');
       }
@@ -418,33 +413,6 @@ export const TeacherApplyPage: React.FC = () => {
                 </button>
               ) : (
                 <div className="space-y-4 pt-2">
-                  {/* Fast-Track OTP Banner if available */}
-                  {devOtp && (
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white shadow-lg space-y-2.5 animate-fadeIn">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Zap className="w-4 h-4 text-amber-300 animate-bounce" />
-                          <span className="text-xs font-black uppercase tracking-wider">Fast-Track Verification Code</span>
-                        </div>
-                        <span className="font-mono text-base font-black tracking-widest bg-white/20 px-2.5 py-0.5 rounded-lg">
-                          {devOtp}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOtp(devOtp);
-                          handleAutoVerify(devOtp);
-                        }}
-                        className="w-full py-2 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs shadow transition-all flex items-center justify-center gap-1.5"
-                      >
-                        <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                        <span>Click to Auto-Fill & Start Application Instantly</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
                   <div className="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-100 text-xs text-blue-950 space-y-1">
                     <p className="font-bold flex items-center gap-1.5">
                       <span>Enter Verification Code</span>
@@ -483,7 +451,6 @@ export const TeacherApplyPage: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setOtpSent(false);
-                        setDevOtp(null);
                         setOtp('');
                       }}
                       className="text-slate-500 hover:text-slate-800"

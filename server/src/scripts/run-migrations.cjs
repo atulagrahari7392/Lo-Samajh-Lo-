@@ -36,8 +36,12 @@ if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
       });
       console.log('✅ Database schema synchronized successfully.');
     } catch (pushErr) {
-      console.error('❌ Schema synchronization error:', pushErr.message);
-      process.exit(1);
+      if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+        console.warn('⚠️ Local PostgreSQL server not reachable at localhost:5432. Skipping schema sync for offline local build.');
+      } else {
+        console.error('❌ Schema synchronization error:', pushErr.message);
+        process.exit(1);
+      }
     }
   }
 } else {

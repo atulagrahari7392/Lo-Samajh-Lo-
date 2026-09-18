@@ -185,14 +185,14 @@ setInterval(async () => {
 httpServer.listen(Number(PORT), '0.0.0.0', async () => {
   console.log(`🚀 Lo Samajh Lo Server + Socket.IO running on port ${PORT}`);
 
-  // Safe initial data import if target PostgreSQL database is completely empty
+  // Database verification and category check
   try {
     const categoryCount = await prisma.category.count();
-    if (categoryCount === 0) {
-      console.log('📦 PostgreSQL database is empty. Running safe one-time migration from SQLite backup...');
+    if (categoryCount === 0 && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_SEED === 'true') {
+      console.log('📦 Database appears empty in development mode. Running SQLite backup migration...');
       await migrateData();
     } else {
-      console.log(`✅ Database ready. Found ${categoryCount} existing categories. Production data preserved.`);
+      console.log(`✅ Database ready. Found ${categoryCount} existing categories. Production data integrity enforced.`);
     }
 
     // Safe seed for AI Education Newsroom if empty

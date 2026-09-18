@@ -74,7 +74,7 @@ export const AdminDashboardPage: React.FC = () => {
             subtitle="Completed order sales"
             icon={IndianRupee}
             color="#2ECC71"
-            trend="+18% this month"
+            trend={stats.revenueGrowth || undefined}
           />
           <StatCard
             title="Total Students"

@@ -8,7 +8,6 @@ export interface OtpResult {
   message: string;
   cooldownSeconds?: number;
   remainingAttempts?: number;
-  devOtp?: string;
   emailDelivered?: boolean;
 }
 
@@ -18,14 +17,73 @@ export interface VerifyResult {
   verificationToken?: string;
 }
 
+export interface EmailDiagnosticResult {
+  success: boolean;
+  provider: 'SMTP' | 'GMAIL_API' | 'NONE';
+  status: 'CONNECTED' | 'DISCONNECTED';
+  sender: string | null;
+  lastTestSuccessful: boolean;
+  latencyMs: number;
+  message: string;
+  error?: string;
+}
+
 class EmailOtpService {
   private hashOtp(otp: string): string {
     return crypto.createHash('sha256').update(otp.trim()).digest('hex');
   }
 
   private generate6DigitOtp(): string {
-    // Generate secure 6 digit number between 100000 and 999999
+    // Generate cryptographically secure 6-digit numeric OTP
     return crypto.randomInt(100000, 999999).toString();
+  }
+
+  /**
+   * Retrieves configured SMTP credentials from process.env or database SiteSetting
+   */
+  public async getSmtpConfig(): Promise<{
+    host: string | null;
+    port: number;
+    user: string | null;
+    pass: string | null;
+    secure: boolean;
+    from: string | null;
+  }> {
+    let host = process.env.SMTP_HOST || null;
+    let port = Number(process.env.SMTP_PORT) || 587;
+    let user = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER || null;
+    let pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || null;
+    let secure = process.env.SMTP_SECURE === 'true' || port === 465;
+    let from = process.env.SMTP_FROM || null;
+
+    if (!user || !pass) {
+      try {
+        const setting = await prisma.siteSetting.findUnique({ where: { key: 'smtp_settings' } });
+        if (setting && setting.value) {
+          const parsed = JSON.parse(setting.value);
+          host = parsed.host || host;
+          port = Number(parsed.port) || port;
+          user = parsed.user || user;
+          pass = parsed.pass || pass;
+          secure = parsed.secure ?? secure;
+          from = parsed.from || from;
+        }
+      } catch (e) {
+        // ignore parse error
+      }
+    }
+
+    if (!host && user && user.includes('@gmail.com')) {
+      host = 'smtp.gmail.com';
+      port = 465;
+      secure = true;
+    }
+
+    if (!from && user) {
+      from = `"Lo Samajh Lo" <${user}>`;
+    }
+
+    return { host, port, user, pass, secure, from };
   }
 
   /**
@@ -38,38 +96,7 @@ class EmailOtpService {
     plainText: string
   ): Promise<boolean> {
     try {
-      // 1. Check process.env first
-      let host = process.env.SMTP_HOST;
-      let port = Number(process.env.SMTP_PORT) || 587;
-      let user = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER;
-      let pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD;
-      let secure = process.env.SMTP_SECURE === 'true' || port === 465;
-      let from = process.env.SMTP_FROM || `"Lo Samajh Lo" <${user || 'no-reply@losamajhlo.com'}>`;
-
-      // 2. Check SiteSetting 'smtp_settings' in DB if not in env
-      if (!user || !pass) {
-        try {
-          const setting = await prisma.siteSetting.findUnique({ where: { key: 'smtp_settings' } });
-          if (setting && setting.value) {
-            const parsed = JSON.parse(setting.value);
-            host = parsed.host || host;
-            port = Number(parsed.port) || port;
-            user = parsed.user || user;
-            pass = parsed.pass || pass;
-            secure = parsed.secure ?? secure;
-            from = parsed.from || from;
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      // If user provided a gmail address as user and a password, default host to smtp.gmail.com
-      if (!host && user && user.includes('@gmail.com')) {
-        host = 'smtp.gmail.com';
-        port = 465;
-        secure = true;
-      }
+      const { host, port, user, pass, secure, from } = await this.getSmtpConfig();
 
       if (user && pass && host) {
         const transporter = nodemailer.createTransport({
@@ -77,13 +104,13 @@ class EmailOtpService {
           port,
           secure,
           auth: { user, pass },
-          connectionTimeout: 4000, // 4s timeout so it fails fast if server unreachable
-          greetingTimeout: 4000,
-          socketTimeout: 5000,
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 6000,
         });
 
         await transporter.sendMail({
-          from,
+          from: from || `"Lo Samajh Lo" <${user}>`,
           to: toEmail,
           subject,
           text: plainText,
@@ -96,7 +123,7 @@ class EmailOtpService {
           },
         });
 
-        console.log(`⚡ [SMTP Engine] High-speed OTP delivered to ${toEmail} in <1s`);
+        console.log(`⚡ [SMTP Engine] High-speed email delivered to ${toEmail.replace(/^(.)(.*)(@.*)$/, '$1***$3')} in <1s`);
         return true;
       }
     } catch (err: any) {
@@ -158,7 +185,7 @@ class EmailOtpService {
           requestBody: { raw: encodedMessage },
         });
 
-        console.log(`📧 [Gmail API] OTP sent successfully to ${toEmail}`);
+        console.log(`📧 [Gmail API] Email sent to ${toEmail.replace(/^(.)(.*)(@.*)$/, '$1***$3')}`);
         return true;
       }
     } catch (err: any) {
@@ -168,7 +195,8 @@ class EmailOtpService {
   }
 
   /**
-   * Request a 6-digit OTP for teacher email verification or forgot password
+   * Request a 6-digit OTP for teacher email verification or forgot password.
+   * STRICT SECURITY: Never logs raw OTP, never returns raw OTP in API response.
    */
   public async sendOtp(
     email: string,
@@ -219,7 +247,7 @@ class EmailOtpService {
       }
     }
 
-    // 2. Check existing OTP for cooldown (30s for fast & smooth UX)
+    // 2. Check existing OTP for cooldown (30s)
     const existingOtp = await prisma.emailOtp.findFirst({
       where: { email: cleanEmail, purpose },
       orderBy: { createdAt: 'desc' },
@@ -229,7 +257,7 @@ class EmailOtpService {
 
     if (existingOtp) {
       const diffMs = now.getTime() - new Date(existingOtp.lastSentAt).getTime();
-      const cooldownSec = 30; // Smooth 30 seconds cooldown
+      const cooldownSec = 30; // 30 seconds cooldown
       if (diffMs < cooldownSec * 1000) {
         const waitLeft = Math.ceil((cooldownSec * 1000 - diffMs) / 1000);
         return {
@@ -240,12 +268,12 @@ class EmailOtpService {
       }
     }
 
-    // 3. Generate 6 digit OTP & hash it
+    // 3. Generate 6 digit OTP & cryptographically hash it
     const otp = this.generate6DigitOtp();
     const otpHash = this.hashOtp(otp);
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes expiry
 
-    // 4. Save hashed OTP to database (never plain text!)
+    // 4. Save hashed OTP to database (raw OTP is never stored in DB)
     await prisma.emailOtp.deleteMany({
       where: { email: cleanEmail, purpose },
     });
@@ -282,7 +310,7 @@ class EmailOtpService {
         <div style="padding: 32px 28px;">
           <h2 style="color: #0f172a; margin: 0 0 10px 0; font-size: 18px; font-weight: 800;">${purpose === 'TEACHER_VERIFICATION' ? 'Faculty Application Verification' : 'Password Reset Request'}</h2>
           <p style="color: #475569; font-size: 13px; line-height: 1.6; margin: 0 0 20px 0;">
-            Use the 6-digit one-time password (OTP) below to verify your email address <strong>${cleanEmail}</strong>. This OTP is valid for <strong>10 minutes</strong>.
+            Use the 6-digit one-time password (OTP) below to verify your email address <strong>${maskedEmail}</strong>. This OTP is valid for <strong>10 minutes</strong>.
           </p>
           <div style="background: #f8fafc; border: 2px dashed #0B2A63; border-radius: 16px; padding: 20px; text-align: center; margin: 0 0 24px 0;">
             <span style="font-family: monospace; font-size: 38px; font-weight: 900; letter-spacing: 12px; color: #0B2A63; margin-left: 12px;">${otp}</span>
@@ -307,20 +335,15 @@ class EmailOtpService {
       delivered = await this.sendGmailOAuthMessage(cleanEmail, title, htmlContent, plainText);
     }
 
-    // Always log to console for development / server inspection
-    console.log(`\n======================================================`);
-    console.log(`📧 [OTP DISPATCH] Delivered via Internet: ${delivered ? 'YES ✅' : 'DEV/STANDBY ⚡'}`);
-    console.log(`To: ${cleanEmail}`);
-    console.log(`Code: [ ${otp} ]`);
-    console.log(`======================================================\n`);
+    // Safe sanitized logging (NEVER LOG RAW OTP)
+    console.log(`[OTP DISPATCH] Destination: ${maskedEmail} | Delivered via Internet: ${delivered ? 'YES ✅' : 'STANDBY ⚠️'}`);
 
     return {
       success: true,
       message: delivered
         ? `Verification code dispatched to ${maskedEmail}. Check your Inbox or Spam folder.`
-        : `Verification code generated for ${maskedEmail}.`,
+        : `Verification code generated for ${maskedEmail}. If email is delayed, verify SMTP settings in Admin Panel.`,
       cooldownSeconds: 30,
-      devOtp: !delivered || process.env.NODE_ENV !== 'production' || process.env.EXPOSE_DEV_OTP === 'true' ? otp : undefined,
       emailDelivered: delivered,
     };
   }
@@ -401,7 +424,8 @@ class EmailOtpService {
    */
   public async checkEmailVerified(
     email: string,
-    purpose: 'TEACHER_VERIFICATION' | 'FORGOT_PASSWORD' = 'TEACHER_VERIFICATION'
+    purpose: 'TEACHER_VERIFICATION' | 'FORGOT_PASSWORD' = 'TEACHER_VERIFICATION',
+    verificationToken?: string
   ): Promise<boolean> {
     const cleanEmail = email.toLowerCase().trim();
     const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
@@ -415,7 +439,149 @@ class EmailOtpService {
       },
     });
 
-    return Boolean(verified);
+    if (!verified) return false;
+
+    if (verificationToken) {
+      const expectedToken = crypto
+        .createHmac('sha256', process.env.JWT_SECRET || 'lsl_otp_secret_key')
+        .update(`${cleanEmail}:${purpose}:${verified.id}`)
+        .digest('hex');
+      return expectedToken === verificationToken;
+    }
+
+    return true;
+  }
+
+  /**
+   * ADMIN-ONLY DIAGNOSTIC ENDPOINT HANDLER (Page 12 Requirement)
+   * Tests provider connection, measures latency, attempts test email if requested,
+   * never exposes secrets or tokens.
+   */
+  public async testEmailConnection(testRecipient?: string): Promise<EmailDiagnosticResult> {
+    const startTime = Date.now();
+
+    // 1. Test SMTP
+    const smtpConfig = await this.getSmtpConfig();
+    if (smtpConfig.user && smtpConfig.pass && smtpConfig.host) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          secure: smtpConfig.secure,
+          auth: { user: smtpConfig.user, pass: smtpConfig.pass },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 6000,
+        });
+
+        await transporter.verify();
+
+        let lastTestSuccessful = true;
+        let recipientMsg = '';
+
+        if (testRecipient && testRecipient.includes('@')) {
+          await transporter.sendMail({
+            from: smtpConfig.from || `"Lo Samajh Lo Admin Test" <${smtpConfig.user}>`,
+            to: testRecipient.trim(),
+            subject: 'Lo Samajh Lo — Email Provider Diagnostic Test',
+            text: `This is an automated diagnostic test from Lo Samajh Lo Admin Panel sent at ${new Date().toISOString()}. Email service is operating nominally.`,
+            html: `
+              <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #0B2A63;">Lo Samajh Lo — Diagnostic Test</h2>
+                <p>Your SMTP provider connection is <strong>ONLINE & OPERATIONAL</strong>.</p>
+                <p><strong>Latency:</strong> ${Date.now() - startTime} ms</p>
+                <p><strong>Sender:</strong> ${smtpConfig.user}</p>
+                <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+              </div>
+            `,
+          });
+          recipientMsg = ` Test email dispatched to ${testRecipient.trim()}.`;
+        }
+
+        const latencyMs = Date.now() - startTime;
+        return {
+          success: true,
+          provider: 'SMTP',
+          status: 'CONNECTED',
+          sender: smtpConfig.user,
+          lastTestSuccessful,
+          latencyMs,
+          message: `SMTP Provider Connected successfully (${latencyMs}ms).${recipientMsg}`,
+        };
+      } catch (smtpErr: any) {
+        const latencyMs = Date.now() - startTime;
+        return {
+          success: false,
+          provider: 'SMTP',
+          status: 'DISCONNECTED',
+          sender: smtpConfig.user,
+          lastTestSuccessful: false,
+          latencyMs,
+          message: 'SMTP Provider Connection Failed.',
+          error: smtpErr.message || 'SMTP Authentication or Connection error.',
+        };
+      }
+    }
+
+    // 2. Test Gmail API OAuth
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    let refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN;
+
+    if (!refreshToken && clientId && clientSecret) {
+      try {
+        const setting = await prisma.siteSetting.findUnique({ where: { key: 'google_drive_oauth' } });
+        if (setting && setting.value) {
+          const parsed = JSON.parse(setting.value);
+          refreshToken = parsed.refreshToken;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (clientId && clientSecret && refreshToken) {
+      try {
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+        oauth2Client.setCredentials({ refresh_token: refreshToken });
+        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+        const profile = await gmail.users.getProfile({ userId: 'me' });
+        const latencyMs = Date.now() - startTime;
+
+        return {
+          success: true,
+          provider: 'GMAIL_API',
+          status: 'CONNECTED',
+          sender: profile.data.emailAddress || 'Google OAuth Authorized Account',
+          lastTestSuccessful: true,
+          latencyMs,
+          message: `Gmail API Connected (${latencyMs}ms). Authorized as ${profile.data.emailAddress}`,
+        };
+      } catch (gmailErr: any) {
+        const latencyMs = Date.now() - startTime;
+        return {
+          success: false,
+          provider: 'GMAIL_API',
+          status: 'DISCONNECTED',
+          sender: null,
+          lastTestSuccessful: false,
+          latencyMs,
+          message: 'Gmail API Connection Failed.',
+          error: gmailErr.message || 'Gmail OAuth scope or token error.',
+        };
+      }
+    }
+
+    return {
+      success: false,
+      provider: 'NONE',
+      status: 'DISCONNECTED',
+      sender: null,
+      lastTestSuccessful: false,
+      latencyMs: Date.now() - startTime,
+      message: 'No email provider configured. Please configure SMTP credentials in Admin Panel Settings or via environment variables.',
+      error: 'SMTP_USER / SMTP_PASS or GOOGLE_OAUTH_REFRESH_TOKEN missing.',
+    };
   }
 }
 

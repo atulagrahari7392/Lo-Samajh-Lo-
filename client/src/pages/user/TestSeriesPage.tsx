@@ -966,19 +966,29 @@ export const TestSeriesPage: React.FC = () => {
               <p className="text-xs font-bold text-slate-500">Loading Available Test Series...</p>
             </div>
           ) : filteredSeries.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center space-y-3 border border-slate-200">
-              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-              <h3 className="font-bold text-base text-slate-800">No Test Series Found</h3>
-              <p className="text-xs text-slate-400">No test packages match your current search and filter criteria.</p>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('All');
-                }}
-                className="px-4 py-2 rounded-xl bg-cyan-600 text-white font-bold text-xs"
-              >
-                Clear Search & Filters
-              </button>
+            <div className="bg-white rounded-3xl p-12 text-center space-y-3 border border-slate-200 max-w-md mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 mx-auto flex items-center justify-center font-bold">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold text-base text-slate-800">
+                {seriesList.length === 0 ? 'No test series available yet.' : 'No Test Series Match Filters'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {seriesList.length === 0
+                  ? 'Examination test series and full-length mocks will appear here once published by faculty and administrators.'
+                  : 'No test packages match your current search criteria. Try clearing search or selecting another category.'}
+              </p>
+              {seriesList.length > 0 && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('All');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-cyan-600 text-white font-bold text-xs"
+                >
+                  Clear Search & Filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
