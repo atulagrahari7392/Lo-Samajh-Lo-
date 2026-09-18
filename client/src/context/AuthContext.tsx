@@ -8,6 +8,9 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   isAdmin: boolean;
+  isStaffManager: boolean;
+  isSuperAdmin: boolean;
+  isTeacher: boolean;
   login: (credentials: any) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
@@ -85,7 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isStaffManager = user?.role === 'STAFF_MANAGER';
+  const isTeacher = user?.role === 'TEACHER';
+  const isAdmin = user?.role === 'ADMIN' || isSuperAdmin || isStaffManager;
 
   return (
     <AuthContext.Provider
@@ -94,6 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         loading,
         isAdmin,
+        isStaffManager,
+        isSuperAdmin,
+        isTeacher,
         login,
         register,
         logout,

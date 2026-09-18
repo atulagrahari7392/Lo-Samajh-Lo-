@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   ChevronDown,
   Sparkles,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -215,6 +216,26 @@ export const Navbar: React.FC = () => {
                       </Link>
                     )}
 
+                    {user.role === 'STAFF_MANAGER' && (
+                      <Link
+                        to="/admin"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Staff Management Panel</span>
+                      </Link>
+                    )}
+
+                    {(user.role === 'TEACHER' || user.role === 'INSTRUCTOR') && (
+                      <Link
+                        to="/teacher/dashboard"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      >
+                        <GraduationCap className="w-4 h-4" />
+                        <span>Teacher Workspace</span>
+                      </Link>
+                    )}
+
                     <Link
                       to="/dashboard"
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
@@ -240,7 +261,7 @@ export const Navbar: React.FC = () => {
                   className="whitespace-nowrap px-3.5 xl:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#0B2A63] to-[#1D4ED8] hover:from-[#0a2458] hover:to-[#1a43c7] shadow-[0_4px_14px_rgba(11,42,99,0.4)] transition-all hover:scale-[1.03] hover:shadow-[0_6px_20px_rgba(11,42,99,0.5)] active:scale-[0.98] flex items-center gap-1.5 flex-shrink-0"
                 >
                   <UserIcon className="w-4 h-4" />
-                  <span>{t('nav.login', 'Login')}</span>
+                  <span>Register / Login</span>
                 </Link>
               </div>
             )}

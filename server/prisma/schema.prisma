@@ -31,11 +31,15 @@ model User {
   materialBookmarks  MaterialBookmark[]
   materialDownloads  MaterialDownload[]
   typingProgress     TypingUserProgress?
-  teacherLiveClasses LiveClass[]          @relation("TeacherLiveClasses")
-  liveAttendances    LiveAttendance[]
-  liveChatMessages   LiveChatMessage[]
-  liveQuestions      LiveQuestion[]
-  livePollResponses  LivePollResponse[]
+  teacherLiveClasses   LiveClass[]               @relation("TeacherLiveClasses")
+  liveAttendances      LiveAttendance[]
+  liveChatMessages     LiveChatMessage[]
+  liveQuestions        LiveQuestion[]
+  livePollResponses    LivePollResponse[]
+  teacherApplication   TeacherApplication?
+  staffPermission      StaffPermission?
+  teacherAssignments   TeacherCourseAssignment[] @relation("TeacherCourseAssignments")
+  reviewedApplications TeacherApplication[]      @relation("ReviewedApplications")
 
   @@map("users")
 }
@@ -84,8 +88,9 @@ model Course {
   recordedClasses RecordedClass[]
   cartItems       CartItem[]
   wishlistItems   WishlistItem[]
-  orderItems      OrderItem[]
-  tests           Test[]
+  orderItems         OrderItem[]
+  tests              Test[]
+  teacherAssignments TeacherCourseAssignment[]
 
   @@map("courses")
 }
@@ -101,6 +106,10 @@ model CourseLesson {
   content         String?
   isFreePreview   Boolean   @default(false)
   position        Int       @default(1)
+  teacherId       String?
+  approvalStatus  String    @default("APPROVED") // APPROVED, PENDING_REVIEW, DRAFT, CHANGES_REQUESTED, REJECTED
+  reviewerComment String?
+  submittedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -156,6 +165,10 @@ model Material {
   isFeatured      Boolean            @default(false)
   isTrending      Boolean            @default(false)
   status          String             @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  teacherId       String?
+  approvalStatus  String             @default("APPROVED") // APPROVED, PENDING_REVIEW, DRAFT, CHANGES_REQUESTED, REJECTED
+  reviewerComment String?
+  submittedAt     DateTime?
   downloadsCount  Int                @default(0)
   viewsCount      Int                @default(0)
   metaTitle       String?
@@ -298,6 +311,10 @@ model Test {
   showSolutions        Boolean        @default(true)
   questionLanguageMode String         @default("HINDI_ENGLISH") // HINDI_ENGLISH, HINDI, ENGLISH
   status               String         @default("PUBLISHED") // PUBLISHED, DRAFT
+  teacherId            String?
+  approvalStatus       String         @default("APPROVED") // APPROVED, PENDING_REVIEW, DRAFT, CHANGES_REQUESTED, REJECTED
+  reviewerComment      String?
+  submittedAt          DateTime?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -732,6 +749,9 @@ model LiveClass {
   status          String   @default("SCHEDULED") // DRAFT, SCHEDULED, STARTING, LIVE, ENDED, PROCESSING, COMPLETED, CANCELLED, ARCHIVED, STREAM_INTERRUPTED
   accessType      String   @default("PUBLIC") // PUBLIC, AUTHENTICATED, COURSE, BATCH, PRODUCT, SELECTED_USERS
   isPublished     Boolean  @default(true)
+  approvalStatus  String   @default("APPROVED") // APPROVED, PENDING_REVIEW, DRAFT, CHANGES_REQUESTED, REJECTED
+  reviewerComment String?
+  submittedAt     DateTime?
   meetingUrl      String?  @default("https://meet.google.com/lsl-live")
   createdBy       String?
   recordedClassId String?
@@ -1307,6 +1327,134 @@ model NcertBook {
   @@index([isActive])
   @@map("ncert_books")
 }
+
+// ============================================================
+// TEACHER MANAGEMENT & STAFF ACCESS ARCHITECTURE
+// ============================================================
+
+model TeacherApplication {
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  status               String    @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED, CHANGES_REQUESTED, SUSPENDED
+
+  // Step 1 - Personal Details
+  fullName             String
+  profilePhoto         String?
+  dob                  DateTime?
+  gender               String?
+  mobile               String
+  whatsapp             String?
+  email                String
+
+  // Step 2 - Address Details
+  state                String
+  district             String
+  city                 String
+  address              String
+  pin                  String
+
+  // Step 3 - Qualification Details (JSON array: [{ degree, university, year, percentage, docUrl }])
+  qualificationsJson   String    @default("[]")
+
+  // Step 4 - Experience Details (JSON array: [{ institute, designation, subjects, years, description, docUrl }])
+  experiencesJson      String    @default("[]")
+
+  // Step 5 - Teaching Profile
+  subjects             String    @default("[]") // JSON string[] e.g. ["GS", "Mathematics"]
+  exams                String    @default("[]") // JSON string[] e.g. ["UPSSSC PET 2026", "UP TET 2026"]
+  teachingMedium       String    @default("BILINGUAL") // HINDI, ENGLISH, BILINGUAL
+  teachingMode         String    @default("BOTH") // ONLINE_LIVE, RECORDED, BOTH
+  specialization       String?
+  bio                  String?
+  demoVideoUrl         String?
+
+  // Step 6 - Documents (Protected storage in Google Drive)
+  cvUrl                String?
+  profilePhotoUrl      String?
+  idProofUrl           String?
+  idProofType          String?   // AADHAAR, PAN, VOTER_ID, PASSPORT
+  qualificationCertUrl String?
+  experienceCertUrl    String?
+  otherDocsJson        String?   @default("[]")
+
+  // Step 7 - Declaration & Submission
+  declarationAccepted  Boolean   @default(true)
+  submittedAt          DateTime  @default(now())
+
+  // Admin Review & Workflow
+  reviewedAt           DateTime?
+  reviewedById         String?
+  adminRemarks         String?   // Feedback / reason for rejection or change request
+
+  // Course & Subject Assignments
+  assignedSubjects     String?   @default("[]") // JSON string[]
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy           User?     @relation("ReviewedApplications", fields: [reviewedById], references: [id], onDelete: SetNull)
+  assignments          TeacherCourseAssignment[]
+
+  @@index([status])
+  @@map("teacher_applications")
+}
+
+model TeacherCourseAssignment {
+  id            String              @id @default(uuid())
+  teacherId     String
+  applicationId String?
+  courseId      String
+  assignedAt    DateTime            @default(now())
+  assignedBy    String?
+  isActive      Boolean             @default(true)
+
+  user          User                @relation("TeacherCourseAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  application   TeacherApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  course        Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, courseId])
+  @@index([teacherId])
+  @@index([courseId])
+  @@map("teacher_course_assignments")
+}
+
+model StaffPermission {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  canTeacherApplications Boolean  @default(true)
+  canTeacherDocuments    Boolean  @default(true)
+  canContentApproval     Boolean  @default(true)
+  canCourseAssignment    Boolean  @default(true)
+  canPayments            Boolean  @default(false)
+  canUsers               Boolean  @default(false)
+  canAdminManagement     Boolean  @default(false)
+  canSiteSettings        Boolean  @default(false)
+  canDatabase            Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("staff_permissions")
+}
+
+model EmailOtp {
+  id          String   @id @default(uuid())
+  email       String
+  otpHash     String
+  purpose     String   @default("TEACHER_VERIFICATION") // TEACHER_VERIFICATION, FORGOT_PASSWORD
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(5)
+  isVerified  Boolean  @default(false)
+  lastSentAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([email, purpose])
+  @@map("email_otps")
+}
+
 
 
 

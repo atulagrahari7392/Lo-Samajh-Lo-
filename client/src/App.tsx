@@ -59,6 +59,15 @@ import AdminFooterSettingsPage from './pages/admin/AdminFooterSettingsPage';
 import AdminStoragePage from './pages/admin/AdminStoragePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminTypingPage from './pages/admin/AdminTypingPage';
+import AdminTeachersPage from './pages/admin/AdminTeachersPage';
+import AdminContentApprovalPage from './pages/admin/AdminContentApprovalPage';
+
+// Teacher Pages
+import TeacherApplyPage from './pages/teacher/TeacherApplyPage';
+import TeacherStatusPage from './pages/teacher/TeacherStatusPage';
+import TeacherDashboardPage from './pages/teacher/TeacherDashboardPage';
+import TeacherCoursesPage from './pages/teacher/TeacherCoursesPage';
+import TeacherContentApprovalPage from './pages/teacher/TeacherContentApprovalPage';
 
 export const App: React.FC = () => {
   return (
@@ -288,6 +297,30 @@ export const App: React.FC = () => {
                   }
                 />
 
+                {/* Teacher Application & Status Routes */}
+                <Route
+                  path="/teacher/apply"
+                  element={
+                    <UserLayout>
+                      <TeacherApplyPage />
+                    </UserLayout>
+                  }
+                />
+                <Route
+                  path="/teacher/status"
+                  element={
+                    <UserLayout>
+                      <TeacherStatusPage />
+                    </UserLayout>
+                  }
+                />
+
+                {/* Teacher Workspace Routes (Protected, Layout handled internally) */}
+                <Route path="/teacher" element={<TeacherDashboardPage />} />
+                <Route path="/teacher/dashboard" element={<TeacherDashboardPage />} />
+                <Route path="/teacher/courses" element={<TeacherCoursesPage />} />
+                <Route path="/teacher/content-approval" element={<TeacherContentApprovalPage />} />
+
                 {/* Dedicated Admin Login Routes */}
                 <Route path="/Admin.login" element={<AdminLoginPage />} />
                 <Route path="/admin.login" element={<AdminLoginPage />} />
@@ -295,6 +328,8 @@ export const App: React.FC = () => {
 
                 {/* Admin Control Panel Routes (AdminLayout handled per-page) */}
                 <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="/admin/teachers" element={<AdminTeachersPage />} />
+                <Route path="/admin/content-approval" element={<AdminContentApprovalPage />} />
                 <Route path="/admin/courses" element={<AdminCoursesPage />} />
                 <Route path="/admin/courses/new" element={<AdminCourseFormPage />} />
                 <Route path="/admin/courses/:id/edit" element={<AdminCourseFormPage />} />

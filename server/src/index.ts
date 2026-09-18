@@ -29,6 +29,8 @@ import currentAffairsRoutes from './routes/current-affairs.routes';
 import googleDriveRoutes from './routes/googleDrive.routes';
 import aiNewsroomRoutes from './routes/aiNewsroom.routes';
 import ncertRoutes from './routes/ncert.routes';
+import teacherRoutes from './routes/teacher.routes';
+import teacherAdminRoutes from './routes/teacher-admin.routes';
 import { initNewsroomScheduler } from './services/aiNewsroom/scheduler';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './db';
@@ -105,6 +107,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/current-affairs', currentAffairsRoutes);
 app.use('/api/google-drive', googleDriveRoutes);
 app.use('/api/ncert-books', ncertRoutes);
+app.use('/api/teachers', teacherRoutes);
+app.use('/api/admin/teachers', teacherAdminRoutes);
+app.use('/api/admin/content-review', teacherAdminRoutes);
 
 // Serve frontend client build in production if available
 const possibleClientPaths = [

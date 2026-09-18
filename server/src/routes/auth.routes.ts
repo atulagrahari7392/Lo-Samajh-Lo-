@@ -3,11 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { emailOtpService } from '../services/emailOtp.service';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'losamajhlo_jwt_secret_token_2026_super_secure';
 
-// POST /api/auth/register
+// POST /api/auth/register (Student registration)
 router.post('/register', async (req, res, next) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -41,6 +42,7 @@ router.post('/register', async (req, res, next) => {
         phone: phone ? phone.trim() : null,
         passwordHash,
         role: 'USER',
+        isActive: true,
       },
       select: {
         id: true,
@@ -80,12 +82,18 @@ router.post('/login', async (req, res, next) => {
       return;
     }
 
+    const cleanInput = String(email).trim().toLowerCase();
+
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: email.toLowerCase().trim() },
-          { phone: email.trim() },
+          { email: cleanInput },
+          { phone: cleanInput },
         ],
+      },
+      include: {
+        teacherApplication: true,
+        staffPermission: true,
       },
     });
 
@@ -94,14 +102,66 @@ router.post('/login', async (req, res, next) => {
       return;
     }
 
-    if (!user.isActive) {
-      res.status(403).json({ success: false, message: 'Your account has been deactivated. Please contact support.' });
-      return;
-    }
-
+    // Verify Password first
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       res.status(401).json({ success: false, message: 'Invalid email/phone or password.' });
+      return;
+    }
+
+    // Check Teacher Application status if user has a teacher application
+    if (user.teacherApplication) {
+      const appStatus = user.teacherApplication.status;
+
+      if (appStatus === 'SUSPENDED' || !user.isActive) {
+        res.status(403).json({
+          success: false,
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your teacher account has been suspended by administration. Access to workspace is disabled.',
+        });
+        return;
+      }
+
+      if (appStatus === 'PENDING_REVIEW') {
+        res.status(403).json({
+          success: false,
+          code: 'APPLICATION_PENDING_REVIEW',
+          status: 'PENDING_REVIEW',
+          message: 'Your teacher application is currently UNDER REVIEW by the administration. You will be able to log in once your application is approved.',
+        });
+        return;
+      }
+
+      if (appStatus === 'CHANGES_REQUESTED') {
+        res.status(403).json({
+          success: false,
+          code: 'APPLICATION_CHANGES_REQUESTED',
+          status: 'CHANGES_REQUESTED',
+          remarks: user.teacherApplication.adminRemarks,
+          message: `The administrator requested changes to your application: "${user.teacherApplication.adminRemarks || 'Please review your application'}". Please edit and resubmit.`,
+        });
+        return;
+      }
+
+      if (appStatus === 'REJECTED') {
+        res.status(403).json({
+          success: false,
+          code: 'APPLICATION_REJECTED',
+          status: 'REJECTED',
+          remarks: user.teacherApplication.adminRemarks,
+          message: `Your teacher application was not approved: "${user.teacherApplication.adminRemarks || 'Did not meet criteria'}".`,
+        });
+        return;
+      }
+    }
+
+    // Check generic account active state
+    if (!user.isActive) {
+      res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_DEACTIVATED',
+        message: 'Your account is deactivated. Please contact support.',
+      });
       return;
     }
 
@@ -122,6 +182,8 @@ router.post('/login', async (req, res, next) => {
         phone: user.phone,
         role: user.role,
         avatar: user.avatar,
+        staffPermission: user.staffPermission || null,
+        isTeacher: user.role === 'TEACHER' || user.role === 'INSTRUCTOR',
       },
     });
   } catch (error) {
@@ -142,6 +204,16 @@ router.get('/me', authenticate, async (req: AuthRequest, res, next) => {
         role: true,
         avatar: true,
         createdAt: true,
+        staffPermission: true,
+        teacherApplication: {
+          select: {
+            id: true,
+            status: true,
+            specialization: true,
+            bio: true,
+            assignedSubjects: true,
+          },
+        },
         _count: {
           select: {
             enrollments: true,
@@ -160,6 +232,110 @@ router.get('/me', authenticate, async (req: AuthRequest, res, next) => {
     }
 
     res.json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/forgot-password/otp/send
+router.post('/forgot-password/otp/send', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ success: false, message: 'Email address is required.' });
+      return;
+    }
+
+    const result = await emailOtpService.sendOtp(email, 'FORGOT_PASSWORD');
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
+    }
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/forgot-password/otp/verify-reset
+router.post('/forgot-password/otp/verify-reset', async (req, res, next) => {
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      res.status(400).json({ success: false, message: 'Email, OTP, and new password are required.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ success: false, message: 'Passwords do not match.' });
+      return;
+    }
+
+    // Verify OTP
+    const verifyResult = await emailOtpService.verifyOtp(email, otp, 'FORGOT_PASSWORD');
+    if (!verifyResult.success) {
+      res.status(400).json(verifyResult);
+      return;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { email: email.toLowerCase().trim() },
+      data: { passwordHash },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/change-password (Logged-in user)
+router.post('/change-password', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ success: false, message: 'Current password and new password are required.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ success: false, message: 'New passwords do not match.' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found.' });
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+      return;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    res.json({ success: true, message: 'Password updated successfully.' });
   } catch (error) {
     next(error);
   }

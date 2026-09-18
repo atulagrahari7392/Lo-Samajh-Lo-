@@ -42,6 +42,9 @@ export const api = {
     login: (body: any) => request<any>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
     me: () => request<any>('/auth/me'),
     updateProfile: (body: any) => request<any>('/auth/profile', { method: 'PUT', body: JSON.stringify(body) }),
+    sendForgotPasswordOtp: (email: string) => request<any>('/auth/forgot-password/otp/send', { method: 'POST', body: JSON.stringify({ email }) }),
+    verifyResetPassword: (body: any) => request<any>('/auth/forgot-password/otp/verify-reset', { method: 'POST', body: JSON.stringify(body) }),
+    changePassword: (body: any) => request<any>('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   // Courses
@@ -620,5 +623,74 @@ export const api = {
     getStatus: () => request<any>('/google-drive/status'),
     testConnection: () => request<any>('/google-drive/test', { method: 'POST' }),
     disconnect: () => request<any>('/google-drive/disconnect', { method: 'POST' }),
+  },
+
+  // Teacher Workspace & Onboarding
+  teacher: {
+    sendOtp: (email: string) => request<any>('/teachers/otp/send', { method: 'POST', body: JSON.stringify({ email }) }),
+    verifyOtp: (email: string, otp: string) => request<any>('/teachers/otp/verify', { method: 'POST', body: JSON.stringify({ email, otp }) }),
+    apply: (body: any) => request<any>('/teachers/apply', { method: 'POST', body: JSON.stringify(body) }),
+    uploadDocument: (formData: FormData) => {
+      const API_URL = import.meta.env.VITE_API_URL || '/api';
+      const token = localStorage.getItem('lsl_token');
+      return fetch(`${API_URL}/teachers/upload-document`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new ApiError(data.message || 'Upload failed', res.status, data);
+        return data;
+      });
+    },
+    getMyApplication: (email?: string) => {
+      const q = email ? `?email=${encodeURIComponent(email)}` : '';
+      return request<any>(`/teachers/my-application${q}`);
+    },
+    resubmitApplication: (body: any) => request<any>('/teachers/application/resubmit', { method: 'PUT', body: JSON.stringify(body) }),
+    getDashboard: () => request<any>('/teachers/dashboard'),
+    getDashboardStats: () => request<any>('/teachers/dashboard'),
+    getMyCourses: () => request<any>('/teachers/my-courses'),
+    getContent: () => request<any>('/teachers/content'),
+    getMyContent: () => request<any>('/teachers/content'),
+    createLecture: (body: any) => request<any>('/teachers/content/lecture', { method: 'POST', body: JSON.stringify(body) }),
+    createMaterial: (body: any) => request<any>('/teachers/content/material', { method: 'POST', body: JSON.stringify(body) }),
+    createTest: (body: any) => request<any>('/teachers/content/test', { method: 'POST', body: JSON.stringify(body) }),
+    scheduleLiveClass: (body: any) => request<any>('/teachers/content/live-class', { method: 'POST', body: JSON.stringify(body) }),
+    createLiveClass: (body: any) => request<any>('/teachers/content/live-class', { method: 'POST', body: JSON.stringify(body) }),
+    submitContentForReview: (contentType: string, id: string) => request<any>(`/teachers/content/${contentType}/${id}/submit-review`, { method: 'POST' }),
+    getAssignedStudents: () => request<any>('/teachers/assigned-students'),
+    getAnalytics: () => request<any>('/teachers/analytics'),
+    updateProfile: (body: any) => request<any>('/teachers/profile', { method: 'PUT', body: JSON.stringify(body) }),
+  },
+
+  // Admin Teacher Management & Content Review
+  teacherAdmin: {
+    getOverview: () => request<any>('/admin/teachers/overview'),
+    getApplications: (params?: { status?: string; search?: string }) => {
+      const q = params ? '?' + new URLSearchParams(params as any).toString() : '';
+      return request<any>(`/admin/teachers/applications${q}`);
+    },
+    getApplication: (id: string) => request<any>(`/admin/teachers/applications/${id}`),
+    approveApplication: (id: string, body: { courseIds: string[]; assignedSubjects?: string[]; canPublishDirectly?: boolean }) =>
+      request<any>(`/admin/teachers/applications/${id}/approve`, { method: 'POST', body: JSON.stringify(body) }),
+    requestChanges: (id: string, comment: string) =>
+      request<any>(`/admin/teachers/applications/${id}/request-changes`, { method: 'POST', body: JSON.stringify({ comment }) }),
+    rejectApplication: (id: string, reason?: string) =>
+      request<any>(`/admin/teachers/applications/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    getApprovedTeachers: () => request<any>('/admin/teachers/approved'),
+    suspendTeacher: (id: string, reason?: string) => request<any>(`/admin/teachers/${id}/suspend`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    reinstateTeacher: (id: string) => request<any>(`/admin/teachers/${id}/reinstate`, { method: 'POST' }),
+    updateAssignments: (id: string, body: { courseIds?: string[]; assignedSubjects?: string[] }) =>
+      request<any>(`/admin/teachers/${id}/assignments`, { method: 'PUT', body: JSON.stringify(body) }),
+    getPendingContent: () => request<any>('/admin/teachers/content-review/pending'),
+    contentAction: (contentType: string, id: string, body: { action: 'APPROVE' | 'APPROVE_PUBLISH' | 'REQUEST_CHANGES' | 'REJECT'; reviewerComment?: string; comment?: string }) =>
+      request<any>(`/admin/teachers/content-review/${contentType}/${id}/action`, { method: 'POST', body: JSON.stringify(body) }),
+    reviewContent: (contentType: string, id: string, body: { action: 'APPROVE' | 'APPROVE_PUBLISH' | 'REQUEST_CHANGES' | 'REJECT'; reviewerComment?: string; comment?: string }) =>
+      request<any>(`/admin/teachers/content-review/${contentType}/${id}/action`, { method: 'POST', body: JSON.stringify(body) }),
+    getStaffManagers: () => request<any>('/admin/teachers/staff-managers'),
+    createStaffManager: (body: any) => request<any>('/admin/teachers/staff-managers', { method: 'POST', body: JSON.stringify(body) }),
+    updateStaffManagerPermissions: (userId: string, permissions: any) =>
+      request<any>(`/admin/teachers/staff-managers/${userId}/permissions`, { method: 'PUT', body: JSON.stringify({ permissions }) }),
   },
 };

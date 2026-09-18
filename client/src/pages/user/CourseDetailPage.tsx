@@ -17,6 +17,7 @@ import {
   MessageSquare,
   HelpCircle,
   BarChart2,
+  GraduationCap,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Course, CourseLesson } from '../../types';
@@ -40,7 +41,7 @@ export const CourseDetailPage: React.FC = () => {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'live' | 'overview' | 'reviews'>('syllabus');
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'live' | 'overview' | 'faculty' | 'reviews'>('syllabus');
   const [previewLesson, setPreviewLesson] = useState<CourseLesson | null>(null);
 
   // Review submission state
@@ -288,6 +289,22 @@ export const CourseDetailPage: React.FC = () => {
                 Detailed Syllabus & Overview
               </button>
               <button
+                onClick={() => setActiveTab('faculty')}
+                className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === 'faculty'
+                    ? 'border-[#6C63FF] text-[#6C63FF]'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Faculty & Mentors</span>
+                {course.faculty && course.faculty.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-50 text-[#6C63FF]">
+                    {course.faculty.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('reviews')}
                 className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'reviews'
@@ -519,22 +536,164 @@ export const CourseDetailPage: React.FC = () => {
 
                 <div className="pt-4 border-t border-slate-100">
                   <h4 className="font-bold text-base text-slate-900 mb-3">
-                    {isHindi ? 'अपने शिक्षकों से मिलें' : 'Meet Your Instructors'}
+                    {isHindi ? 'अपने शिक्षकों से मिलें' : 'Meet Your Faculty & Educators'}
                   </h4>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {course.instructorName.split(',').map((name, i) => (
-                      <div key={i} className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-black text-base flex items-center justify-center shadow-sm">
-                          {name.trim().charAt(0)}
+                  {course.faculty && course.faculty.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {course.faculty.map((f: any) => (
+                        <div key={f.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                          <div className="flex items-center gap-3.5">
+                            {f.avatar ? (
+                              <img
+                                src={f.avatar}
+                                alt={f.name}
+                                className="w-12 h-12 rounded-xl object-cover shadow-sm"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#3B82F6] text-white font-black text-base flex items-center justify-center shadow-sm flex-shrink-0">
+                                {f.name.charAt(0)}
+                              </div>
+                            )}
+                            <div>
+                              <h5 className="font-bold text-sm text-slate-900">{f.name}</h5>
+                              <p className="text-xs text-indigo-600 font-semibold">{f.specialization || 'Faculty Instructor'}</p>
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {f.experienceYears ? `${f.experienceYears}+ Yrs Experience` : 'Experienced Educator'}
+                              </span>
+                            </div>
+                          </div>
+                          {f.bio && (
+                            <p className="text-xs text-slate-600 line-clamp-2 italic leading-relaxed pt-1">
+                              "{f.bio}"
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <h5 className="font-bold text-sm text-slate-900">{name.trim()}</h5>
-                          <p className="text-xs text-slate-500">{course.instructorBio || 'Senior Educator, Lo Samajh Lo'}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {course.instructorName.split(',').map((name, i) => (
+                        <div key={i} className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white font-black text-base flex items-center justify-center shadow-sm">
+                            {name.trim().charAt(0)}
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-sm text-slate-900">{name.trim()}</h5>
+                            <p className="text-xs text-slate-500">{course.instructorBio || 'Senior Educator, Lo Samajh Lo'}</p>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'faculty' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold border border-indigo-500/30">
+                    <GraduationCap className="w-4 h-4 text-indigo-300" />
+                    <span>VERIFIED ACADEMIC FACULTY</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-white">
+                    Learn from India's Top Subject Specialists
+                  </h3>
+                  <p className="text-xs sm:text-sm text-indigo-200 max-w-2xl leading-relaxed">
+                    Our course educators bring extensive competitive exam mentoring experience, deep domain knowledge, and proven student rank-producing pedigrees.
+                  </p>
+                </div>
+
+                {course.faculty && course.faculty.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {course.faculty.map((f: any) => (
+                      <div
+                        key={f.id}
+                        className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-sm space-y-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start gap-4">
+                          {f.avatar ? (
+                            <img
+                              src={f.avatar}
+                              alt={f.name}
+                              className="w-16 h-16 rounded-2xl object-cover shadow-sm flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#6C63FF] to-[#3B82F6] text-white font-black text-2xl flex items-center justify-center shadow-md flex-shrink-0">
+                              {f.name.charAt(0)}
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <h4 className="text-lg font-black text-slate-900">{f.name}</h4>
+                            <p className="text-xs font-bold text-[#6C63FF]">
+                              {f.specialization || 'Subject Expert'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-500">
+                              <span className="bg-slate-100 px-2.5 py-0.5 rounded-full font-semibold">
+                                🎓 {f.experienceYears ? `${f.experienceYears}+ Yrs Exp` : 'Experienced'}
+                              </span>
+                              {f.medium && (
+                                <span className="bg-slate-100 px-2.5 py-0.5 rounded-full font-semibold">
+                                  🗣️ {f.medium}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {f.bio && (
+                          <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            {f.bio}
+                          </p>
+                        )}
+
+                        {f.qualifications && f.qualifications.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                              Educational Background
+                            </span>
+                            <div className="space-y-1">
+                              {f.qualifications.map((q: any, i: number) => (
+                                <div key={i} className="text-xs text-slate-700 flex items-center gap-1.5">
+                                  <Award className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                                  <span>
+                                    <strong>{q.degree}</strong> in {q.field} ({q.institution})
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {f.assignedSubjects && f.assignedSubjects.length > 0 && (
+                          <div className="pt-2 border-t border-slate-100">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                              Teaching Focus
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {f.assignedSubjects.map((s: string, i: number) => (
+                                <span
+                                  key={i}
+                                  className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-[#6C63FF] border border-purple-100"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-white rounded-3xl p-8 text-center border border-slate-200/80 space-y-3">
+                    <GraduationCap className="w-12 h-12 text-slate-300 mx-auto" />
+                    <h4 className="font-bold text-slate-800 text-base">{course.instructorName}</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      {course.instructorBio || 'Master educator committed to helping students excel in competitive exams.'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

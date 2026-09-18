@@ -28,6 +28,7 @@ export type DriveFolderCategory =
   | 'IMAGES'
   | 'PDFS'
   | 'DOCUMENTS'
+  | 'TEACHER_APPLICATIONS'
   | 'GENERAL';
 
 class GoogleDriveService {
@@ -307,9 +308,105 @@ class GoogleDriveService {
       case 'DOCUMENTS':
         return this.getOrCreateFolder('Documents', rootId || undefined);
 
+      case 'TEACHER_APPLICATIONS':
+        return this.getOrCreateFolder('Teacher-Applications', rootId || undefined);
+
       default:
         return rootId;
     }
+  }
+
+  /**
+   * Resolves folder structure:
+   * LoSamajhLo / Teacher-Applications / [Pending | Approved | Rejected] / [Teacher-ID] / [Profile | CV | Qualification | Experience | Identity]
+   */
+  public async resolveTeacherFolder(
+    teacherId: string,
+    status: 'Pending' | 'Approved' | 'Rejected' = 'Pending',
+    subCategory?: 'Profile' | 'CV' | 'Qualification' | 'Experience' | 'Identity' | 'Other'
+  ): Promise<string | null> {
+    const drive = await this.getClient();
+    if (!drive) return null;
+
+    const teacherAppsRoot = await this.resolveCategoryFolder('TEACHER_APPLICATIONS');
+    if (!teacherAppsRoot) return null;
+
+    const statusFolderId = await this.getOrCreateFolder(status, teacherAppsRoot);
+    if (!statusFolderId) return null;
+
+    const cleanTeacherId = teacherId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const teacherFolderId = await this.getOrCreateFolder(cleanTeacherId, statusFolderId);
+    if (!teacherFolderId) return statusFolderId;
+
+    if (subCategory) {
+      const subFolderId = await this.getOrCreateFolder(subCategory, teacherFolderId);
+      return subFolderId || teacherFolderId;
+    }
+
+    return teacherFolderId;
+  }
+
+  /**
+   * Upload teacher document with non-public access (isPublic = false)
+   */
+  public async uploadTeacherDocument(options: {
+    streamOrBuffer: NodeJS.ReadableStream | Buffer | string;
+    fileName: string;
+    mimeType: string;
+    teacherId: string;
+    status?: 'Pending' | 'Approved' | 'Rejected';
+    subCategory?: 'Profile' | 'CV' | 'Qualification' | 'Experience' | 'Identity' | 'Other';
+  }): Promise<DriveUploadResult> {
+    const drive = await this.getClient();
+    if (!drive) {
+      throw new Error('Google Drive service is not connected. Please authorize Google Drive in Admin Panel Settings.');
+    }
+
+    const folderId = await this.resolveTeacherFolder(
+      options.teacherId,
+      options.status || 'Pending',
+      options.subCategory
+    );
+
+    let body: any;
+    if (Buffer.isBuffer(options.streamOrBuffer)) {
+      body = Readable.from(options.streamOrBuffer);
+    } else if (typeof options.streamOrBuffer === 'string') {
+      body = fs.createReadStream(options.streamOrBuffer);
+    } else {
+      body = options.streamOrBuffer;
+    }
+
+    const fileMetadata: any = {
+      name: options.fileName,
+      parents: folderId ? [folderId] : undefined,
+    };
+
+    const media = {
+      mimeType: options.mimeType,
+      body,
+    };
+
+    const res = await drive.files.create({
+      requestBody: fileMetadata,
+      media,
+      fields: 'id, name, mimeType, size, webViewLink, webContentLink, thumbnailLink',
+      supportsAllDrives: true,
+    });
+
+    const file = res.data;
+
+    // Notice: isPublic is intentionally NOT set to anyone, keeping ID proof, certificates, and CV private!
+    return {
+      fileId: file.id!,
+      fileName: file.name || options.fileName,
+      mimeType: file.mimeType || options.mimeType,
+      size: Number(file.size || 0),
+      folderId: folderId || undefined,
+      webUrl: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
+      downloadUrl: file.webContentLink || `https://drive.google.com/uc?export=download&id=${file.id}`,
+      thumbnailUrl: file.thumbnailLink || undefined,
+    };
   }
 
   public async getDriveFolderForCategory(category: DriveFolderCategory): Promise<string | null> {

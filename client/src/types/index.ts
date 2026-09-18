@@ -3,10 +3,12 @@ export interface User {
   name: string;
   email: string;
   phone?: string | null;
-  role: 'USER' | 'ADMIN' | 'INSTRUCTOR';
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN' | 'STAFF_MANAGER' | 'TEACHER' | 'INSTRUCTOR' | string;
   avatar?: string | null;
   isActive?: boolean;
   createdAt?: string;
+  staffPermission?: StaffPermission | null;
+  teacherApplication?: Partial<TeacherApplication> | null;
   _count?: {
     enrollments?: number;
     cartItems?: number;
@@ -89,6 +91,7 @@ export interface Course {
   recordedClasses?: RecordedClass[];
   liveClasses?: LiveClass[];
   reviews?: Review[];
+  faculty?: FacultyProfile[];
   isEnrolled?: boolean;
   isWishlisted?: boolean;
   isInCart?: boolean;
@@ -968,3 +971,167 @@ export interface FooterSettings {
   newsletterHeadline: string;
   newsletterText: string;
 }
+
+// ============================================================
+// TEACHER MANAGEMENT & STAFF ARCHITECTURE TYPES
+// ============================================================
+
+export interface StaffPermission {
+  id?: string;
+  userId: string;
+  canTeacherApplications: boolean;
+  canTeacherDocuments: boolean;
+  canContentApproval: boolean;
+  canCourseAssignment: boolean;
+  canPayments: boolean;
+  canUsers: boolean;
+  canAdminManagement: boolean;
+  canSiteSettings: boolean;
+  canDatabase: boolean;
+  // Dynamic UI aliases
+  canManageTeachers?: boolean;
+  canApproveTeachers?: boolean;
+  canAssignCourses?: boolean;
+  canReviewContent?: boolean;
+  canPublishDirectly?: boolean;
+  canViewTeacherPii?: boolean;
+}
+
+export interface QualificationItem {
+  degree: string;
+  university?: string;
+  institution?: string;
+  field?: string;
+  year?: string | number;
+  yearOfPassing?: string | number;
+  percentage?: string | number;
+  percentageOrCgpa?: string | number;
+  docUrl?: string;
+}
+
+export interface ExperienceItem {
+  institute?: string;
+  organization?: string;
+  designation?: string;
+  subjectTaught?: string;
+  subjects?: string;
+  years?: string | number;
+  fromYear?: string | number;
+  toYear?: string | number;
+  description?: string;
+  docUrl?: string;
+}
+
+export interface TeacherApplication {
+  id: string;
+  userId: string;
+  status: 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'SUSPENDED';
+  fullName: string;
+  profilePhoto?: string | null;
+  dob?: string | null;
+  gender?: string | null;
+  mobile: string;
+  phone?: string;
+  whatsapp?: string | null;
+  email: string;
+  state: string;
+  district: string;
+  city: string;
+  address: string;
+  pin: string;
+  pincode?: string;
+  qualificationsJson?: string;
+  qualifications?: QualificationItem[] | any[];
+  experiencesJson?: string;
+  experiences?: ExperienceItem[] | any[];
+  experienceHistory?: ExperienceItem[] | any[];
+  teachingExperienceYears?: number | string;
+  subjects: string[];
+  exams: string[];
+  teachingMedium: string;
+  teachingMode: string;
+  preferredMode?: string;
+  specialization?: string | null;
+  bio?: string | null;
+  demoVideoUrl?: string | null;
+  cvUrl?: string | null;
+  profilePhotoUrl?: string | null;
+  idProofUrl?: string | null;
+  idProofType?: string | null;
+  qualificationCertUrl?: string | null;
+  experienceCertUrl?: string | null;
+  otherDocsJson?: string;
+  otherDocs?: Array<{ name: string; url: string }>;
+  declarationAccepted: boolean;
+  submittedAt: string;
+  reviewedAt?: string | null;
+  reviewedById?: string | null;
+  adminRemarks?: string | null;
+  reviewerComment?: string | null;
+  assignedSubjects?: string[];
+  assignedCourses?: Array<{ id: string; title: string; slug?: string }>;
+  user?: Partial<User>;
+  isActive?: boolean;
+  idProofDriveId?: string;
+  qualificationDocDriveId?: string;
+  experienceDocDriveId?: string;
+  resumeDriveId?: string;
+}
+
+export interface TeacherCourseAssignment {
+  id: string;
+  teacherId: string;
+  courseId: string;
+  course?: Course;
+  assignedAt: string;
+  isActive: boolean;
+}
+
+export interface FacultyProfile {
+  teacherId: string;
+  name: string;
+  photo?: string | null;
+  title: string;
+  experienceYears: string;
+  qualifications: Array<{ degree: string; university: string; year?: string | number }>;
+  experiences: Array<{ institute: string; designation: string; years?: string | number }>;
+  bio: string;
+  specialization: string;
+}
+
+export interface ContentReviewItem {
+  id: string;
+  contentType: 'lecture' | 'material' | 'test' | 'live-class';
+  title: string;
+  courseId?: string | null;
+  course?: { id: string; title: string; slug?: string };
+  chapterTitle?: string | null;
+  durationMinutes?: number;
+  videoUrl?: string | null;
+  pdfUrl?: string | null;
+  fileUrl?: string | null;
+  thumbnail?: string | null;
+  description?: string | null;
+  approvalStatus: 'PENDING_REVIEW' | 'APPROVED' | 'CHANGES_REQUESTED' | 'REJECTED' | 'DRAFT';
+  reviewerComment?: string | null;
+  submittedAt?: string | null;
+  createdAt: string;
+  teacher?: { id: string; name: string; email: string; avatar?: string | null } | null;
+}
+
+export interface TeacherDashboardStats {
+  assignedCoursesCount: number;
+  lecturesCount: number;
+  studyMaterialsCount: number;
+  testsCount: number;
+  pendingApprovalCount: number;
+  publishedContentCount: number;
+  assignedCourses?: number;
+  totalLectures?: number;
+  totalMaterials?: number;
+  totalTests?: number;
+  pendingReview?: number;
+  approvedContent?: number;
+  recentReviews?: any[];
+}
+

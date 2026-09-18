@@ -179,6 +179,31 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
             user: { select: { id: true, name: true, avatar: true } },
           },
         },
+        teacherAssignments: {
+          where: { isActive: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                teacherApplication: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    profilePhoto: true,
+                    specialization: true,
+                    bio: true,
+                    teachingMedium: true,
+                    qualificationsJson: true,
+                    experiencesJson: true,
+                    subjects: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         _count: {
           select: { enrollments: true, lessons: true, reviews: true, recordedClasses: true },
         },
@@ -276,12 +301,43 @@ router.get('/:slugOrId', optionalAuth, async (req: AuthRequest, res, next) => {
 
     const combinedLessons = [...protectedLessons, ...mappedRecordedClasses];
 
+    // Construct sanitized faculty profiles (Strictly withholding private contact/ID info)
+    const faculty = ((course as any).teacherAssignments || []).map((ta: any) => {
+      const app = ta.user?.teacherApplication;
+      let qualList: any[] = [];
+      try {
+        const raw = JSON.parse(app?.qualificationsJson || '[]');
+        qualList = raw.map((q: any) => ({ degree: q.degree, university: q.university, year: q.year }));
+      } catch (e) {}
+
+      let expList: any[] = [];
+      let totalYears = 0;
+      try {
+        const rawExp = JSON.parse(app?.experiencesJson || '[]');
+        expList = rawExp.map((e: any) => ({ institute: e.institute, designation: e.designation, years: e.years }));
+        totalYears = rawExp.reduce((acc: number, curr: any) => acc + (Number(curr.years) || 0), 0);
+      } catch (e) {}
+
+      return {
+        teacherId: ta.user.id,
+        name: app?.fullName || ta.user.name,
+        photo: normalizeImageUrl(app?.profilePhoto || ta.user.avatar),
+        title: app?.specialization ? `${app.specialization} Faculty` : 'Expert Faculty',
+        experienceYears: totalYears > 0 ? `${totalYears}+ Years Experience` : 'Experienced Educator',
+        qualifications: qualList,
+        experiences: expList,
+        bio: app?.bio || 'Dedicated educator preparing students for success on Lo Samajh Lo.',
+        specialization: app?.specialization || 'Comprehensive Exam Preparation',
+      };
+    });
+
     res.json({
       success: true,
       course: {
         ...course,
         thumbnail: normalizeImageUrl(course.thumbnail),
         lessons: combinedLessons,
+        faculty,
         recordedClasses: (course.recordedClasses || []).map((rc: any) => ({
           ...rc,
           thumbnail: normalizeImageUrl(rc.thumbnail),
