@@ -8,6 +8,9 @@ export interface CleanupResult {
   testsRemoved: number;
   questionsRemoved: number;
   testQuestionsRemoved: number;
+  materialsRemoved: number;
+  liveClassesRemoved: number;
+  recordedClassesRemoved: number;
   usersRemoved: number;
   preservedUsers: string[];
   preservedAdmin: string;
@@ -35,12 +38,15 @@ export async function executeDemoDataCleanup(): Promise<CleanupResult> {
   });
   const demoUserIds = demoUsers.map((u) => u.id);
 
-  // 2. Identify demo orders (Order LSL-2026-00109 or orders belonging to demo users or simulated provider)
+  // 2. Identify demo orders (Order LSL-2026-00109, LSL-151853-8857, LSL-553144-9062, simulated Razorpay, demo users)
   const demoOrders = await prisma.order.findMany({
     where: {
       OR: [
         { orderNumber: 'LSL-2026-00109' },
+        { orderNumber: 'LSL-151853-8857' },
+        { orderNumber: 'LSL-553144-9062' },
         { transactionId: 'TXN-LSL-9821034' },
+        { paymentProvider: 'RAZORPAY_SIMULATED' },
         { userId: { in: demoUserIds } },
       ],
     },
@@ -154,7 +160,75 @@ export async function executeDemoDataCleanup(): Promise<CleanupResult> {
     testsRemoved = tRes.count;
   }
 
-  // 6. Delete demo users & related records (cart, wishlist, attempts)
+  // 6. Delete seed study materials (5 items from sqlite-data-backup.json)
+  const seedMaterialTitles = [
+    'UPSSSC PET 2026 Complete Syllabus & Exam Pattern Guide',
+    'Indian History 1000+ Previous Year Questions (PYQs) Bilingual',
+    'General Science 500 One-Liners (Physics, Chemistry, Biology)',
+    'Maths Short Tricks Formula Sheet: Percentage, Profit & Loss',
+    'Constitution of India (भारतीय संविधान) Key Articles & Amendments',
+  ];
+
+  const seedMaterials = await prisma.material.findMany({
+    where: {
+      OR: [
+        { title: { in: seedMaterialTitles } },
+        { author: 'Lo Samajh Lo Faculty' },
+      ],
+    },
+    select: { id: true },
+  });
+  const seedMaterialIds = seedMaterials.map((m) => m.id);
+
+  let materialsRemoved = 0;
+  if (seedMaterialIds.length > 0) {
+    await prisma.materialBookmark.deleteMany({ where: { materialId: { in: seedMaterialIds } } });
+    await prisma.materialDownload.deleteMany({ where: { materialId: { in: seedMaterialIds } } });
+    await prisma.materialView.deleteMany({ where: { materialId: { in: seedMaterialIds } } });
+    const mRes = await prisma.material.deleteMany({ where: { id: { in: seedMaterialIds } } });
+    materialsRemoved = mRes.count;
+  }
+
+  // 7. Delete seed live classes (2 items from sqlite-data-backup.json)
+  const seedLiveTitles = [
+    'UPSSSC PET 2026: भारतीय इतिहास संपूर्ण रिवीजन मैराथन',
+    'Railway NTPC & Group D: प्रतिशत शॉर्ट ट्रिक्स लाइव क्लास',
+  ];
+  const seedLive = await prisma.liveClass.findMany({
+    where: {
+      OR: [
+        { title: { in: seedLiveTitles } },
+        { meetingUrl: { in: ['https://meet.google.com/lsl-live-demo', 'https://meet.google.com/lsl-maths-live'] } },
+      ],
+    },
+    select: { id: true },
+  });
+  const seedLiveIds = seedLive.map((lc) => lc.id);
+
+  let liveClassesRemoved = 0;
+  if (seedLiveIds.length > 0) {
+    const lcRes = await prisma.liveClass.deleteMany({ where: { id: { in: seedLiveIds } } });
+    liveClassesRemoved = lcRes.count;
+  }
+
+  // 8. Delete seed recorded classes (2 items from sqlite-data-backup.json)
+  const seedRecordedTitles = [
+    'सिंधु घाटी सभ्यता — हड़प्पा व मोहनजोदड़ो स्थल विशेष',
+    'BODMAS एवं भिन्न (Fraction) की सबसे तेज कैलकुलेशन ट्रिक',
+  ];
+  const seedRecorded = await prisma.recordedClass.findMany({
+    where: { title: { in: seedRecordedTitles } },
+    select: { id: true },
+  });
+  const seedRecordedIds = seedRecorded.map((rc) => rc.id);
+
+  let recordedClassesRemoved = 0;
+  if (seedRecordedIds.length > 0) {
+    const rcRes = await prisma.recordedClass.deleteMany({ where: { id: { in: seedRecordedIds } } });
+    recordedClassesRemoved = rcRes.count;
+  }
+
+  // 9. Delete demo users & related records (cart, wishlist, attempts)
   let usersRemoved = 0;
   if (demoUserIds.length > 0) {
     await prisma.cartItem.deleteMany({ where: { userId: { in: demoUserIds } } });
@@ -170,7 +244,7 @@ export async function executeDemoDataCleanup(): Promise<CleanupResult> {
     usersRemoved = uRes.count;
   }
 
-  // 7. Verify preserved admin and legitimate accounts
+  // 10. Verify preserved admin and legitimate accounts
   const preservedUsersList = await prisma.user.findMany({
     select: { email: true, name: true, role: true },
   });
@@ -181,6 +255,9 @@ export async function executeDemoDataCleanup(): Promise<CleanupResult> {
   console.log(`✅ [CLEANUP] Enrollments removed: ${enrollmentsRemoved}`);
   console.log(`✅ [CLEANUP] Test Series removed: ${testSeriesRemoved}`);
   console.log(`✅ [CLEANUP] Tests removed: ${testsRemoved}`);
+  console.log(`✅ [CLEANUP] Study Materials removed: ${materialsRemoved}`);
+  console.log(`✅ [CLEANUP] Live Classes removed: ${liveClassesRemoved}`);
+  console.log(`✅ [CLEANUP] Recorded Classes removed: ${recordedClassesRemoved}`);
   console.log(`✅ [CLEANUP] Demo users removed: ${usersRemoved}`);
   console.log(`🛡️ [CLEANUP] Admin Account Preserved: ${adminAccount?.email || 'admin@losamajhlo.in'}`);
 
@@ -192,6 +269,9 @@ export async function executeDemoDataCleanup(): Promise<CleanupResult> {
     testsRemoved,
     questionsRemoved,
     testQuestionsRemoved,
+    materialsRemoved,
+    liveClassesRemoved,
+    recordedClassesRemoved,
     usersRemoved,
     preservedUsers: preservedUsersList.map((u) => `${u.name} (${u.email}) [${u.role}]`),
     preservedAdmin: adminAccount?.email || 'admin@losamajhlo.in',

@@ -11,35 +11,63 @@ import {
   PlusCircle,
   ArrowRight,
   TrendingUp,
+  Trash2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import StatCard from '../../components/admin/StatCard';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { useToast } from '../../context/ToastContext';
 
 export const AdminDashboardPage: React.FC = () => {
+  const { success, error: toastError } = useToast();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [cleaning, setCleaning] = useState(false);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const res = await api.admin.getStats();
+      if (res.success) {
+        setData(res);
+      }
+    } catch (err) {
+      console.error('Failed to load admin stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-        const res = await api.admin.getStats();
-        if (res.success) {
-          setData(res);
-        }
-      } catch (err) {
-        console.error('Failed to load admin stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStats();
   }, []);
+
+  const handlePurgeDemoData = async () => {
+    if (!window.confirm('Purge all confirmed demo orders, fake tests, and demo users from PostgreSQL? Your Admin account and real courses will be strictly preserved.')) {
+      return;
+    }
+    try {
+      setCleaning(true);
+      const res = await api.admin.cleanupDemoData();
+      if (res.success) {
+        success('Demo data purged! Revenue reset to ₹0 and fake metrics cleared.');
+        await fetchStats();
+      } else {
+        toastError(res.message || 'Cleanup failed.');
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Failed to execute cleanup.');
+    } finally {
+      setCleaning(false);
+    }
+  };
 
   const stats = data?.stats || {};
   const recentOrders = data?.recentOrders || [];
   const recentUsers = data?.recentUsers || [];
+  const hasDemoOrders = recentOrders.some((o: any) => o.orderNumber === 'LSL-2026-00109' || o.orderNumber === 'LSL-151853-8857' || o.orderNumber === 'LSL-553144-9062');
 
   return (
     <AdminLayout>
@@ -55,7 +83,17 @@ export const AdminDashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handlePurgeDemoData}
+              disabled={cleaning}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs shadow-xs transition-all"
+              title="Delete seed orders and demo records to restore ₹0 zero-state"
+            >
+              <Trash2 className={`w-4 h-4 ${cleaning ? 'animate-spin' : ''}`} />
+              <span>{cleaning ? 'Purging...' : 'Purge Demo Data (₹0 Reset)'}</span>
+            </button>
+
             <Link
               to="/admin/courses/new"
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#6C63FF] hover:bg-[#564ec9] text-white font-bold text-xs shadow-sm transition-all"
@@ -65,6 +103,26 @@ export const AdminDashboardPage: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Demo Data Alert Banner if detected */}
+        {hasDemoOrders && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900 animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Initial seed records detected in database (e.g. ₹1348 revenue / sample orders).</p>
+                <p className="text-[11px] text-amber-700">Click "Purge Demo Data" to safely restore genuine ₹0 zero-state. Real admin accounts are preserved.</p>
+              </div>
+            </div>
+            <button
+              onClick={handlePurgeDemoData}
+              disabled={cleaning}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs self-start sm:self-auto flex-shrink-0 shadow transition-all"
+            >
+              {cleaning ? 'Cleaning...' : 'Purge Now (Reset to ₹0)'}
+            </button>
+          </div>
+        )}
 
         {/* Real Metrics Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

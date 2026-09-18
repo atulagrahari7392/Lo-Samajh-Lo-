@@ -195,6 +195,24 @@ httpServer.listen(Number(PORT), '0.0.0.0', async () => {
       console.log(`✅ Database ready. Found ${categoryCount} existing categories. Production data integrity enforced.`);
     }
 
+    // Automated One-Time Production Demo Data Cleanup (Phases 2-5, 20-21)
+    try {
+      const cleanupSetting = await prisma.siteSetting.findUnique({ where: { key: 'demo_cleanup_applied_v2' } });
+      if (!cleanupSetting) {
+        console.log('🧹 One-time demo data cleanup not yet applied. Running automated cleanup...');
+        const { executeDemoDataCleanup } = await import('./scripts/cleanup-demo-data');
+        await executeDemoDataCleanup();
+        await prisma.siteSetting.upsert({
+          where: { key: 'demo_cleanup_applied_v2' },
+          update: { value: JSON.stringify({ appliedAt: new Date().toISOString() }) },
+          create: { key: 'demo_cleanup_applied_v2', value: JSON.stringify({ appliedAt: new Date().toISOString() }) },
+        });
+        console.log('✅ Automated demo data cleanup completed successfully.');
+      }
+    } catch (cleanErr: any) {
+      console.warn('⚠️ Startup cleanup notice:', cleanErr.message);
+    }
+
     // Safe seed for AI Education Newsroom if empty
     const { seedEducationNewsroom } = await import('./scripts/seed-newsroom');
     await seedEducationNewsroom();
