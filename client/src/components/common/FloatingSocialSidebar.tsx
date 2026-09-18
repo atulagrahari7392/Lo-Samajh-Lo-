@@ -24,6 +24,7 @@ interface SocialChannel {
   href: string;
   bgGradient: string;
   shadowColor: string;
+  glowColor: string;
   badge?: string;
   badgeBg: string;
 }
@@ -42,102 +43,109 @@ export const FloatingSocialSidebar: React.FC = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState<Partial<FooterSettings>>(DEFAULT_SETTINGS);
+  const [mounted, setMounted] = useState(false);
+
+  // Staggered entrance trigger
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
     api.settings
       .getFooter()
       .then((res) => {
-        if (mounted && res?.success && res?.settings) {
-          setSettings((prev) => ({
-            ...prev,
-            ...res.settings,
-          }));
+        if (active && res?.success && res?.settings) {
+          setSettings((prev) => ({ ...prev, ...res.settings }));
         }
       })
-      .catch(() => {
-        // Fallback to default urls
-      });
-    return () => {
-      mounted = false;
-    };
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   const channels: SocialChannel[] = [
     {
       name: 'WhatsApp',
-      hindiTitle: 'व्हाट्सएप चैट सहायता',
-      subtitle: 'कोर्स व एडमिशन मार्गदर्शन',
+      hindiTitle: 'à¤µà¥à¤¹à¤¾à¤Ÿà¥à¤¸à¤à¤ª à¤šà¥ˆà¤Ÿ à¤¸à¤¹à¤¾à¤¯à¤¤à¤¾',
+      subtitle: 'à¤•à¥‹à¤°à¥à¤¸ à¤µ à¤à¤¡à¤®à¤¿à¤¶à¤¨ à¤®à¤¾à¤°à¥à¤—à¤¦à¤°à¥à¤¶à¤¨',
       icon: WhatsAppLogo,
       href: settings.whatsappUrl || DEFAULT_SETTINGS.whatsappUrl!,
       bgGradient: 'from-[#25D366] to-[#128C7E]',
-      shadowColor: 'shadow-emerald-500/40',
-      badge: '24x7 Support',
+      shadowColor: 'shadow-emerald-500/50',
+      glowColor: 'rgba(37,211,102,0.55)',
+      badge: '24x7',
       badgeBg: 'bg-emerald-500 text-white',
     },
     {
       name: 'YouTube',
-      hindiTitle: 'यूट्यूब वीडियो कक्षाएं',
-      subtitle: 'मुफ्त लाइव क्लास व मैराथन',
+      hindiTitle: 'à¤¯à¥‚à¤Ÿà¥à¤¯à¥‚à¤¬ à¤µà¥€à¤¡à¤¿à¤¯à¥‹ à¤•à¤•à¥à¤·à¤¾à¤à¤‚',
+      subtitle: 'à¤®à¥à¤«à¥à¤¤ à¤²à¤¾à¤‡à¤µ à¤•à¥à¤²à¤¾à¤¸ à¤µ à¤®à¥ˆà¤°à¤¾à¤¥à¤¨',
       icon: YouTubeLogo,
       href: settings.youtubeUrl || DEFAULT_SETTINGS.youtubeUrl!,
       bgGradient: 'from-[#FF0000] to-[#CC0000]',
-      shadowColor: 'shadow-red-500/40',
-      badge: 'Live Classes',
+      shadowColor: 'shadow-red-500/50',
+      glowColor: 'rgba(255,0,0,0.5)',
+      badge: 'Live',
       badgeBg: 'bg-rose-500 text-white',
     },
     {
       name: 'Telegram',
-      hindiTitle: 'टेलीग्राम चैनल',
-      subtitle: 'मुफ्त पीडीएफ नोट्स व PYQs',
+      hindiTitle: 'à¤Ÿà¥‡à¤²à¥€à¤—à¥à¤°à¤¾à¤® à¤šà¥ˆà¤¨à¤²',
+      subtitle: 'à¤®à¥à¤«à¥à¤¤ à¤ªà¥€à¤¡à¥€à¤à¤« à¤¨à¥‹à¤Ÿà¥à¤¸ à¤µ PYQs',
       icon: TelegramLogo,
       href: settings.telegramUrl || DEFAULT_SETTINGS.telegramUrl!,
       bgGradient: 'from-[#0088cc] to-[#006699]',
-      shadowColor: 'shadow-sky-500/40',
-      badge: 'Free PDFs',
+      shadowColor: 'shadow-sky-500/50',
+      glowColor: 'rgba(0,136,204,0.5)',
+      badge: 'PDFs',
       badgeBg: 'bg-sky-500 text-white',
     },
     {
       name: 'Instagram',
-      hindiTitle: 'इंस्टाग्राम रील्स व अपडेट',
-      subtitle: 'दैनिक करंट अफेयर्स व टिप्स',
+      hindiTitle: 'à¤‡à¤‚à¤¸à¥à¤Ÿà¤¾à¤—à¥à¤°à¤¾à¤® à¤°à¥€à¤²à¥à¤¸ à¤µ à¤…à¤ªà¤¡à¥‡à¤Ÿ',
+      subtitle: 'à¤¦à¥ˆà¤¨à¤¿à¤• à¤•à¤°à¤‚à¤Ÿ à¤…à¤«à¥‡à¤¯à¤°à¥à¤¸ à¤µ à¤Ÿà¤¿à¤ªà¥à¤¸',
       icon: InstagramLogo,
       href: settings.instagramUrl || DEFAULT_SETTINGS.instagramUrl!,
       bgGradient: 'from-[#f09433] via-[#dc2743] to-[#bc1888]',
-      shadowColor: 'shadow-pink-500/40',
-      badge: 'Daily Quiz',
+      shadowColor: 'shadow-pink-500/50',
+      glowColor: 'rgba(220,39,67,0.5)',
+      badge: 'Reels',
       badgeBg: 'bg-pink-500 text-white',
     },
     {
       name: 'Facebook',
-      hindiTitle: 'फेसबुक पेज',
-      subtitle: 'शिक्षा समाचार व घोषणाएं',
+      hindiTitle: 'à¤«à¥‡à¤¸à¤¬à¥à¤• à¤ªà¥‡à¤œ',
+      subtitle: 'à¤¶à¤¿à¤•à¥à¤·à¤¾ à¤¸à¤®à¤¾à¤šà¤¾à¤° à¤µ à¤˜à¥‹à¤·à¤£à¤¾à¤à¤‚',
       icon: FacebookLogo,
       href: settings.facebookUrl || DEFAULT_SETTINGS.facebookUrl!,
       bgGradient: 'from-[#1877F2] to-[#0d59c2]',
-      shadowColor: 'shadow-blue-500/40',
-      badge: 'Community',
+      shadowColor: 'shadow-blue-500/50',
+      glowColor: 'rgba(24,119,242,0.5)',
+      badge: 'Group',
       badgeBg: 'bg-blue-600 text-white',
     },
     {
       name: 'Twitter (X)',
-      hindiTitle: 'एक्स / ट्विटर',
-      subtitle: 'सरकारी भर्ती व विज्ञप्ति अलर्ट',
+      hindiTitle: 'à¤à¤•à¥à¤¸ / à¤Ÿà¥à¤µà¤¿à¤Ÿà¤°',
+      subtitle: 'à¤¸à¤°à¤•à¤¾à¤°à¥€ à¤­à¤°à¥à¤¤à¥€ à¤µ à¤µà¤¿à¤œà¥à¤žà¤ªà¥à¤¤à¤¿ à¤…à¤²à¤°à¥à¤Ÿ',
       icon: XLogo,
       href: settings.twitterUrl || DEFAULT_SETTINGS.twitterUrl!,
       bgGradient: 'from-slate-950 to-slate-800',
-      shadowColor: 'shadow-slate-900/40',
-      badge: 'Job Alerts',
+      shadowColor: 'shadow-slate-900/50',
+      glowColor: 'rgba(15,23,42,0.5)',
+      badge: 'Alerts',
       badgeBg: 'bg-slate-800 text-white',
     },
     {
       name: 'LinkedIn',
-      hindiTitle: 'लिंक्डइन नेटवर्क',
-      subtitle: 'करियर मार्गदर्शन व सेमिनार',
+      hindiTitle: 'à¤²à¤¿à¤‚à¤•à¥à¤¡à¤‡à¤¨ à¤¨à¥‡à¤Ÿà¤µà¤°à¥à¤•',
+      subtitle: 'à¤•à¤°à¤¿à¤¯à¤° à¤®à¤¾à¤°à¥à¤—à¤¦à¤°à¥à¤¶à¤¨ à¤µ à¤¸à¥‡à¤®à¤¿à¤¨à¤¾à¤°',
       icon: LinkedInLogo,
       href: settings.linkedinUrl || DEFAULT_SETTINGS.linkedinUrl!,
       bgGradient: 'from-[#0077B5] to-[#005582]',
-      shadowColor: 'shadow-cyan-600/40',
+      shadowColor: 'shadow-cyan-600/50',
+      glowColor: 'rgba(0,119,181,0.5)',
       badge: 'Career',
       badgeBg: 'bg-cyan-700 text-white',
     },
@@ -145,29 +153,35 @@ export const FloatingSocialSidebar: React.FC = () => {
 
   return (
     <>
-      {/* Desktop & Tablet Floating Sidebar (Eye-catching, Vibrant & Interactive) */}
+      {/* â”€â”€ Desktop / Tablet Floating Sidebar â”€â”€ */}
       <aside
-        aria-label="Social Media & Help Quick Hub"
-        className="fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden sm:flex flex-col items-center gap-2 p-2 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-indigo-500/20 border border-slate-200/90 transition-all duration-300 hover:shadow-indigo-500/30"
+        aria-label="Social Media Quick Hub"
+        className={`fixed left-3 top-1/2 -translate-y-1/2 z-40 hidden sm:flex flex-col items-center gap-1.5 p-2.5 rounded-[28px] border border-white/80 transition-all duration-700 ${
+          mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'
+        }`}
+        style={{
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          boxShadow: '0 8px 40px rgba(11,42,99,0.14), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 1px rgba(255,255,255,0.9)',
+        }}
       >
-        {/* Top Header Pill with Live Indicator */}
-        <div className="flex flex-col items-center pb-1.5 border-b border-slate-100 w-full">
-          <div className="flex items-center gap-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-              Connect
-            </span>
-          </div>
+        {/* CONNECT label */}
+        <div className="flex flex-col items-center pb-2 border-b border-slate-100 w-full gap-1">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+            Connect
+          </span>
         </div>
 
-        {/* Channel Icons */}
-        <div className="flex flex-col gap-2">
+        {/* Icon list */}
+        <div className="flex flex-col gap-1.5">
           {channels.map((item, idx) => {
             const Icon = item.icon;
-            const isHovered = hoveredIndex === idx;
+            const isHov = hoveredIndex === idx;
 
             return (
               <div
@@ -175,96 +189,200 @@ export const FloatingSocialSidebar: React.FC = () => {
                 className="relative flex items-center"
                 onMouseEnter={() => setHoveredIndex(idx)}
                 onMouseLeave={() => setHoveredIndex(null)}
+                // staggered entrance: each icon slides in with delay
+                style={{
+                  opacity: mounted ? 1 : 0,
+                  transform: mounted ? 'translateX(0)' : 'translateX(-24px)',
+                  transition: `opacity 0.5s ease ${idx * 70}ms, transform 0.5s cubic-bezier(0.34,1.56,0.64,1) ${idx * 70}ms`,
+                }}
               >
+                {/* Animated pulse ring on hover */}
+                {isHov && (
+                  <span
+                    className="absolute inset-0 rounded-2xl animate-ping pointer-events-none"
+                    style={{
+                      background: 'transparent',
+                      border: `2px solid ${item.glowColor}`,
+                      opacity: 0.6,
+                      animationDuration: '0.8s',
+                    }}
+                  />
+                )}
+
                 <a
                   href={item.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`${item.name} - ${item.hindiTitle}`}
-                  className={`w-11 h-11 rounded-2xl bg-gradient-to-tr ${item.bgGradient} text-white flex items-center justify-center shadow-md ${item.shadowColor} transition-all duration-200 hover:scale-115 hover:-translate-y-0.5 active:scale-95 group relative`}
+                  aria-label={`${item.name} â€” ${item.hindiTitle}`}
+                  className={`relative w-11 h-11 rounded-2xl bg-gradient-to-tr ${item.bgGradient} text-white flex items-center justify-center transition-all duration-300 active:scale-90 group overflow-hidden`}
+                  style={{
+                    boxShadow: isHov
+                      ? `0 8px 24px ${item.glowColor}, 0 4px 12px rgba(0,0,0,0.15)`
+                      : `0 3px 10px rgba(0,0,0,0.12)`,
+                    transform: isHov ? 'scale(1.18) translateY(-2px)' : 'scale(1) translateY(0)',
+                  }}
                 >
-                  <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+                  {/* Shimmer sweep on hover */}
+                  <span
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%)',
+                      backgroundSize: '200% 100%',
+                      backgroundPosition: isHov ? '200% 0' : '-200% 0',
+                      transition: 'background-position 0.5s ease',
+                    }}
+                  />
 
-                  {/* Tiny Live dot / badge indicator on icon */}
+                  <span
+                    className="w-5 h-5 relative z-10 flex items-center justify-center transition-transform duration-300"
+                    style={{ transform: isHov ? 'scale(1.15) rotate(-5deg)' : 'scale(1) rotate(0deg)' }}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </span>
+
+                  {/* Live dot badge */}
                   {item.badge && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-white ring-2 ring-emerald-500" />
+                    <span
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-white ring-[1.5px] ring-emerald-400 z-10"
+                      style={{
+                        animation: isHov ? 'none' : 'sidebarDotPulse 2s ease-in-out infinite',
+                        animationDelay: `${idx * 300}ms`,
+                      }}
+                    />
                   )}
                 </a>
 
-                {/* Engaging Slide-Out Tooltip Card */}
-                {isHovered && (
-                  <div className="absolute left-full ml-3.5 z-50 w-64 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl p-3.5 shadow-2xl border border-white/10 animate-in fade-in slide-in-from-left-3 duration-200">
-                    {/* Tiny triangle arrow */}
-                    <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-900 border-l border-b border-white/10 rotate-45" />
+                {/* Slide-out tooltip card */}
+                <div
+                  className="absolute left-full ml-3.5 z-50 w-60 pointer-events-none"
+                  style={{
+                    opacity: isHov ? 1 : 0,
+                    transform: isHov ? 'translateX(0) scale(1)' : 'translateX(-10px) scale(0.95)',
+                    transition: 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.34,1.56,0.64,1)',
+                  }}
+                >
+                  <div
+                    className="relative rounded-2xl p-3.5 text-white border border-white/10"
+                    style={{
+                      background: 'rgba(10,15,30,0.94)',
+                      backdropFilter: 'blur(16px)',
+                      boxShadow: `0 12px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08)`,
+                    }}
+                  >
+                    {/* Arrow */}
+                    <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-[rgba(10,15,30,0.94)] border-l border-b border-white/10 rotate-45" />
 
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-xs font-black tracking-wide text-white flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full bg-gradient-to-tr ${item.bgGradient}`} />
+                    {/* Header row */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="flex items-center gap-1.5 text-xs font-black text-white">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ background: `linear-gradient(135deg, ${item.glowColor}, white)` }}
+                        />
                         {item.name}
                       </span>
                       {item.badge && (
-                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${item.badgeBg}`}>
+                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${item.badgeBg} flex-shrink-0`}>
                           {item.badge}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-xs font-bold text-slate-200 leading-tight">
-                      {item.hindiTitle}
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {item.subtitle}
-                    </p>
+                    <p className="text-[11px] font-bold text-slate-200 leading-tight">{item.hindiTitle}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{item.subtitle}</p>
 
-                    <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-purple-300 font-bold">
-                      <span>Click to open channel</span>
+                    <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-bold" style={{ color: item.glowColor }}>
+                      <span>Click to join channel</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
         </div>
+
+        {/* Bottom wave bar */}
+        <div className="w-8 mt-1 pt-1.5 border-t border-slate-100 flex items-center justify-center">
+          <div className="flex items-end gap-[2px]">
+            {[3,5,7,5,3].map((h, i) => (
+              <span
+                key={i}
+                className="w-[3px] rounded-full bg-gradient-to-t from-[#0B2A63] to-[#DC2626]"
+                style={{
+                  height: `${h}px`,
+                  animation: `sidebarWave 1.2s ease-in-out infinite`,
+                  animationDelay: `${i * 120}ms`,
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </aside>
 
-      {/* Mobile Floating Quick-Action Button & Drawer */}
+      {/* â”€â”€ Keyframes injected via style tag â”€â”€ */}
+      <style>{`
+        @keyframes sidebarWave {
+          0%, 100% { transform: scaleY(1); opacity: 0.7; }
+          50%       { transform: scaleY(2.2); opacity: 1; }
+        }
+        @keyframes sidebarDotPulse {
+          0%, 100% { transform: scale(1);   opacity: 1; }
+          50%       { transform: scale(1.5); opacity: 0.6; }
+        }
+      `}</style>
+
+      {/* â”€â”€ Mobile FAB + Drawer â”€â”€ */}
       <div className="sm:hidden fixed bottom-5 left-4 z-40">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Open Social Links"
-          className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#6C63FF] to-[#FF6584] text-white flex items-center justify-center shadow-xl shadow-[#6C63FF]/40 border border-white/20 active:scale-95 transition-transform"
+          className="relative w-13 h-13 rounded-2xl text-white flex items-center justify-center border border-white/20 active:scale-90 transition-all duration-300 overflow-hidden"
+          style={{
+            width: 52, height: 52,
+            background: 'linear-gradient(135deg, #0B2A63 0%, #DC2626 100%)',
+            boxShadow: '0 6px 20px rgba(11,42,99,0.45)',
+          }}
         >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Share2 className="w-5 h-5" />}
+          {/* Pulse ring */}
+          <span className="absolute inset-0 rounded-2xl animate-ping bg-[#0B2A63] opacity-20 pointer-events-none" style={{ animationDuration: '2s' }} />
+          {mobileMenuOpen ? <X className="w-6 h-6 relative z-10" /> : <Share2 className="w-5 h-5 relative z-10" />}
         </button>
 
-        {/* Mobile Slide-Up Modal Menu */}
+        {/* Mobile Slide-Up Sheet */}
         {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end p-4 animate-in fade-in duration-200" onClick={() => setMobileMenuOpen(false)}>
+          <div
+            className="fixed inset-0 z-50 flex items-end p-4"
+            style={{ background: 'rgba(6,21,48,0.65)', backdropFilter: 'blur(6px' }}
+            onClick={() => setMobileMenuOpen(false)}
+          >
             <div
-              className="bg-white rounded-3xl w-full p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-300 border border-slate-200"
+              className="bg-white rounded-3xl w-full p-5 space-y-4 shadow-2xl border border-slate-100"
+              style={{ animation: 'slideUpSheet 0.35s cubic-bezier(0.34,1.56,0.64,1) both' }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Sheet header */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-[#6C63FF] flex items-center justify-center font-black text-xs">
+                  <div
+                    className="w-8 h-8 rounded-xl text-white flex items-center justify-center font-black text-xs"
+                    style={{ background: 'linear-gradient(135deg, #0B2A63, #DC2626)' }}
+                  >
                     LS
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-slate-900">Lo Samajh Lo Channels</h3>
-                    <p className="text-[10px] text-slate-500">जुड़ें और मुफ्त नोट्स व क्लास पाएं</p>
+                    <h3 className="font-extrabold text-sm text-slate-900">Lo Samajh Lo</h3>
+                    <p className="text-[10px] text-slate-500">à¤œà¥à¤¡à¤¼à¥‡à¤‚ à¤”à¤° à¤®à¥à¤«à¥à¤¤ à¤¨à¥‹à¤Ÿà¥à¤¸ à¤µ à¤•à¥à¤²à¤¾à¤¸ à¤ªà¤¾à¤à¤‚</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
-                >
+                <button onClick={() => setMobileMenuOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
+              {/* Icons grid */}
               <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] overflow-y-auto">
-                {channels.map((item) => {
+                {channels.map((item, idx) => {
                   const Icon = item.icon;
                   return (
                     <a
@@ -272,9 +390,13 @@ export const FloatingSocialSidebar: React.FC = () => {
                       href={item.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-3 rounded-2xl border border-slate-100 bg-slate-50/70 flex items-center gap-3 hover:bg-slate-100 transition-colors"
+                      className="p-3 rounded-2xl border border-slate-100 bg-slate-50/70 flex items-center gap-3 hover:bg-slate-100 active:scale-95 transition-all duration-200"
+                      style={{ animationDelay: `${idx * 50}ms` }}
                     >
-                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${item.bgGradient} text-white flex items-center justify-center shadow-sm flex-shrink-0`}>
+                      <div
+                        className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${item.bgGradient} text-white flex items-center justify-center flex-shrink-0`}
+                        style={{ boxShadow: `0 3px 10px ${item.glowColor}` }}
+                      >
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="overflow-hidden">
@@ -288,6 +410,13 @@ export const FloatingSocialSidebar: React.FC = () => {
             </div>
           </div>
         )}
+
+        <style>{`
+          @keyframes slideUpSheet {
+            0%   { opacity: 0; transform: translateY(40px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0)   scale(1);    }
+          }
+        `}</style>
       </div>
     </>
   );

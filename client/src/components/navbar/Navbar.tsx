@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
@@ -72,23 +72,25 @@ export const Navbar: React.FC = () => {
 
   return (
     <header
-      className={`sticky top-0 z-40 transition-all duration-300 ${
+      className={`sticky top-0 z-40 bg-white relative transition-all duration-300 ${
         scrolled
-          ? 'bg-white/98 shadow-[0_4px_30px_rgba(11,42,99,0.14)] backdrop-blur-xl'
-          : 'bg-white/96 backdrop-blur-md'
+          ? 'shadow-[0_4px_30px_rgba(11,42,99,0.14)]'
+          : 'shadow-[0_1px_8px_rgba(11,42,99,0.07)]'
       }`}
-      style={{
-        borderBottom: '2px solid',
-        borderImage: 'linear-gradient(90deg, #0B2A63 0%, #DC2626 50%, #D97706 100%) 1',
-      }}
     >
+      {/* Brand gradient bottom border (separate div — avoids border-image/backdrop-filter conflict) */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-[2.5px] z-10"
+        style={{ background: 'linear-gradient(90deg, #0B2A63 0%, #DC2626 50%, #D97706 100%)' }}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-2 xl:gap-4">
           {/* Logo */}
           <Link to="/" className="flex items-center flex-shrink-0 group py-1">
             <img
               src="/logo.png"
-              alt="Lo Samajh Lo â€” India's Trusted Learning Platform"
+              alt="Lo Samajh Lo — India's Trusted Learning Platform"
               className="h-10 sm:h-12 md:h-13 xl:h-14 w-auto object-contain group-hover:scale-[1.06] transition-all duration-300 drop-shadow-sm"
             />
           </Link>
@@ -101,8 +103,8 @@ export const Navbar: React.FC = () => {
                 to={link.path}
                 className={`relative whitespace-nowrap px-2.5 xl:px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-250 flex items-center gap-1.5 flex-shrink-0 group/nav ${
                   isActive(link.path)
-                    ? 'bg-gradient-to-br from-[#0B2A63]/10 to-[#1D4ED8]/07 text-[#0B2A63]'
-                    : 'text-slate-600 hover:text-[#0B2A63] hover:bg-[#0B2A63]/05'
+                    ? 'bg-[#0B2A63]/10 text-[#0B2A63]'
+                    : 'text-slate-700 hover:text-[#0B2A63] hover:bg-[#0B2A63]/06'
                 }`}
               >
                 {link.name}
@@ -123,7 +125,7 @@ export const Navbar: React.FC = () => {
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="relative p-2 rounded-xl text-slate-600 hover:text-[#DC2626] hover:bg-red-50 transition-all duration-250 flex-shrink-0 group/icon"
+              className="relative p-2 rounded-xl text-slate-700 hover:text-[#DC2626] hover:bg-red-50 transition-all duration-250 flex-shrink-0 group/icon"
               title="Wishlist"
             >
               <Heart className="w-5 h-5 transition-transform duration-250 group-hover/icon:scale-110" />
@@ -137,7 +139,7 @@ export const Navbar: React.FC = () => {
             {/* Cart */}
             <Link
               to="/cart"
-              className="relative p-2 rounded-xl text-slate-600 hover:text-[#0B2A63] hover:bg-[#0B2A63]/08 transition-all duration-250 flex-shrink-0 group/icon"
+              className="relative p-2 rounded-xl text-slate-700 hover:text-[#0B2A63] hover:bg-[#0B2A63]/08 transition-all duration-250 flex-shrink-0 group/icon"
               title="Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5 transition-transform duration-250 group-hover/icon:scale-110" />
@@ -151,7 +153,7 @@ export const Navbar: React.FC = () => {
             {/* Notifications */}
             <Link
               to="/notifications"
-              className="relative flex items-center gap-1.5 p-2 xl:px-2.5 xl:py-2 rounded-xl text-slate-600 hover:text-[#0B2A63] hover:bg-[#0B2A63]/08 transition-all duration-250 group flex-shrink-0"
+              className="relative flex items-center gap-1.5 p-2 xl:px-2.5 xl:py-2 rounded-xl text-slate-700 hover:text-[#0B2A63] hover:bg-[#0B2A63]/08 transition-all duration-250 group flex-shrink-0"
               title="Notifications & Updates"
             >
               <div className="relative">
@@ -246,7 +248,7 @@ export const Navbar: React.FC = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-[#0B2A63]/08 hover:text-[#0B2A63] transition-all"
+              className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-[#0B2A63]/08 hover:text-[#0B2A63] transition-all"
             >
               <Menu className="w-6 h-6" />
             </button>
